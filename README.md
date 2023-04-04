@@ -7,5 +7,5 @@
 ## Installation
 You can install `BGSmartR` by calling the following command:
 ```{r}
-devtools::install_github("JakePowellCUBG/BSBT", dependencies = TRUE) #for development version
+devtools::install_github("JakePowellCUBG/BGSmartR", dependencies = TRUE) #for development version
 ```
