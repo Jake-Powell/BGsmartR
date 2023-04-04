@@ -10,6 +10,7 @@ test_that("is_autonym works", {
   expect_equal(is_autonym("Rhododendron augustinii subsp. augustinii [Tower Court form]"), FALSE)
   expect_equal(is_autonym("Camellia sinensis var. sinensis f. rosea"), FALSE)
   expect_equal(is_autonym("Grevillea exul subsp. exul var. exul"), TRUE)
+  expect_equal(is_autonym('Codiaeum variegatum nothosubsp. variegatum'), TRUE)
 })
 
 

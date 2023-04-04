@@ -55,7 +55,7 @@ is_autonym <- function(name){
 
   # 2) Split word by level i.e var. f., etc.
   # And 'squish' the two resultant parts (i.e remove excess whitespace)
-  split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\.| ssp\\. ')[[1]]
+  split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
   split_name = unlist(lapply(split_name, stringr::str_squish))
 
   # 3) If there is only one chunk return no (i.e no var., f., etc)
