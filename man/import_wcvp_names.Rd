@@ -4,14 +4,36 @@
 \alias{import_wcvp_names}
 \title{Import wcvp_names.csv}
 \usage{
-import_wcvp_names(filepath)
+import_wcvp_names(
+  filepath,
+  wanted_columns = c("plant_name_id", "taxon_rank", "taxon_status", "family", "genus",
+    "species", "lifeform_description", "climate_description", "taxon_name",
+    "taxon_authors", "accepted_plant_name_id", "powo_id")
+)
 }
 \arguments{
 \item{filepath}{path to wcvp_names.csv file.}
+
+\item{wanted_columns}{specify extra columns to extract from \code{wcvp_names.csv}.}
 }
 \value{
 Desired information from wcvp_names.csv
 }
 \description{
-Given the path to \code{wcvp_names.csv} file obtained from POTW website load the relevent information into R.
+Given the path to \code{wcvp_names.csv} file obtained from POTW website load the relevant information into R and extract the information required to perform matching to garden databases.
+}
+\details{
+The columns extracted always include:"plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "accepted_plant_name_id" and "powo_id". Further columns can be extracted using \code{wanted_columns} parameter, where either columns names or indices can be used.
+
+In particular, we add two new columns:
+\itemize{
+\item 'taxon_length' which contains the number of characters in a given taxon_name used when searching for typos in garden databases.
+\item 'is_autonym' contains a logical flag for whether the taxon name is an autonym. This is used to match autonyms in garden databases.
+}
+
+Moreover, the code performs fixes to the data provided in \code{wcvp_names.csv}, namely:
+\itemize{
+\item Checks for '\link{*}' and '\link{**}' in taxon_name and taxon_rank, which should be 'var.' and 'f.' instead.
+\item There are plants that are synonyms without an accepted form in \code{wcvp_names.csv}. However, in some cases the accepted form can be found on POWO online. Therefore, in this case we scrap POWO online for an accepted form and add to the loaded information from \code{wcvp_names.csv}.
+}
 }

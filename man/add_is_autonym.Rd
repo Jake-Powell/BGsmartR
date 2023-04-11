@@ -4,10 +4,12 @@
 \alias{add_is_autonym}
 \title{Add is_autonym column to Botanic garden database.}
 \usage{
-add_is_autonym(data, TaxonName_column = "TaxonName")
+add_is_autonym(data, progress_bar = FALSE, TaxonName_column = "TaxonName")
 }
 \arguments{
 \item{data}{BG database}
+
+\item{progress_bar}{Logical flag, if TRUE show progress bar, else no progress bar}
 
 \item{TaxonName_column}{The name of the column containing the Taxon name.}
 }

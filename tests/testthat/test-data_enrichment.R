@@ -13,4 +13,10 @@ test_that("is_autonym works", {
   expect_equal(is_autonym('Codiaeum variegatum nothosubsp. variegatum'), TRUE)
 })
 
+test_that("get_accepted_plant() words", {
+  expect_equal(get_accepted_plant('582307-1'), c("Campomanesia thea", "44106-2"))
+  expect_equal(get_accepted_plant('546134-4'), c(NA,NA))
+
+})
+
 
