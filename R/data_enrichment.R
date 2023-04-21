@@ -88,12 +88,20 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
   taxon_length = unlist(lapply(wcvp_names$taxon_name, stringr::str_length))
   wcvp_names$taxon_length = taxon_length
 
+  # 3) Add flag for whether there exists multiple taxon names.
+  print('(3/6) Splitting wcvp_names into those with multiple TaxonNames and those with only one...')
+  name_freq = table(wcvp_names$taxon_name)
+  single_entry = rep(NA, nrow(wcvp_names))
+  single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) == 1]] = TRUE
+  single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1]] = FALSE
+  wcvp_names = data.frame(wcvp_names, single_entry)
+
   # 3) Create new column for whether the taxon name is an autonym. (used for checking for matches)
-  print('(3/6) Adding is_autonym column...')
+  print('(4/6) Adding is_autonym column...')
   wcvp_names = add_is_autonym(wcvp_names, progress_bar = T, TaxonName_column = 'taxon_name')
 
-  # 3) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
-  print('(4/6) Checking for accepted form issues with synonyms...')
+  # 5) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
+  print('(5/6) Checking for accepted form issues with synonyms...')
   synonyms =wcvp_names[wcvp_names$taxon_status == 'Synonym',]
   non_accepted_synonyms = synonyms[is.na(synonyms$accepted_plant_name_id),]
   powo_ids = non_accepted_synonyms$powo_id
@@ -102,17 +110,18 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
   pbapply::pboptions(type = "txt")
   accepted_details = pbapply::pblapply(powo_ids,get_accepted_plant)
   new_accepted_name = unlist(lapply(accepted_details, function(x){x[1]}))
-  new_accepted_id = unlist(lapply(accepted_details, function(x){x[2]}))
+  new_accepted_powo_id = unlist(lapply(accepted_details, function(x){x[2]}))
+  new_accepted_name_id = wcvp_names$accepted_plant_name_id[match(new_accepted_powo_id, wcvp_names$powo_id)]
 
-  wcvp_names[wcvp_names$taxon_status == 'Synonym',][is.na(synonyms$accepted_plant_name_id),]$accepted_plant_name_id = new_accepted_id
+  wcvp_names[wcvp_names$taxon_status == 'Synonym',][is.na(synonyms$accepted_plant_name_id),]$accepted_plant_name_id = new_accepted_name_id
 
-  remaining_NA = sum(is.na(new_accepted_id))
-  fixed_synonyms = 100 - remaining_NA/length(new_accepted_name)*100
+  remaining_NA = sum(is.na(new_accepted_name_id))
+  fixed_synonyms = 100 - remaining_NA/length(new_accepted_name_id)*100
   print(paste0('  Fixed ', round(fixed_synonyms,digits=1),'% of missing accepted forms...'))
   print(paste0('  ', remaining_NA,' remaining unexplained missing accepted forms...'))
 
-  # 4)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
-  print('(5/6) Checking for common hybrids, cultivar, etc symbols...')
+  # 6)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
+  print('(6/6) Checking for common hybrids, cultivar, etc symbols...')
 
   # A)  Note current wcvp has a bug where [*] and [**] are sometimes used instead if var. and f.
   # Fix this here
@@ -140,13 +149,6 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
   # Join all exceptions into one data.frame.
   exceptions = rbind(with_sqbracket2, with_mult_apostrophe, with_spdot,with_gx, with_indet)
 
-
-  # 5) wcvp names into two wcvp_single and wcvp_multiple. (to allow for matching when there is a single or multiple records in wcvp)
-  print('(6/6) Splitting wcvp_names into those with multiple TaxonNames and those with only one...')
-  name_freq = table(wcvp_names$taxon_name)
-  wcvp_single = wcvp_names[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) == 1],]
-  wcvp_multi =  wcvp_names[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1],]
-
   # 7) Log the changes.
   #add missing accepted form.
   changes = NULL
@@ -157,7 +159,7 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
                          powo_id = non_accepted_synonyms$powo_id[indices],
                          taxon_name = non_accepted_synonyms$taxon_name[indices],
                          issue_entry = paste0('accepted_plant_name_id = ',non_accepted_synonyms$accepted_plant_name_id[indices]),
-                         fix = paste0('accepted_plant_name_id = ',new_accepted_id[indices], ' (',new_accepted_name[indices],')'))
+                         fix = paste0('accepted_plant_name_id = ',new_accepted_name_id[indices], ' (',new_accepted_name[indices],')'))
   }
 
   #add square bracket issue.
@@ -173,8 +175,7 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
 
 
   # 8) return
-  return(list(wcvp_single = wcvp_single,
-              wcvp_multi = wcvp_multi,
+  return(list(wcvp_names = wcvp_names,
               exceptions = exceptions,
               changes = changes))
 }
@@ -280,7 +281,7 @@ add_is_autonym <- function(data, TaxonName_column = 'TaxonName', progress_bar = 
 #' @return A vector of the indices in taxon_names that can be removed.
 #' @export
 known_not_in_wcvp <- function(taxon_names){
-  return(which(grepl(" sp.| gx |'.*?'|\\[|^Indet",taxon_names)))
+  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet",taxon_names)))
 }
 
 
@@ -327,10 +328,6 @@ match_single_wcvp <- function(taxon_names, wcvp, wcvp_search_index){
 #'
 #' Given a taxon name and its full version we find the records in POWO that share the same taxon name. We then choose the record to match to by:
 #'
-#' - Checking if the full taxon name contains the author described within POWO database. If we have a single match this is chosen.
-#' - If not, check for POWO records that are accepted. If a single record is accepted then this match is chosen.
-#' - If not, check for records that have lifeform descriptions. If we have a single record this is chosen.
-#' - Else, we cannot find a match and no record is chosen.
 #'
 #' @param taxon_name_and_full the pair of taxon name and taxon name full.
 #' @param wcvp_mult POWO database restricted to records that do not have a unique taxon name.
@@ -343,56 +340,280 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
   # 1) Split taxon name and taxon full
   taxon_name_current = taxon_name_and_full[1]
   taxon_full_current = taxon_name_and_full[2]
+  try_author_match = TRUE # flag for whether we have author information
+  flag = TRUE # flag for whether we need to do checks.
+
+  Authors = stringr::str_sub(taxon_full_current, start = stringr::str_length(taxon_name_current)+1, end = stringr::str_length(taxon_full_current))
+  Authors = stringr::str_squish(Authors)
+  Authors_grepl = Authors
+  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
+  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\(', '\\\\(')
+  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\)', '\\\\)')
+  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\[', '\\\\[')
+  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\]', '\\\\]')
+  if(Authors == ''){
+    try_author_match = FALSE
+  }
 
   # 2) Get the corresponding records in wcvp_mult.
   # As we use grepl to match authors add escape characters (\\).
   POWO_cur = wcvp_mult[wcvp_mult$taxon_name == taxon_name_current,]
-  POWO_cur$taxon_authors = stringr::str_replace_all(POWO_cur$taxon_authors,'\\.', '\\\\.')
-  POWO_cur$taxon_authors = stringr::str_replace_all(POWO_cur$taxon_authors,'\\(', '\\\\(')
-  POWO_cur$taxon_authors = stringr::str_replace_all(POWO_cur$taxon_authors,'\\)', '\\\\)')
+  taxon_author_grepl = POWO_cur$taxon_authors
+  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\.', '\\\\.')
+  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\(', '\\\\(')
+  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\)', '\\\\)')
+
 
   ###
-  # 3) Get the match by: match author, accepted.
+  # 3) Get the match by author (if one exists)
   ###
-  flag = T
-  #A) By author.
-  author_match = unlist(lapply(POWO_cur$taxon_authors, function(x){grepl(x,taxon_full_current)}))
-  if(any(author_match)){
-    matched = POWO_cur$plant_name_id[author_match][1]
-    matched = match(matched,wcvp_mult$plant_name_id)
-    message = '(Multiple POWO records, match by author)'
-    flag = F
-  }
-
-  # B) By accepted.
-  if(flag){
-    accepted_names =  POWO_cur$taxon_status == "Accepted"
-    if(any(accepted_names)){
-      matched = POWO_cur$plant_name_id[accepted_names]
-      matched = match(matched,wcvp_mult$plant_name_id)
-      message = '(Multiple POWO records, match to accepted name)'
+  if(try_author_match){
+    # A) By author (exact).
+    exact_match = Authors == POWO_cur$taxon_authors
+    if(sum(exact_match) == 1){ # exactly 1 match
+      # Is the single match accepted (or reference to accepted plant)
+      # if(!is.na(POWO_cur$accepted_plant_name_id[exact_match])){
+      matched = POWO_cur$plant_name_id[exact_match]
+      message = '(Multiple POWO records, match by exact author)'
       flag = F
+      # }
+    }
+    if(sum(exact_match) > 1){ # > 1 match
+      POWO_cur = POWO_cur[exact_match,]
+      accepted_plant_id = POWO_cur$accepted_plant_name_id
+
+      # Check if all exact matches point to the same accepted name
+      if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+        # match to accepted if one exists if not the first plant that matches.
+        taxon_accepted = POWO_cur$taxon_status == 'Accepted'
+        if(any(taxon_accepted)){
+          matched = POWO_cur$plant_name_id[taxon_accepted][1]
+          message = '(Multiple POWO records, match by exact author)'
+        }
+        else{
+          matched = POWO_cur$plant_name_id[1]
+          message = '(Multiple POWO records, match by exact author)'
+
+        }
+        flag = F
+      }
+
+      # Check for differences in taxon_status.
+      if(flag){
+        taxon_status = POWO_cur$taxon_status
+        taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+        chosen_record = which.min(taxon_status_match)
+        if(length(chosen_record)>0){
+          matched = POWO_cur$plant_name_id[chosen_record]
+          message = '(Multiple POWO records, multiple exact author, choose via taxon_status)'
+          flag = F
+        }
+      }
+
+      # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
+      if(flag){
+        matched = -2
+        message = '(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)'
+      }
+
+      flag = F
+    }
+
+
+    # B) By author (partial: powo contained in taxon)
+    if(flag){
+      author_match = unlist(lapply(taxon_author_grepl, function(x){grepl(x,Authors)}))
+      if(sum(author_match)==1){
+        # if(!is.na(POWO_cur$accepted_plant_name_id[author_match])){
+        matched = POWO_cur$plant_name_id[author_match]
+        message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
+        flag = F
+        # }
+
+      }
+      if(sum(author_match) > 1){ # > 1 match
+        POWO_cur = POWO_cur[author_match,]
+        accepted_plant_id = POWO_cur$accepted_plant_name_id
+
+        # Check if all exact matches point to the same accepted name
+        if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+          # match to accepted if one exists if not the first plant that matches.
+          taxon_accepted = POWO_cur$taxon_status == 'Accepted'
+          if(any(taxon_accepted)){
+            matched = POWO_cur$plant_name_id[taxon_accepted][1]
+            message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
+          }
+          else{
+            matched = POWO_cur$plant_name_id[1]
+            message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
+          }
+          flag = F
+        }
+
+        # Check for differences in taxon_status.
+        if(flag){
+          taxon_status = POWO_cur$taxon_status
+          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+          chosen_record = which.min(taxon_status_match)
+          if(length(chosen_record)>0){
+            matched = POWO_cur$plant_name_id[chosen_record]
+            message = '(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)'
+            flag = F
+          }
+        }
+
+        # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
+        if(flag){
+          matched = -2
+          message = '(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)'
+        }
+
+
+        flag = F
+
+      }
+    }
+
+    # C) By author (partial taxon contained in powo)
+    if(flag){
+      author_match = grepl(Authors_grepl, POWO_cur$taxon_authors)
+      if(sum(author_match)==1){
+        # if(!is.na(POWO_cur$accepted_plant_name_id[author_match])){
+        matched = POWO_cur$plant_name_id[author_match]
+        message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
+        flag = F
+        # }
+
+      }
+      if(sum(author_match) > 1){ # > 1 match
+        POWO_cur = POWO_cur[author_match,]
+        accepted_plant_id = POWO_cur$accepted_plant_name_id
+
+        # Check if all exact matches point to the same accepted name
+        if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+          # match to accepted if one exists if not the first plant that matches.
+          taxon_accepted = POWO_cur$taxon_status == 'Accepted'
+          if(any(taxon_accepted)){
+            matched = POWO_cur$plant_name_id[taxon_accepted][1]
+            message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
+          }
+          else{
+            matched = POWO_cur$plant_name_id[1]
+            message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
+          }
+        }
+
+        # Check for differences in taxon_status.
+        if(flag){
+          taxon_status = POWO_cur$taxon_status
+          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+          chosen_record = which.min(taxon_status_match)
+          if(length(chosen_record)>0){
+            matched = POWO_cur$plant_name_id[chosen_record]
+            message = '(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)'
+            flag = F
+          }
+        }
+
+        # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
+        if(flag){
+          matched = -2
+          message = '(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)'
+        }
+
+        flag = F
+
+      }
+    }
+
+    # D) By author (partial powo words contained in taxon)
+    if(flag){
+      match_author_words = unlist(lapply(taxon_author_grepl, function(x){
+        words = stringr::str_split(x, ' ')[[1]]
+        words = words[stringr::str_length(words)>2]
+        contain_words = unlist(lapply(words, function(x){grepl(x,Authors)}))
+        return(sum(contain_words))
+      }))
+      if(length(match_author_words[match_author_words>0]) == 1){
+        chosen_record = which.max(match_author_words)
+        matched = POWO_cur$plant_name_id[chosen_record]
+        message = '(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)'
+        flag = F
+      }
+      else if(length(match_author_words[match_author_words>0]) > 1){
+
+        #One record has the most words
+        if(sum(match_author_words == max(match_author_words))==1){
+          chosen_record = which.max(match_author_words)
+          matched = POWO_cur$plant_name_id[chosen_record]
+          message = '(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)'
+          flag = F
+
+        }
+        else{
+          #Use taxon status for those with the most words.
+          record_with_most_words = which(match_author_words == max(match_author_words))
+
+          taxon_status = POWO_cur$taxon_status[record_with_most_words]
+          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+          chosen_record = which.min(taxon_status_match)
+          if(length(chosen_record)>0){
+            matched = POWO_cur$plant_name_id[record_with_most_words[chosen_record]]
+            message = '(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)'
+            flag = F
+          }
+        }
+      }
+
     }
   }
 
+  ###
+  # 4) Try to match when we do not have the author or the author doesn't match any in POWO.
+  ###
 
-  # C) use record that has lifeform description.
+  # A) Check if the accepted_plant_id is identical across all POWO records.
   if(flag){
-    has_lifeform_description =  POWO_cur$lifeform_description != ""
-    if(any(has_lifeform_description)){
-      matched = POWO_cur$plant_name_id[has_lifeform_description]
-      matched = match(matched,wcvp_mult$plant_name_id)
-      message = '(Multiple POWO records, match to record with lifeform_description)'
+    accepted_plant_id = POWO_cur$accepted_plant_name_id
+
+    if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+      # match to accepted if one exists if not the first plant that matches.
+      taxon_accepted = POWO_cur$taxon_status == 'Accepted'
+      if(any(taxon_accepted)){
+        matched = POWO_cur$plant_name_id[taxon_accepted][1]
+        message = '(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)'
+      }
+      else{
+        matched = POWO_cur$plant_name_id[1]
+        message = '(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)'
+
+      }
       flag = F
     }
+
   }
 
-  # D) Do not match. (set to -2 for we don't know what to match to)
+  # B) Use taxon_status to choose POWO record.
+  if(flag){
+    taxon_status = POWO_cur$taxon_status
+    taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+    chosen_record = which.min(taxon_status_match)
+    if(length(chosen_record)>0){
+      matched = POWO_cur$plant_name_id[chosen_record]
+      message = '(Multiple POWO records, no author/no matched author, choose via taxon_status)'
+      flag = F
+    }
+
+
+  }
+
+  # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
   if(flag){
     matched = -2
-    message = '(Multiple POWO records, unclear do not match)'
+    message = '(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)'
   }
-  return(list(match = matched, message = message))
+
+  return(list(plant_name_id = matched, message = message))
 }
 
 #' match_mult_wcvp()
@@ -429,16 +650,19 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
 
   # 3) Find the match.
   match_info = pbapply::pblapply(to_find_match, function(x){get_match_from_multiple(x,wcvp_multiple)})
-  match_info_match = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
+  match_info_plant_name_id = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
   match_info_mess = unlist(lapply(match_info,function(x){x[[2]]}))
 
   # 4) update match_to_multiple and message.
-  match_to_multiple[in_wcvp] =match_info_match
+  match_info_match =  match(match_info_plant_name_id, wcvp$wcvp_names$plant_name_id)
+  match_info_match[is.na(match_info_match)] = -2
+  match_to_multiple[in_wcvp] = match_info_match
+
   #message if we agree to a match
   has_accept_match = match_info_match > 0
   message[in_wcvp][has_accept_match] = paste0(message[in_wcvp][has_accept_match], ' -> ', match_info_mess[has_accept_match], ' -> (',
-                                              wcvp_multiple$powo_id[match_info_match[has_accept_match]], ', ',
-                                              wcvp_multiple$taxon_name[match_info_match[has_accept_match]],
+                                              wcvp$wcvp_names$powo_id[match_info_match[has_accept_match]], ', ',
+                                              wcvp$wcvp_names$taxon_name[match_info_match[has_accept_match]],
                                               ')')
   #message if we don't agree to a match
   no_accept_match = match_info_match < 0
@@ -502,7 +726,7 @@ convert_to_accepted_name <- function(original_match, wcvp){
 #' @export
 check_taxon_typo <- function(taxon, wcvp){
   # 1) Since no words in wcvp have '(',')' we return null.
-  if(grepl('\\(|\\)',taxon)){return(NULL)}
+  if(grepl('\\(|\\)',taxon)){return(NA)}
 
   # 2) reduce the wcvp names to check.
   #     A) Make sure the wcvp names are either the same length or one extra character.
@@ -534,14 +758,14 @@ check_taxon_typo <- function(taxon, wcvp){
 #'
 #' For each unique taxon name / taxon name full find the corresponding record in POWO.
 #'
-#' @param taxon_taxon_full data frame of two columns where the first column is the taxon_name and second column is the full taxon name (with authors).
+#' @param taxon_name_and_full data frame of two columns where the first column is the taxon_name and second column is the full taxon name (with authors).
 #' @param wcvp POWO database
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
-match_taxon_to_wcvp <- function(taxon_taxon_full, wcvp){
+match_taxon_to_wcvp <- function(taxon_name_and_full, wcvp){
 
   ###
   # 1) Setup original report. (only look at unique taxon name / taxon name full and add is_autonym)
@@ -575,7 +799,7 @@ match_taxon_to_wcvp <- function(taxon_taxon_full, wcvp){
   ###
   indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
   taxon_match[index_to_find_matches[indices]] = -1
-  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' Not in POWO (known not to be in POWO)')
+  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
   index_complete = c(index_complete, indices)
   index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
 
@@ -681,4 +905,185 @@ match_taxon_to_wcvp <- function(taxon_taxon_full, wcvp){
   return(output)
 }
 
+#' Match report to POWO via taxon name
+#'
+#' @param original_report A gardens original report
+#' @param wcvp POWO database
+#'
+#' @return A list of length two containing:
+#' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
+#' `$message` a message detailing the match.
+#' @export
+match_original_to_wcvp <- function(original_report, wcvp){
+  #Implies original_report and wcvp are already in the workspace.
 
+  ###
+  # 1) Setup original report. (only look at unique taxon name / taxon name full and add is_autonym)
+  ###
+  # Extract taxon name and taxon name full used in the matching.
+  taxon_name_and_full = original_report[,match(c('TaxonName','TaxonNameFull'), names(original_report))]
+  unique_taxon_name_and_full =unique(taxon_name_and_full)
+  taxon_name_and_full_combined = do.call(paste, c(taxon_name_and_full, sep='-'))
+  unique_taxon_name_and_full_combined = do.call(paste, c(unique_taxon_name_and_full, sep='-'))
+
+  report_match = match(taxon_name_and_full_combined,unique_taxon_name_and_full_combined)
+  unique_taxon_name_and_full = add_is_autonym(unique_taxon_name_and_full)
+  taxon_name = unique_taxon_name_and_full$TaxonName
+  taxon_name_full =  unique_taxon_name_and_full$TaxonNameFull
+
+  ###
+  # 2) Setup outputs.
+  ###
+  taxon_match_full = rep(NA,nrow(original_report))
+  taxon_name_story_full = rep(NA,nrow(original_report))
+  taxon_match = rep(NA, length(taxon_name))
+  taxon_name_story = taxon_name
+  index_to_find_matches = 1:length(taxon_name)
+  index_complete = NULL
+
+  ###
+  # 3) Match the exceptions of the known not to be in POWO.
+  ###
+  # (Assume all exceptions are single records in POWO, this is the case currently)
+  exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
+  exception_indices = exception_indices[!is.na(exception_indices)]
+  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, exception_indices)
+  taxon_match[index_to_find_matches] = match_info$match
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+
+  ###
+  # 4) Remove known to not be in POWO. (set taxon match to -1)
+  ###
+  indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
+  taxon_match[index_to_find_matches[indices]] = -1
+  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
+  index_complete = c(index_complete, indices)
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
+
+  ###
+  # 5) Match original report to all taxon names with a single entry in POWO.
+  ###
+  single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
+  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
+  taxon_match[index_to_find_matches] = match_info$match
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+
+
+  ###
+  # 6) Match original report to all taxon names with a multiple entry in POWO.
+  ###
+  mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
+  match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp, mult_indices)
+  taxon_match[index_to_find_matches] = match_info$match
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+
+  ###
+  # 7) Try to match the autonym.
+  ###
+  # A) Find the index of the remaining autonyms, extract the base name. Update taxon_name_story.
+  remaining_autonyms_flag = unique_taxon_name_and_full$is_autonym[index_to_find_matches]
+  autonym_indices = index_to_find_matches[remaining_autonyms_flag]
+  remaining_autonyms = taxon_name[autonym_indices]
+  name_to_try = unlist(lapply(remaining_autonyms, function(name){
+    split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
+    split_name = unlist(lapply(split_name, stringr::str_squish))
+    return(split_name[1])
+  }))
+  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices],
+                                             ' -> (Autonym. Does not exist in POWO. Convert to base name) -> ',
+                                             name_to_try)
+
+  # B) Try to match the base name to POWO with single records.
+  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
+  taxon_match[autonym_indices] = match_info$match
+  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
+  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
+  name_to_try = name_to_try[is.na(match_info$match)]
+  autonym_indices = autonym_indices[is.na(match_info$match)]
+
+  # C) Try to match the base name to POWO with multiple records.
+  match_info = match_mult_wcvp(name_to_try,taxon_name_full[autonym_indices],  wcvp, mult_indices)
+  taxon_match[autonym_indices] = match_info$match
+  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
+  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
+
+  ###
+  # 8) Try to find typo and then match.
+  ###
+  # A) Search for typos.
+  fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names)}))
+  typo_index = index_to_find_matches[which(!is.na(fixed_typo))]
+  name_to_try = fixed_typo[which(!is.na(fixed_typo))]
+  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index],
+                                        ' -> (Typo) -> ',
+                                        name_to_try)
+
+  # B) Try to match the base name to POWO with single records.
+  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
+  taxon_match[typo_index] = match_info$match
+  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
+  index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
+  name_to_try = name_to_try[is.na(match_info$match)]
+  typo_index = typo_index[is.na(match_info$match)]
+
+  # C) Try to match the base name to POWO with multiple records.
+  match_info = match_mult_wcvp(name_to_try,taxon_name_full[typo_index],  wcvp, mult_indices)
+  taxon_match[typo_index] = match_info$match
+  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
+  index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
+
+  ###
+  # 9) Convert to accepted name where possible.
+  ###
+  match_info = convert_to_accepted_name(taxon_match, wcvp)
+  taxon_match = match_info$match
+  taxon_name_story = paste0(taxon_name_story, match_info$message)
+
+  ###
+  # 10) return match (to original report) and details of the matches (for unique plants).
+  ###
+  # A) The remaining not found indices set to -3. With message not in POWO.
+  taxon_match[index_to_find_matches] = -3
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
+
+  # B) Set output
+  taxon_match_full = taxon_match[report_match]
+  taxon_name_story_full = taxon_name_story[report_match]
+  return(list(match = taxon_match_full, details = taxon_name_story_full))
+}
+
+#' enrich_original()
+#'
+#' @param original_report A gardens original report
+#' @param wcvp POWO database
+#' @param wcvp_wanted_columns The data fields of POWO we want to enrich to the original report
+#'
+#' @return a list of length two:
+#' `$enriched_report` the enriched report, and
+#' `match_details` the details of how taxon names have being used to match to POWO.
+#' @export
+enrich_original <- function(original_report, wcvp, wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description" )){
+
+  # 1) find the match between original report and wcvp.
+  match_info = match_original_to_wcvp(original_report, wcvp)
+
+  # 2) Extract the info from wcvp.
+  POWO_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wcvp_wanted_columns)))
+  names(POWO_info) = paste0('POWO_',wcvp_wanted_columns)
+  indices = which(!(is.na(match_info$match) | match_info$match < 0))
+  POWO_info[indices,] = wcvp$wcvp_names[match_info$match[indices],match(wcvp_wanted_columns,names(wcvp$wcvp_names))]
+
+  enriched_report = data.frame(original_report, POWO_info)
+
+  return(list(enriched_report = enriched_report, match_details = match_info$details))
+}

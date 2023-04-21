@@ -19,11 +19,3 @@ A list of length two containing:
 \description{
 Given a taxon name and its full version we find the records in POWO that share the same taxon name. We then choose the record to match to by:
 }
-\details{
-\itemize{
-\item Checking if the full taxon name contains the author described within POWO database. If we have a single match this is chosen.
-\item If not, check for POWO records that are accepted. If a single record is accepted then this match is chosen.
-\item If not, check for records that have lifeform descriptions. If we have a single record this is chosen.
-\item Else, we cannot find a match and no record is chosen.
-}
-}
