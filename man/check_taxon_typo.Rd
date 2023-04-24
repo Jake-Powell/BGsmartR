@@ -12,11 +12,11 @@ check_taxon_typo(taxon, wcvp)
 \item{wcvp}{POWO database}
 }
 \value{
-a potential fixed name.
+a potential fixed name, or NA if no correction is found.
 }
 \description{
-This function checks for typos in the taxon name in reports and suggests corrections if they exist.
+This function checks for typos in the taxon name and returns (the first) record found in wcvp with a single change.
 }
 \details{
-In particualar, the function compares the given taxon with a single extra letter or changing one letter against names known to be in POWO. If a fixed word is found in POWO we return it.
+In particular, the function compares the given taxon with a single extra letter, changing one letter or removing one letter against names known to be in POWO.
 }

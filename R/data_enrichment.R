@@ -311,7 +311,7 @@ add_is_autonym <- function(data, TaxonName_column = 'TaxonName', progress_bar = 
 #' @return A vector of the indices in taxon_names that can be removed.
 #' @export
 known_not_in_wcvp <- function(taxon_names){
-  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|$indet|CV|$cv|cv\\.|Group|unkn|$hybrid|Hybrid |Unknown",taxon_names)))
+  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|indet$|CV|cv$|cv\\.|Group|unkn|hybrid$|Hybrid |Unknown",taxon_names)))
 }
 
 
