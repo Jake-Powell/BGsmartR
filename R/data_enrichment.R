@@ -134,20 +134,38 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
   wcvp_names[stringr::str_count(wcvp_names$taxon_name, "\\[") >= 1,] = with_sqbracket
   with_sqbracket2 = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "\\[") >= 1,]
 
-  # B) Contains multiple apostrophe.
+  # B) Contains multiple apostrophe. Cultivar.
   with_mult_apostrophe = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "'") >= 2,]
+  with_CV =  wcvp_names[stringr::str_count(wcvp_names$taxon_name, "CV") >= 1,]
+  with_cv_end =  wcvp_names[stringr::str_count(wcvp_names$taxon_name, "$cv") >= 1,]
+  with_cv_stop =  wcvp_names[stringr::str_count(wcvp_names$taxon_name, "cv\\.") >= 1,]
 
   # C) Is indeterminant by ' sp. '.
   with_spdot = wcvp_names[stringr::str_count(wcvp_names$taxon_name, " sp\\. ") >= 1,]
 
   # D) Is a hybrid by ' gx '.
   with_gx = wcvp_names[stringr::str_count(wcvp_names$taxon_name, " gx ") >= 1,]
+  with_gx_no_space = wcvp_names[stringr::str_count(wcvp_names$taxon_name, " gx") >= 1,]
 
-  # E) is indeterminant by starting with 'Indet '.
+  # E) is indeterminant by starting with 'Indet ' or ending with 'indet'.
   with_indet = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "^Indet ") >= 1,]
+  with_indet_end = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "$indet") >= 1,]
 
-  # Join all exceptions into one data.frame.
-  exceptions = rbind(with_sqbracket2, with_mult_apostrophe, with_spdot,with_gx, with_indet)
+  # F) other.
+  with_group = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "Group") >= 1,]
+  with_unkn = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "unkn") >= 1,]
+  with_hybrid_end = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "$hybrid") >= 1,]
+  with_Hybrid_space = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "Hybrid ") >= 1,]
+  with_Unknown = wcvp_names[stringr::str_count(wcvp_names$taxon_name, "Unknown") >= 1,]
+
+
+   # Join all exceptions into one data.frame.
+  exceptions = rbind(with_sqbracket2,
+                     with_CV, with_cv_end, with_cv_stop, with_mult_apostrophe,
+                     with_spdot,
+                     with_gx, with_gx_no_space,
+                     with_indet, with_indet_end,
+                     with_group, with_unkn, with_hybrid_end, with_Hybrid_space, with_Unknown)
 
   # 7) Log the changes.
   #add missing accepted form.
@@ -270,18 +288,30 @@ add_is_autonym <- function(data, TaxonName_column = 'TaxonName', progress_bar = 
 #' known_not_in_wcvp()
 #'
 #' A function that finds the taxon names which are known not to be in POWO. In particular this includes:
-#' - includes ` sp.`
-#' - includes ` gx `
-#' - includes `'XX'` for some text XX. This is common notation for XX.
-#' - includes `[`
+#' - Includes ` sp.`.
+#' - Includes ` gx `.
+#' - Includes ` gx`.
+#' - Includes `'XX'` for some text XX. This is common notation for XX.
+#' - Includes `[`.
 #' - Begins with `Indet`. This is an indetminant and therefore won't be in POWO.
+#' - Ends in `indet`. This is an indetminant and therefore won't be in POWO.
+#' - Includes `CV`.
+#' - Ends in `cv`.
+#' - Includes `cv.`.
+#' - Includes `Group`.
+#' - Includes `unkn`.
+#' - Ends in `hybrid`.
+#' - Includes `Hybrid `.
+#' - Includes `Unknown`.
+#'
+#' Note that some of these known not in POWO do have exceptions and this is captured when reading in the data via `input_wcvp_names()`.
 #'
 #' @param taxon_names A vector of taxon names
 #'
 #' @return A vector of the indices in taxon_names that can be removed.
 #' @export
 known_not_in_wcvp <- function(taxon_names){
-  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet",taxon_names)))
+  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|$indet|CV|$cv|cv\\.|Group|unkn|$hybrid|Hybrid |Unknown",taxon_names)))
 }
 
 
@@ -715,20 +745,21 @@ convert_to_accepted_name <- function(original_match, wcvp){
 
 #' check_taxon_typo()
 #'
-#' This function checks for typos in the taxon name in reports and suggests corrections if they exist.
+#' This function checks for typos in the taxon name and returns (the first) record found in wcvp with a single change.
 #'
-#' In particualar, the function compares the given taxon with a single extra letter or changing one letter against names known to be in POWO. If a fixed word is found in POWO we return it.
+#' In particular, the function compares the given taxon with a single extra letter, changing one letter or removing one letter against names known to be in POWO.
 #'
 #' @param taxon The taxon_name
 #' @param wcvp POWO database
 #'
-#' @return a potential fixed name.
+#' @return a potential fixed name, or NA if no correction is found.
 #' @export
 check_taxon_typo <- function(taxon, wcvp){
   # 1) Since no words in wcvp have '(',')' we return null.
   if(grepl('\\(|\\)',taxon)){return(NA)}
 
-  # 2) reduce the wcvp names to check.
+  # 2) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
+
   #     A) Make sure the wcvp names are either the same length or one extra character.
   length_taxon = stringr::str_length(taxon)
   wcvp_needed = wcvp[wcvp$taxon_length %in% c(length_taxon-1, length_taxon, length_taxon+1),]
@@ -737,21 +768,33 @@ check_taxon_typo <- function(taxon, wcvp){
   words = words[!grepl('\\.', words)]
   pat = paste0(words,collapse = '|')
   wcvp_needed = wcvp_needed[grepl(pat, wcvp_needed$taxon_name ),]
-  wcvp_needed = wcvp_needed$taxon_name
+  wcvp_needed_minus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon-1)]
+  wcvp_needed_same = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon)]
+  wcvp_needed_plus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon+1)]
 
-  # Check each letter if different.
-  similar = NULL
-  for(i in 1:(length_taxon-1)){
+
+  for(i in (length_taxon-1):1){
     #Check changing a single letter.
     patternA = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z]',stringr::str_sub(taxon,i+2,length_taxon))
+    fixed_typoA = wcvp_needed_same[grepl(patternA, wcvp_needed_same)]
+    if(length(fixed_typoA) >0){
+      return(fixed_typoA[1])
+    }
 
     #Check adding a single new letter
     patternB = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z]',stringr::str_sub(taxon,i+1,length_taxon))
-
-    #Add the newly found similar words to 'similar'
-    similar = c(similar,wcvp_needed[grepl(patternA, wcvp_needed)|grepl(patternB, wcvp_needed)])
+    fixed_typoB = wcvp_needed_plus_1[grepl(patternB, wcvp_needed_plus_1)]
+    if(length(fixed_typoB) >0){
+      return(fixed_typoB[1])
+    }
+    #Check removing a single new letter
+    patternC = paste0(stringr::str_sub(taxon,1,i),stringr::str_sub(taxon,i+2,length_taxon))
+    fixed_typoC = wcvp_needed_minus_1[grepl(patternC, wcvp_needed_minus_1)]
+    if(length(fixed_typoC) >0){
+      return(fixed_typoC[1])
+    }
   }
-  return(similar[1])
+  return(NA)
 }
 
 #' match taxon and taxon name full to POWO

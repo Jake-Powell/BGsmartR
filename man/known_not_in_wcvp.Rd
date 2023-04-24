@@ -15,10 +15,23 @@ A vector of the indices in taxon_names that can be removed.
 \description{
 A function that finds the taxon names which are known not to be in POWO. In particular this includes:
 \itemize{
-\item includes \code{ sp.}
-\item includes \code{gx}
-\item includes \code{'XX'} for some text XX. This is common notation for XX.
-\item includes \code{[}
+\item Includes \code{ sp.}.
+\item Includes \code{gx}.
+\item Includes \code{ gx}.
+\item Includes \code{'XX'} for some text XX. This is common notation for XX.
+\item Includes \code{[}.
 \item Begins with \code{Indet}. This is an indetminant and therefore won't be in POWO.
+\item Ends in \code{indet}. This is an indetminant and therefore won't be in POWO.
+\item Includes \code{CV}.
+\item Ends in \code{cv}.
+\item Includes \code{cv.}.
+\item Includes \code{Group}.
+\item Includes \code{unkn}.
+\item Ends in \code{hybrid}.
+\item Includes \code{Hybrid }.
+\item Includes \code{Unknown}.
 }
+}
+\details{
+Note that some of these known not in POWO do have exceptions and this is captured when reading in the data via \code{input_wcvp_names()}.
 }
