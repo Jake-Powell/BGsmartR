@@ -198,21 +198,26 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
               changes = changes))
 }
 
-
-#' Import wcvp_distribution.csv
+#' extract_year()
 #'
-#' Given the path to `wcvp_distribution.csv` file obtained from POTW website load the relevent information into R.
+#' A function that extracts the year from dates where the date can be in the following formats:
+#' - DD/MM/YYYY
+#' - YYYY-MM-DD
+#' - MM/YYYY
+#' - YYYY-MM
+#' - YYYY
+#' - DD Month YYYY
 #'
-#' @param filepath path to wcvp_distribution.csv file.
+#' The year must be in the format YYYY. I.e. cannot have formats such as DD/MM/YY.
 #'
-#' @return Desired information from wcvp_distribution.csv
+#' @param date_vector A vector of dates
+#'
+#' @return a vector of years
 #' @export
-#'
-import_wcvp_distribution <- function(filepath){
-  # 2) Load and select columns
-  wcvp_distribution = utils::read.table(filepath, sep="|", header=TRUE, quote = "", fill=TRUE, encoding = "UTF-8")
-  return(wcvp_distribution)
+extract_year <- function(date_vector){
+  return(as.numeric(unlist(stringr::str_extract(date_vector, '[0-9]{4}'))))
 }
+
 
 #' Find if a Taxon name is an autonym
 #'
