@@ -7,9 +7,8 @@
 enrich_original(
   original_report,
   wcvp,
-  wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank",
-    "taxon_status", "powo_id", "family", "genus", "species", "lifeform_description",
-    "climate_description")
+  do_is_autonym = FALSE,
+  do_status_year = FALSE
 )
 }
 \arguments{
@@ -17,7 +16,9 @@ enrich_original(
 
 \item{wcvp}{POWO database}
 
-\item{wcvp_wanted_columns}{The data fields of POWO we want to enrich to the original report}
+\item{do_is_autonym}{Flag for whether to add the column is_autonym}
+
+\item{do_status_year}{Flag for whether to add the column status_year}
 }
 \value{
 a list of length two:
@@ -25,5 +26,12 @@ a list of length two:
 \code{match_details} the details of how taxon names have being used to match to POWO.
 }
 \description{
-enrich_original()
+This function enriches an original report by adding columns:
+}
+\details{
+\itemize{
+\item \code{is_autonym} (Logical (TRUE/FALSE)) detailing whether the taxon name is an autonym.
+\item \code{status_year} (numeric) the year extracted from \code{ItemStatusDate.}
+\item Information from POWO.
+}
 }

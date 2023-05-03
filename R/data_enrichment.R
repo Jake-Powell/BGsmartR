@@ -198,27 +198,6 @@ import_wcvp_names <- function(filepath, wanted_columns = c("plant_name_id", "tax
               changes = changes))
 }
 
-#' extract_year()
-#'
-#' A function that extracts the year from dates where the date can be in the following formats:
-#' - DD/MM/YYYY
-#' - YYYY-MM-DD
-#' - MM/YYYY
-#' - YYYY-MM
-#' - YYYY
-#' - DD Month YYYY
-#'
-#' The year must be in the format YYYY. I.e. cannot have formats such as DD/MM/YY.
-#'
-#' @param date_vector A vector of dates
-#'
-#' @return a vector of years
-#' @export
-extract_year <- function(date_vector){
-  return(as.numeric(unlist(stringr::str_extract(date_vector, '[0-9]{4}'))))
-}
-
-
 #' Find if a Taxon name is an autonym
 #'
 #' This function calculates whether a Taxon Name is an autonym.
@@ -1112,26 +1091,59 @@ match_original_to_wcvp <- function(original_report, wcvp){
 
 #' enrich_original()
 #'
+#' This function enriches an original report by adding columns:
+#'
+#' - `is_autonym` (Logical (TRUE/FALSE)) detailing whether the taxon name is an autonym.
+#' - `status_year` (numeric) the year extracted from `ItemStatusDate.`
+#'
+#' - Information from POWO.
+#'
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
-#' @param wcvp_wanted_columns The data fields of POWO we want to enrich to the original report
+#' @param do_is_autonym Flag for whether to add the column is_autonym
+#' @param do_status_year Flag for whether to add the column status_year
 #'
 #' @return a list of length two:
 #' `$enriched_report` the enriched report, and
 #' `match_details` the details of how taxon names have being used to match to POWO.
 #' @export
-enrich_original <- function(original_report, wcvp, wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description" )){
+enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE){
 
-  # 1) find the match between original report and wcvp.
+  enriched_report = original_report
+
+  ###
+  # 1) Add is_autonym.
+  ###
+  if(do_is_autonym){
+    enriched_report = add_is_autonym(enriched_report)
+
+  }
+
+  ###
+  # 2) Add status_year.
+  ###
+  if(do_status_year){
+    status_year = extract_year(enriched_report$ItemStatusDate)
+    enriched_report = data.frame(enriched_report, status_year = status_year)
+  }
+
+
+  ###
+  # 3) Add information from POWO.
+  ###
+  # A) find the match between original report and wcvp.
   match_info = match_original_to_wcvp(original_report, wcvp)
 
-  # 2) Extract the info from wcvp.
+  # B) Extract the info from wcvp.
+  wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description" )
   POWO_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wcvp_wanted_columns)))
   names(POWO_info) = paste0('POWO_',wcvp_wanted_columns)
   indices = which(!(is.na(match_info$match) | match_info$match < 0))
   POWO_info[indices,] = wcvp$wcvp_names[match_info$match[indices],match(wcvp_wanted_columns,names(wcvp$wcvp_names))]
 
-  enriched_report = data.frame(original_report, POWO_info)
+  # C) add to enriched report.
+  enriched_report = data.frame(enriched_report, POWO_info)
 
+  #Retrun the enriched report and the detail of how matching to POWO was performed.
   return(list(enriched_report = enriched_report, match_details = match_info$details))
 }
