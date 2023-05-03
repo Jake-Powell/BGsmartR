@@ -8,7 +8,8 @@ enrich_original(
   original_report,
   wcvp,
   do_is_autonym = FALSE,
-  do_status_year = FALSE
+  do_status_year = FALSE,
+  do_infrageneric_level = FALSE
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ enrich_original(
 \item{do_is_autonym}{Flag for whether to add the column is_autonym}
 
 \item{do_status_year}{Flag for whether to add the column status_year}
+
+\item{do_infrageneric_level}{Flag for whether to add the column infrageneric_level}
 }
 \value{
 a list of length two:

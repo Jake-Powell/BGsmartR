@@ -1102,12 +1102,14 @@ match_original_to_wcvp <- function(original_report, wcvp){
 #' @param wcvp POWO database
 #' @param do_is_autonym Flag for whether to add the column is_autonym
 #' @param do_status_year Flag for whether to add the column status_year
+#' @param do_infrageneric_level Flag for whether to add the column infrageneric_level
+
 #'
 #' @return a list of length two:
 #' `$enriched_report` the enriched report, and
 #' `match_details` the details of how taxon names have being used to match to POWO.
 #' @export
-enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE){
+enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE){
 
   enriched_report = original_report
 
@@ -1116,7 +1118,6 @@ enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_sta
   ###
   if(do_is_autonym){
     enriched_report = add_is_autonym(enriched_report)
-
   }
 
   ###
@@ -1129,7 +1130,7 @@ enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_sta
 
 
   ###
-  # 3) Add information from POWO.
+  # 4) Add information from POWO.
   ###
   # A) find the match between original report and wcvp.
   match_info = match_original_to_wcvp(original_report, wcvp)
@@ -1144,6 +1145,18 @@ enrich_original <- function(original_report, wcvp, do_is_autonym = FALSE, do_sta
   # C) add to enriched report.
   enriched_report = data.frame(enriched_report, POWO_info)
 
-  #Retrun the enriched report and the detail of how matching to POWO was performed.
+
+  ###
+  # 4) Add infrageneric_level.
+  ###
+  # We run infrageneric_level on the taxonName from POWO unless we didn't find a match then we use the original taxon name.
+  if(do_status_year){
+    taxon_name = enriched_report$POWO_taxon_name
+    taxon_name[is.na(taxon_name)] = enriched_report$TaxonName[is.na(taxon_name)]
+    infrageneric_levels = unlist(lapply(taxon_name, infrageneric_level))
+    enriched_report = data.frame(enriched_report, infrageneric_level = infrageneric_levels)
+  }
+
+  #Return the enriched report and the detail of how matching to POWO was performed.
   return(list(enriched_report = enriched_report, match_details = match_info$details))
 }
