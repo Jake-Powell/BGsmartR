@@ -20,6 +20,7 @@
 #' @export
 #'
 #' @examples
+#'  \donttest{
 #' # 0.indet
 #' infrageneric_level("\xd7 Aridaria sp.")
 #'
@@ -34,8 +35,7 @@
 #'
 #' # 4.f
 #' infrageneric_level("Aquilegia flabellata f. alba")
-#'
-#'
+#'}
 infrageneric_level <- function(taxonName){
 
   if(taxonName ==''){return(NA)}
@@ -124,4 +124,46 @@ infrageneric_level <- function(taxonName){
   }
 
   return(paste0(groups,collapse = ', '))
+}
+
+
+
+#' Add infrageneric_level column to Botanic garden database.
+#'
+#' @param data BG database
+#' @param TaxonNameColumn The name of the column containing the (original) Taxon name.
+#' @param POWO_TaxonNameColumn The name of the column containing the POWO (WCVP) Taxon name.
+#' @param progress_bar Logical flag, if TRUE show progress bar, else no progress bar
+#'
+#' @return The BG database with a new column called infrageneric_level
+#' @export
+add_infrageneric_level <- function(data, TaxonNameColumn = 'TaxonName', POWO_TaxonNameColumn = NULL, progress_bar = FALSE){
+  ####
+  # 1) Get taxon names to use for infrageneric_level
+  ####
+  #A) we DON'T have POWO_TaxonNameColumn.
+  if(is.null(POWO_TaxonNameColumn)){
+    taxon_names = data[,match(TaxonNameColumn, names(data))]
+  }
+  #B) we DO have POWO_TaxonNameColumn.
+  else{
+    taxon_names = data[,match(POWO_TaxonNameColumn, names(data))]
+    original_taxon_names = data[,match(TaxonNameColumn, names(data))]
+    taxon_names[is.na(taxon_names)] = original_taxon_names[is.na(taxon_names)]
+  }
+
+  ###
+  # 2) Get the infrageneric level.
+  ###
+  if(progress_bar){
+    infrageneric_levels = unlist(pbapply::pblapply(taxon_names, infrageneric_level))
+  }
+  else{
+    infrageneric_levels = unlist(lapply(taxon_names, infrageneric_level))
+  }
+
+  ###
+  # 3) Return data with infrageneric_levels added.
+  ###
+  return(data.frame(data, infrageneric_level = infrageneric_levels))
 }

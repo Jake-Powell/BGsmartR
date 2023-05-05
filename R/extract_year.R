@@ -24,3 +24,17 @@
 extract_year <- function(date_vector){
   return(as.numeric(unlist(stringr::str_extract(date_vector, '[0-9]{4}'))))
 }
+
+
+#' Add status_year column to Botanic garden database.
+#'
+#' @param data BG database
+#' @param ItemStatusDate_column The name of the column containing the Taxon name.
+#'
+#' @return The BG database with a new column called status_year.
+#' @export
+add_status_year <- function(data, ItemStatusDate_column = 'ItemStatusDate'){
+  ItemStatusdate = data[,match(ItemStatusDate_column, names(data))]
+  status_year = extract_year(ItemStatusdate)
+  return(data.frame(data,status_year = status_year))
+}

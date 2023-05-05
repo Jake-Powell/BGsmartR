@@ -30,6 +30,7 @@ This functions extracts the infrageneric level from a taxon name, in particular:
 \code{5-6} are horticultural characteristics and plants can have none, one or both of these.
 }
 \examples{
+ \donttest{
 # 0.indet
 infrageneric_level("\xd7 Aridaria sp.")
 
@@ -44,6 +45,5 @@ infrageneric_level("Rhododendron saluenense var. prostratum")
 
 # 4.f
 infrageneric_level("Aquilegia flabellata f. alba")
-
-
+}
 }
