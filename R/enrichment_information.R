@@ -381,7 +381,6 @@ add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
   # Select only non-extinct, native, with no location doubt.
   print('(2/4) Selecting only native locations...')
   wcvp_distributions = wcvp_distributions[wcvp_distributions$location_doubtful == 0 &
-                                          wcvp_distributions$extinct == 0 &
                                           wcvp_distributions$introduced == 0,]
 
   # 3) reformat wcvp_distributions to be by plant_name_id.
