@@ -106,7 +106,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
     if(system.file(package='rWCVPdata') == ''){
       stop('Package rWCVPdata is not installed please use another method to load wcvp_names or install the package')
     }
-    wcvp_names <- rWCVPdata::wcvp_names
+    # wcvp_names <- rWCVPdata::wcvp_names
 
   }
   if(!exists('wcvp_names')){
@@ -370,7 +370,7 @@ add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
     if(system.file(package='rWCVPdata') == ''){
       stop('Package rWCVPdata is not installed please use another method to load wcvp_names or install the package')
     }
-    wcvp_distributions <- rWCVPdata::wcvp_distributions
+    # wcvp_distributions <- rWCVPdata::wcvp_distributions
 
   }
   if(!exists('wcvp_distributions')){
