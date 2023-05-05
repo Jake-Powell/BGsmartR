@@ -84,10 +84,13 @@ infrageneric_level <- function(taxonName){
   }
 
   # 6) "6.hybrid" (this checkes the hex code rather than unicode for 'x' not sure if this will be needed once encoding issues are sorted)
-  if (grepl('\xd7', taxonName)){
+  if (stringr::str_detect(taxonName,'\xd7')){
     groups = c(groups, '6.hybrid')
   }
+
   groups = unique(groups)
+  if(is.null(groups)){
+    return(NA)}
 
   # D) If we have multiple biological characteristics we need to remove excess ones
   # Such as choosing the biological characteristic with the smallest scope.
