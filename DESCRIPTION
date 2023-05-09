@@ -23,5 +23,6 @@ Imports:
     taxize,
     dplyr,
     utils,
-    rlang
+    rlang,
+    cli
 VignetteBuilder: knitr

@@ -4,12 +4,14 @@
 \alias{match_original_to_wcvp}
 \title{Match report to POWO via taxon name}
 \usage{
-match_original_to_wcvp(original_report, wcvp)
+match_original_to_wcvp(original_report, wcvp, find_typos = TRUE)
 }
 \arguments{
 \item{original_report}{A gardens original report}
 
 \item{wcvp}{POWO database}
+
+\item{find_typos}{Flag for whether we search for typos}
 }
 \value{
 A list of length two containing:
