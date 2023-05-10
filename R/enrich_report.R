@@ -12,13 +12,13 @@
 #' @param do_is_autonym Flag for whether to add the column is_autonym
 #' @param do_status_year Flag for whether to add the column status_year
 #' @param do_infrageneric_level Flag for whether to add the column infrageneric_level
-
+#' @param find_typos Flag for whether we search for typos
 #'
 #' @return a list of length two:
 #' `$enriched_report` the enriched report, and
 #' `match_details` the details of how taxon names have being used to match to POWO.
 #' @export
-enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE){
+enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE, find_typos = TRUE){
 
   enriched_report = original_report
 
@@ -41,7 +41,7 @@ enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_statu
   # 4) Add information from POWO.
   ###
   # A) find the match between original report and wcvp.
-  match_info = match_original_to_wcvp(original_report, wcvp)
+  match_info = match_original_to_wcvp(original_report, wcvp, find_typos = find_typos)
 
   # B) Extract the info from wcvp.
   wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area", "Dist_area_code_l3", "Dist_labels")
