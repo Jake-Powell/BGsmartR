@@ -124,13 +124,25 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   # Change the taxon name for one special case.
   wcvp_names$taxon_name[wcvp_names$taxon_name == 'xx viridissimus var. viridissimus'] = 'Trigonostemon viridissimus var. viridissimus'
 
-    # 2) Sanitise taxon names.
+  # 2) Sanitise taxon names.
   cli::cli_h2("(2/6) Sanitising taxon names")
   santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
   original_taxon_name = wcvp_names$taxon_name
   wcvp_names$taxon_name = santise_taxon_name
   indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+
+  # 2) Sanitise authors.
+  cli::cli_h2("(2/6) Creating author parts...")
+  authors = wcvp_names$taxon_authors
+  remove_initials = unlist(pbapply::pblapply(authors,function(x){
+    parts = stringr::str_split(x,'\\.| |,')[[1]]
+    parts = stringr::str_squish(parts)
+    parts = paste0(parts[stringr::str_length(parts)>3], collapse = ', ')
+  }))
+  remove_initials = stringr::str_replace_all(remove_initials, '\\(|\\)','')
+
+  wcvp_names$author_parts = remove_initials
 
 
   # 2) Create new column for the length of the taxonName (used if we search for typos

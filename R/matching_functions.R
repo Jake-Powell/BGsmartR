@@ -273,12 +273,22 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
 
     # D) By author (partial powo words contained in taxon)
     if(flag){
-      match_author_words = unlist(lapply(taxon_author_grepl, function(x){
-        words = stringr::str_split(x, ' ')[[1]]
-        words = words[stringr::str_length(words)>2]
+      author_words = POWO_cur$author_parts
+      match_author_words = unlist(lapply(author_words,function(x){
+        words = stringr::str_split(x,', ')[[1]]
         contain_words = unlist(lapply(words, function(x){grepl(x,Authors)}))
         return(sum(contain_words))
+
       }))
+
+      # Older version without author_parts in wcvp.
+      # match_author_words = unlist(lapply(taxon_author_grepl, function(x){
+      #   words = stringr::str_split(x, ' ')[[1]]
+      #   words = words[stringr::str_length(words)>2]
+      #   contain_words = unlist(lapply(words, function(x){grepl(x,Authors)}))
+      #   return(sum(contain_words))
+      # }))
+
       if(length(match_author_words[match_author_words>0]) == 1){
         chosen_record = which.max(match_author_words)
         matched = POWO_cur$plant_name_id[chosen_record]
@@ -394,7 +404,8 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
   to_find_match = Map(c, taxon_names[in_wcvp], taxon_names_full[in_wcvp])
 
   # 3) Find the match.
-  match_info = pbapply::pblapply(to_find_match, function(x){get_match_from_multiple(x,wcvp_multiple)})
+  match_info = pbapply::pblapply(to_find_match, function(x){
+    get_match_from_multiple(x,wcvp_multiple)})
   match_info_plant_name_id = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
   match_info_mess = unlist(lapply(match_info,function(x){x[[2]]}))
 
@@ -470,18 +481,19 @@ convert_to_accepted_name <- function(original_match, wcvp){
 #' @return a potential fixed name, or NA if no correction is found.
 #' @export
 check_taxon_typo <- function(taxon, wcvp){
-  # 1) Since no words in wcvp have '(',')' we return null.
-  if(grepl('\\(|\\)',taxon)){return(NA)}
+  # 1) Since no words in wcvp have '(',')', '?' or '*' we return NA.
+  if(grepl('\\(|\\)|\\*|\\?|\\$|\\^',taxon)){return(NA)}
 
   # 2) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
 
   #     A) Make sure the wcvp names are either the same length or one extra character.
   length_taxon = stringr::str_length(taxon)
   wcvp_needed = wcvp[wcvp$taxon_length %in% c(length_taxon-1, length_taxon, length_taxon+1),]
-  #     B) Make sure we only look at taxons which contain only one word with a change (after removing words with '.')
+  #     B) Make sure we only look at taxons which contain only one word with a change (after removing words with '.' or '+')
   words = stringr::str_split(taxon,' ')[[1]]
-  words = words[!grepl('\\.', words)]
+  words = words[!grepl('\\.|\\+|\u00D7', words)]
   pat = paste0(words,collapse = '|')
+
   wcvp_needed = wcvp_needed[grepl(pat, wcvp_needed$taxon_name ),]
   wcvp_needed_minus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon-1)]
   wcvp_needed_same = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon)]
@@ -731,19 +743,6 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   index_complete = c(index_complete, indices)
   index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
   cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
-
-  ###
-  # 5) Remove known to not be in POWO. (set taxon match to -1)
-  ###
-  cli::cli_h2("(1/6) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
-
-  indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
-  taxon_match[index_to_find_matches[indices]] = -1
-  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
-  index_complete = c(index_complete, indices)
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
-  cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
-
 
   ###
   # 6) Sanitise taxon names.
