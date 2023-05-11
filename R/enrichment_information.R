@@ -80,18 +80,19 @@ get_accepted_plant <- function(powo_id) {
 #' @export
 #'
 import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_columns = c("plant_name_id", "taxon_rank", "taxon_status", "family", "genus", "species", "lifeform_description", "climate_description", "taxon_name", "taxon_authors", "accepted_plant_name_id", "powo_id")){
+  cli::cli_h1("Importing wcvp information (wcvp_names)")
 
   ###
   # 1) Load wcvp_names (using method as described in the download)
   ###
-  print('(1/6) Loading wvcp_names.csv...')
-  if(!is.null(filepath)){
+  cli::cli_h2("(1/6) Loading wvcp_names")
+    if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
     if(grepl('\\.csv$',filepath)){
       wcvp_names = utils::read.table(filepath, sep="|", header=TRUE, quote = "", fill=TRUE, encoding = "UTF-8")
 
     }
-    else if(grepl('\\.RData$|\\.rdata$|\\.rda',filepath)){
+    else if(grepl('\\.RData$|\\.rdata$|\\.rda$',filepath)){
       load(filepath)
       wcvp_names = data.frame(wcvp_names) # To reformat to standard data frame not a tibble.
     }
@@ -120,30 +121,42 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   columns = unique(c(columns,wanted_columns))
   wcvp_names = wcvp_names[,columns]
 
+  # Change the taxon name for one special case.
+  wcvp_names$taxon_name[wcvp_names$taxon_name == 'xx viridissimus var. viridissimus'] = 'Trigonostemon viridissimus var. viridissimus'
+
+    # 2) Sanitise taxon names.
+  cli::cli_h2("(2/6) Sanitising taxon names")
+  santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
+  original_taxon_name = wcvp_names$taxon_name
+  wcvp_names$taxon_name = santise_taxon_name
+  indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
+  cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+
+
   # 2) Create new column for the length of the taxonName (used if we search for typos
-  print('(2/6) Adding taxon_length column...')
-  taxon_length = unlist(lapply(wcvp_names$taxon_name, stringr::str_length))
+  cli::cli_h2("(3/6) Adding taxon_length column")
+  taxon_length = unlist(pbapply::pblapply(wcvp_names$taxon_name, stringr::str_length))
   wcvp_names$taxon_length = taxon_length
 
   # 3) Add flag for whether there exists multiple taxon names.
-  print('(3/6) Splitting wcvp_names into those with multiple TaxonNames and those with only one...')
+  cli::cli_h2("(4/6) Splitting wcvp_names into those with multiple Taxon names and those with only one...")
   name_freq = table(wcvp_names$taxon_name)
   single_entry = rep(NA, nrow(wcvp_names))
   single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) == 1]] = TRUE
   single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1]] = FALSE
   wcvp_names = data.frame(wcvp_names, single_entry)
 
-  # 3) Create new column for whether the taxon name is an autonym. (used for checking for matches)
+  # 4) Create new column for whether the taxon name is an autonym. (used for checking for matches)
   # print('(4/6) Adding is_autonym column...')
   # wcvp_names = add_is_autonym(wcvp_names, progress_bar = T, TaxonName_column = 'taxon_name')
 
   # 5) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
-  print('(5/6) Checking for accepted form issues with synonyms...')
+  cli::cli_h2("(5/6) Checking for accepted form issues with synonyms...")
   synonyms =wcvp_names[wcvp_names$taxon_status == 'Synonym',]
   non_accepted_synonyms = synonyms[is.na(synonyms$accepted_plant_name_id),]
   powo_ids = non_accepted_synonyms$powo_id
-  print(paste0('  found ', length(powo_ids), ' synonyms without accepted form...'))
-  print('  searching powo online for accepted forms...')
+  cli::cli_alert_danger("Found {length(powo_ids)}  synonyms without accepted form...")
+  cli::cli_text("searching powo online for accepted forms...")
   pbapply::pboptions(type = "txt")
   accepted_details = pbapply::pblapply(powo_ids,get_accepted_plant)
   new_accepted_name = unlist(lapply(accepted_details, function(x){x[1]}))
@@ -158,11 +171,11 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
 
   remaining_NA = sum(is.na(new_accepted_name_id))
   fixed_synonyms = 100 - remaining_NA/length(new_accepted_name_id)*100
-  print(paste0('  Fixed ', round(fixed_synonyms,digits=1),'% of missing accepted forms...'))
-  print(paste0('  ', remaining_NA,' remaining unexplained missing accepted forms...'))
+  cli::cli_alert_success("Fixed {round(fixed_synonyms,digits=1)}% of missing accepted forms...")
+  cli::cli_alert_danger("{remaining_NA} remaining unexplained missing accepted forms......")
 
   # 6)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
-  print('(6/6) Checking for common hybrids, cultivar, etc symbols...')
+  cli::cli_h2("(6/6) Checking for common hybrids, cultivar, etc symbols...")
 
   # A)  Note current wcvp has a bug where [*] and [**] are sometimes used instead if var. and f.
   # Fix this here
@@ -208,17 +221,29 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
                      with_indet, with_indet_end,
                      with_group, with_unkn, with_hybrid_end, with_Hybrid_space, with_Unknown)
 
-  # 7) Log the changes.
-  #add missing accepted form.
+  # 7) Check that the taxon names are of the correct 'casing form'.
+
+  # 8) Log the changes.
   changes = NULL
 
+  #add taxon name sanitising.
+  if(length(indices_require_sanitise)>0){
+    changes = data.frame(issue = rep('Taxon name required sanitising',length(indices_require_sanitise)),
+                         powo_id = wcvp_names$powo_id[indices_require_sanitise],
+                         taxon_name = wcvp_names$taxon_name[indices_require_sanitise],
+                         issue_entry = paste0('Original taxon_name = ', original_taxon_name[indices_require_sanitise]),
+                         fix = paste0('New taxon_name = ', wcvp_names$taxon_name[indices_require_sanitise]))
+  }
+
+  #add missing accepted form.
   indices = !is.na(new_accepted_name)
   if(sum(indices)>0){
-    changes = data.frame(issue = rep('synonym with missing accepted form',sum(indices)),
+    changesB = data.frame(issue = rep('synonym with missing accepted form',sum(indices)),
                          powo_id = non_accepted_synonyms$powo_id[indices],
                          taxon_name = non_accepted_synonyms$taxon_name[indices],
                          issue_entry = paste0('accepted_plant_name_id = ',non_accepted_synonyms$accepted_plant_name_id[indices]),
                          fix = paste0('accepted_plant_name_id = ',new_accepted_name_id[indices], ' (',new_accepted_name[indices],')'))
+    changes = rbind(changes, changesB)
   }
 
   #add square bracket issue.

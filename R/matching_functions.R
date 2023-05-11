@@ -733,9 +733,28 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
 
   ###
-  # 5) Match original report to all taxon names with a single entry in POWO.
+  # 5) Remove known to not be in POWO. (set taxon match to -1)
   ###
-  cli::cli_h2("(2/6) Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
+  cli::cli_h2("(1/6) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
+
+  indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
+  taxon_match[index_to_find_matches[indices]] = -1
+  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
+  index_complete = c(index_complete, indices)
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
+  cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
+
+
+  ###
+  # 6) Sanitise taxon names.
+  ###
+  cli::cli_h2("Sanitise taxon names")
+  santise_taxon_name = unlist(pbapply::pblapply(taxon_name,BGSmartR::sanitise_name))
+  original_taxon_name = taxon_name
+  taxon_name = santise_taxon_name
+  indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
+  cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+
 
   single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
   match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
@@ -749,7 +768,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
 
 
   ###
-  # 6) Match original report to all taxon names with a multiple entry in POWO.
+  # 7) Match original report to all taxon names with a multiple entry in POWO.
   ###
   cli::cli_h2("(3/6) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
@@ -764,7 +783,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
   ###
-  # 7) Try to match the autonym.
+  # 8) Try to match the autonym.
   ###
   cli::cli_h2("(4/6) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
   current_left = length(index_to_find_matches)
@@ -801,7 +820,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   cli::cli_alert_success("Found {no_left} of {current_left} names")
 
   ###
-  # 8) Try to find typo and then match.
+  # 9) Try to find typo and then match.
   ###
   if(find_typos){
     cli::cli_h2("(5/6) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
@@ -841,7 +860,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
 
 
   ###
-  # 9) Convert to accepted name where possible.
+  # 10) Convert to accepted name where possible.
   ###
   cli::cli_h2("(6/6) Converting to accepted name..")
 
@@ -852,7 +871,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   cli::cli_alert_success("Updated to accepted name for {updated} of {no_unique} names")
 
   ###
-  # 10) return match (to original report) and details of the matches (for unique plants).
+  # 11) return match (to original report) and details of the matches (for unique plants).
   ###
   # A) The remaining not found indices set to -3. With message not in POWO.
   taxon_match[index_to_find_matches] = -3
