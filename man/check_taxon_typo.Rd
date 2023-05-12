@@ -4,12 +4,16 @@
 \alias{check_taxon_typo}
 \title{check_taxon_typo()}
 \usage{
-check_taxon_typo(taxon, wcvp)
+check_taxon_typo(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fast = T)
 }
 \arguments{
 \item{taxon}{The taxon_name}
 
 \item{wcvp}{POWO database}
+
+\item{typo_df}{A data frame with two columns of typos and their fixes.}
+
+\item{fast}{A flag for whether we want to search only the typo_df (TRUE) or also search directly (FALSE)}
 }
 \value{
 a potential fixed name, or NA if no correction is found.

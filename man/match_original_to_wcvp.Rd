@@ -4,7 +4,7 @@
 \alias{match_original_to_wcvp}
 \title{Match report to POWO via taxon name}
 \usage{
-match_original_to_wcvp(original_report, wcvp, find_typos = TRUE)
+match_original_to_wcvp(original_report, wcvp, find_typos = "fast")
 }
 \arguments{
 \item{original_report}{A gardens original report}

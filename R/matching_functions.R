@@ -477,14 +477,32 @@ convert_to_accepted_name <- function(original_match, wcvp){
 #'
 #' @param taxon The taxon_name
 #' @param wcvp POWO database
+#' @param typo_df A data frame with two columns of typos and their fixes.
+#' @param fast A flag for whether we want to search only the typo_df (TRUE) or also search directly (FALSE)
 #'
 #' @return a potential fixed name, or NA if no correction is found.
 #' @export
-check_taxon_typo <- function(taxon, wcvp){
+check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fast = T){
   # 1) Since no words in wcvp have '(',')', '?' or '*' we return NA.
+  if(is.null(taxon))(return(NA))
+  if(is.na(taxon)){return(NA)}
+  if(taxon ==''){return(NA)}
   if(grepl('\\(|\\)|\\*|\\?|\\$|\\^',taxon)){return(NA)}
 
-  # 2) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
+  # 2) Check if the typo is in typo list.
+  match_to_typo = match(taxon,typo_df[,1])
+  if(!is.na(match_to_typo)){
+    return(typo_df[match_to_typo,2])
+  }
+
+  #If we want to only check the typo list, then wcvp might not be provided.
+  #Therefore check if wcvp is of type list if it isn't return NA.
+  if(fast){
+    return(NA)
+  }
+
+
+  # 3) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
 
   #     A) Make sure the wcvp names are either the same length or one extra character.
   length_taxon = stringr::str_length(taxon)
@@ -685,7 +703,10 @@ match_taxon_to_wcvp <- function(taxon_name_and_full, wcvp){
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
-match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
+match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
+  if(!find_typos %in% c('full', 'fast','no')){
+    stop('Invalid find_typos input!')
+  }
   #Implies original_report and wcvp are already in the workspace.
   cli::cli_h1("Matching names to POWO (WCVP)")
   no_records = nrow(original_report)
@@ -821,11 +842,18 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = TRUE){
   ###
   # 9) Try to find typo and then match.
   ###
-  if(find_typos){
+  if(find_typos %in% c('fast','full')){
     cli::cli_h2("(5/6) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
     current_left = length(index_to_find_matches)
     # A) Search for typos.
-    fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names)}))
+    if(find_typos == 'fast'){
+      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = T)}))
+    }else{
+      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = F)}))
+
+    }
+
+
     typo_index = index_to_find_matches[which(!is.na(fixed_typo))]
     name_to_try = fixed_typo[which(!is.na(fixed_typo))]
     taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index],
