@@ -51,37 +51,6 @@ enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_statu
   indices = which(!(is.na(match_info$match) | match_info$match < 0))
   POWO_info[indices,] = wcvp$wcvp_names[match_info$match[indices],match(wcvp_wanted_columns,names(wcvp$wcvp_names))]
 
-  # C) Create a compressed version on the enriched report
-  match_short = rep('',nrow(enriched_report))
-  match_options = matrix(c("(matches POWO record with single entry)", '1',
-                    "(Multiple POWO records, match by exact author)", '1',
-                    "(Multiple POWO records, multiple exact author, choose via taxon_status)", "3",
-                    "(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)", "6",
-                    "(Multiple POWO records, match by partial author <powo author containing in taxon author>)", "2",
-                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)", "3",
-                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)", "6",
-                    "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "2",
-                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)", '3',
-                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)", '6',
-                    "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", '2',
-                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", '3',
-                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)", '6',
-                    "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", '1',
-                    "(Multiple POWO records, no author/no matched author, choose via taxon_status)", '3',
-                    "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", '6',
-                    "(Not in POWO <known not to be in POWO>)", '7',
-                    "(Autonym. Does not exist in POWO. Convert to base name)", '5',
-                    "(Typo)", '6',
-                    "(Not in POWO)", '8',
-                    "(Go to accepted name)", 'A'),
-                    ncol=2, byrow = T)
-  for(i in 1:nrow(match_options)){
-    indices = grepl(match_options[i,1], match_info$details)
-    match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
-  }
-  match_short = stringr::str_remove(match_short, '^, ')
-
-
   # D) Create POWO web address.
   POWO_web_address = rep(NA, nrow(POWO_info))
   indices = !is.na(POWO_info$POWO_powo_id)
@@ -89,7 +58,7 @@ enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_statu
 
 
   # E) add to enriched report.
-  enriched_report = data.frame(enriched_report, match_detail = match_info$details, match_detail_short =match_short,
+  enriched_report = data.frame(enriched_report, match_detail = match_info$details, match_detail_short =match_info$details_short,
                                POWO_web_address = POWO_web_address, POWO_info)
 
 

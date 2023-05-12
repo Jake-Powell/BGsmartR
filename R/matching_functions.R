@@ -560,9 +560,10 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   cli::cli_h1("Matching names to POWO (WCVP)")
   no_records = nrow(original_report)
   cli::cli_alert_info("{.var {no_records}} records found.")
-  ###
+
+  ################################################
   # 1) Setup original report. (only look at unique taxon name / taxon name full and add is_autonym)
-  ###
+  ################################################
   # Extract taxon name and taxon name full used in the matching.
   taxon_name_and_full = original_report[,match(c('TaxonName','TaxonNameFull'), names(original_report))]
   unique_taxon_name_and_full =unique(taxon_name_and_full)
@@ -578,9 +579,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   cli::cli_alert_info("{.var {no_unique}} unique taxon names/ taxon name full combinations found.")
 
 
-  ###
+  ################################################
   # 2) Setup outputs.
-  ###
+  ################################################
   taxon_match_full = rep(NA,nrow(original_report))
   taxon_name_story_full = rep(NA,nrow(original_report))
   taxon_match = rep(NA, length(taxon_name))
@@ -588,9 +589,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   index_to_find_matches = 1:length(taxon_name)
   index_complete = NULL
 
-  ###
+  ################################################
   # 3) Match the exceptions of the known not to be in POWO.
-  ###
+  ################################################
   # (Assume all exceptions are single records in POWO, this is the case currently)
   exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
   exception_indices = exception_indices[!is.na(exception_indices)]
@@ -602,9 +603,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   no_found = length(index_complete)
   cli::cli_alert_info("Found {.var {no_found}} exceptions to known not in POWO.")
 
-  ###
+  ################################################
   # 4) Remove known to not be in POWO. (set taxon match to -1)
-  ###
+  ################################################
   cli::cli_h2("(1/7) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
 
   indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
@@ -614,9 +615,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
   cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
 
-  ###
-  # 6) Sanitise taxon names.
-  ###
+  ################################################
+  # 5) Sanitise taxon names.
+  ################################################
   cli::cli_h2("(2/7) Sanitise taxon names")
   santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
   original_taxon_name = taxon_name
@@ -627,9 +628,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
                                              taxon_name[indices_require_sanitise])
   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
 
-  ###
-  # 7) Match original report to all unique taxon names in POWO.
-  ###
+  ################################################
+  # 6) Match original report to all unique taxon names in POWO.
+  ################################################
   cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
   single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
   match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
@@ -642,9 +643,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
 
-  ###
+  ################################################
   # 7) Match original report to all taxon names with a multiple entry in POWO.
-  ###
+  ################################################
   cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
   mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
@@ -657,9 +658,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
 
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
-  ###
+  ################################################
   # 8) Try to match the autonym.
-  ###
+  ################################################
   cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
   current_left = length(index_to_find_matches)
 
@@ -695,9 +696,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   cli::cli_alert_success("Found {no_left} of {current_left} names")
 
 
-  ###
-  # 8) Try to match by adding hybridisation.
-  ###
+  ################################################
+  # 9) Try to match by adding hybridisation.
+  ################################################
   cli::cli_h2("(5/7) Testing and matching missing hybrid for {length(index_to_find_matches)} name{?s}")
   current_left = length(index_to_find_matches)
 
@@ -731,16 +732,17 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
 
 
 
-  ###
-  # 9) Try to find typo and then match.
-  ###
+  ################################################
+  # 10) Try to find typo and then match.
+  ################################################
   if(find_typos %in% c('fast','full')){
     cli::cli_h2("(6/7) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
     current_left = length(index_to_find_matches)
     # A) Search for typos.
     if(find_typos == 'fast'){
       fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = T)}))
-    }else{
+    }
+    else{
       fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = F)}))
 
     }
@@ -778,9 +780,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   }
 
 
-  ###
-  # 10) Convert to accepted name where possible.
-  ###
+  ################################################
+  # 11) Convert to accepted name where possible.
+  ################################################
   cli::cli_h2("(7/7) Converting to accepted name..")
 
   match_info = convert_to_accepted_name(taxon_match, wcvp)
@@ -789,18 +791,54 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   updated = sum(match_info$message != '')
   cli::cli_alert_success("Updated to accepted name for {updated} of {no_unique} names")
 
-  ###
-  # 11) return match (to original report) and details of the matches (for unique plants).
-  ###
-  # A) The remaining not found indices set to -3. With message not in POWO.
+
+  ################################################
+  # 12) Set remaining taxon_match to -3 and add story.
+  ################################################
   taxon_match[index_to_find_matches] = -3
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
 
+  ################################################
+  # 13) Create a shortened version on the match details
+  ################################################
+  match_short = rep('', length(taxon_name_story))
+  match_options = c("(matches POWO record with single entry)", '1',
+                           "(Multiple POWO records, match by exact author)", '1',
+                           "(Multiple POWO records, multiple exact author, choose via taxon_status)", "3",
+                           "(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)", "6",
+                           "(Multiple POWO records, match by partial author <powo author containing in taxon author>)", "2",
+                           "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)", "3",
+                           "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)", "6",
+                           "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "2",
+                           "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)", '3',
+                           "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)", '6',
+                           "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", '2',
+                           "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", '3',
+                           "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)", '6',
+                           "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", '1',
+                           "(Multiple POWO records, no author/no matched author, choose via taxon_status)", '3',
+                           "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", '6',
+                           "(Not in POWO <known not to be in POWO>)", '7',
+                           "(Autonym. Does not exist in POWO. Convert to base name)", '5',
+                           "(Typo)", '6',
+                           "(Not in POWO)", '8',
+                           "(Go to accepted name)", 'A',
+                           "(Sanitise)", 'S')
+  match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
+  match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
+  match_options = matrix(match_options, byrow = T, ncol=2)
+  for(i in 1:nrow(match_options)){
+    indices = grepl(match_options[i,1], taxon_name_story)
+    match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
+  }
+  match_short = stringr::str_remove(match_short, '^, ')
 
+  ################################################
+  # 14) return match (to original report) and details of the matches (for unique plants).
+  ################################################
   cli::cli_h2("Matching Complete")
-
-  # B) Set output
   taxon_match_full = taxon_match[report_match]
   taxon_name_story_full = taxon_name_story[report_match]
-  return(list(match = taxon_match_full, details = taxon_name_story_full))
+  match_short_full = match_short[report_match]
+  return(list(match = taxon_match_full, details = taxon_name_story_full, details_short = match_short_full))
 }
