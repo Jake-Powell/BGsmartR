@@ -28,7 +28,7 @@ sanitise_name <- function(taxon_name){
   ###########
   ## 2) fix x or X to \u00D7.
   ###########
-  if(grepl(' [xX] |^[xX] | [xX]$',taxon_name)){
+  if(grepl(' [xXhH] |^[xXhH] | [xXhH]$',taxon_name)){
   taxon_name = stringr::str_replace(taxon_name,'^[xX] ','\u00D7 ')
   taxon_name = stringr::str_replace(taxon_name,' [xX]$',' \u00D7')
   taxon_name = stringr::str_replace(taxon_name,' [xX] ',' \u00D7 ')

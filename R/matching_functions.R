@@ -542,157 +542,6 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   return(NA)
 }
 
-#' match taxon and taxon name full to POWO
-#'
-#' For each unique taxon name / taxon name full find the corresponding record in POWO.
-#'
-#' @param taxon_name_and_full data frame of two columns where the first column is the taxon_name and second column is the full taxon name (with authors).
-#' @param wcvp POWO database
-#'
-#' @return A list of length two containing:
-#' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
-#' `$message` a message detailing the match.
-#' @export
-match_taxon_to_wcvp <- function(taxon_name_and_full, wcvp){
-
-  ###
-  # 1) Setup original report. (only look at unique taxon name / taxon name full and add is_autonym)
-  ###
-  # Extract taxon name and taxon name full used in the matching.
-  taxon_name_and_full = unique(taxon_name_and_full)
-  taxon_name_and_full = add_is_autonym(taxon_name_and_full)
-  taxon_name = taxon_name_and_full$TaxonName
-
-  ###
-  # 2) Setup outputs.
-  ###
-  taxon_match = rep(NA, length(taxon_name))
-  taxon_name_story = taxon_name
-  index_to_find_matches = 1:length(taxon_name)
-  index_complete = NULL
-
-  ###
-  # 3) Match the exceptions of the known not to be in POWO.
-  ###
-  # (Assume all exceptions are single records in POWO, this is the case currently)
-  exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
-  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, exception_indices)
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-
-  ###
-  # 4) Remove known to not be in POWO. (set taxon match to -1)
-  ###
-  indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
-  taxon_match[index_to_find_matches[indices]] = -1
-  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
-  index_complete = c(index_complete, indices)
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
-
-  ###
-  # 5) Match original report to all taxon names with a single entry in POWO.
-  ###
-  single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
-  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-
-
-  ###
-  # 6) Match original report to all taxon names with a multiple entry in POWO.
-  ###
-  mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
-  match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_name_and_full$TaxonNameFull[index_to_find_matches],  wcvp, mult_indices)
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-
-  ###
-  # 7) Try to match the autonym.
-  ###
-  # A) Find the index of the remaining autonyms, extract the base name. Update taxon_name_story.
-  remaining_autonyms_flag = taxon_name_and_full$is_autonym[index_to_find_matches]
-  autonym_indices = index_to_find_matches[remaining_autonyms_flag]
-  remaining_autonyms = taxon_name[autonym_indices]
-  name_to_try = unlist(lapply(remaining_autonyms, function(name){
-    split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
-    split_name = unlist(lapply(split_name, stringr::str_squish))
-    return(split_name[1])
-  }))
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices],
-                                             ' -> (Autonym. Does not exist in POWO. Convert to base name) -> ',
-                                             name_to_try)
-
-  # B) Try to match the base name to POWO with single records.
-  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
-  taxon_match[autonym_indices] = match_info$match
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
-  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
-  name_to_try = name_to_try[is.na(match_info$match)]
-  autonym_indices = autonym_indices[is.na(match_info$match)]
-
-  # C) Try to match the base name to POWO with multiple records.
-  match_info = match_mult_wcvp(name_to_try,taxon_name_and_full$TaxonNameFull[autonym_indices],  wcvp, mult_indices)
-  taxon_match[autonym_indices] = match_info$match
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
-  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
-
-  ###
-  # 8) Try to find typo and then match.
-  ###
-  # A) Search for typos.
-  fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names)}))
-  typo_index = index_to_find_matches[which(!is.na(fixed_typo))]
-  name_to_try = fixed_typo[which(!is.na(fixed_typo))]
-  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index],
-                                        ' -> (Typo) -> ',
-                                        name_to_try)
-
-  # B) Try to match the base name to POWO with single records.
-  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
-  taxon_match[typo_index] = match_info$match
-  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
-  index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
-  name_to_try = name_to_try[is.na(match_info$match)]
-  typo_index = typo_index[is.na(match_info$match)]
-
-  # C) Try to match the base name to POWO with multiple records.
-  match_info = match_mult_wcvp(name_to_try,taxon_name_and_full$TaxonNameFull[typo_index],  wcvp, mult_indices)
-  taxon_match[typo_index] = match_info$match
-  taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
-  index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
-
-  ###
-  # 9) Convert to accepted name where possible.
-  ###
-  match_info = convert_to_accepted_name(taxon_match, wcvp)
-  taxon_match = match_info$match
-  taxon_name_story = paste0(taxon_name_story, match_info$message)
-
-  ###
-  # 10) return match (to original report) and details of the matches (for unique plants).
-  ###
-  # A) The remaining not found indices set to -3. With message not in POWO.
-  taxon_match[index_to_find_matches] = -3
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
-
-  # B) Set output
-  output = data.frame(TaxonName = taxon_name_and_full$TaxonName,
-                      TaxonNameFull = taxon_name_and_full$TaxonNameFull,
-                      POWO_match = taxon_match,
-                      details = taxon_name_story)
-  return(output)
-}
-
 #' Match report to POWO via taxon name
 #'
 #' @param original_report A gardens original report
@@ -769,13 +618,19 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   # 6) Sanitise taxon names.
   ###
   cli::cli_h2("(2/7) Sanitise taxon names")
-  santise_taxon_name = unlist(pbapply::pblapply(taxon_name,BGSmartR::sanitise_name))
+  santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
   original_taxon_name = taxon_name
-  taxon_name = santise_taxon_name
-  indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
+  taxon_name[index_to_find_matches] = santise_taxon_name
+  indices_require_sanitise=which(taxon_name != original_taxon_name)
+  taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
+                                             ' -> (Sanitise name) -> ',
+                                             taxon_name[indices_require_sanitise])
   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
 
-
+  ###
+  # 7) Match original report to all unique taxon names in POWO.
+  ###
+  cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
   single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
   match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
   taxon_match[index_to_find_matches] = match_info$match
