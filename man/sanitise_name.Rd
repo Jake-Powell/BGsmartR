@@ -2,8 +2,7 @@
 % Please edit documentation in R/utilities.R
 \name{sanitise_name}
 \alias{sanitise_name}
-\title{sanitise_name()
-Converts taxon names such that only the first letter of the Genus is capitalised and all remaining characters are lower case.}
+\title{sanitise_name()}
 \usage{
 sanitise_name(taxon_name)
 }
@@ -14,8 +13,10 @@ sanitise_name(taxon_name)
 sanitised taxon name
 }
 \description{
-sanitise_name()
 Converts taxon names such that only the first letter of the Genus is capitalised and all remaining characters are lower case.
+}
+\details{
+Also change to correct hybrid symbol where needed.
 }
 \examples{
 sanitise_name('TRIGONELLA smyrnaea')

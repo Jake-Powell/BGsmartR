@@ -756,7 +756,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   ###
   # 4) Remove known to not be in POWO. (set taxon match to -1)
   ###
-  cli::cli_h2("(1/6) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
+  cli::cli_h2("(1/7) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
 
   indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
   taxon_match[index_to_find_matches[indices]] = -1
@@ -768,7 +768,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   ###
   # 6) Sanitise taxon names.
   ###
-  cli::cli_h2("Sanitise taxon names")
+  cli::cli_h2("(2/7) Sanitise taxon names")
   santise_taxon_name = unlist(pbapply::pblapply(taxon_name,BGSmartR::sanitise_name))
   original_taxon_name = taxon_name
   taxon_name = santise_taxon_name
@@ -790,7 +790,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   ###
   # 7) Match original report to all taxon names with a multiple entry in POWO.
   ###
-  cli::cli_h2("(3/6) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
+  cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
   mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
   match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp, mult_indices)
@@ -805,7 +805,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   ###
   # 8) Try to match the autonym.
   ###
-  cli::cli_h2("(4/6) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
+  cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
   current_left = length(index_to_find_matches)
 
   # A) Find the index of the remaining autonyms, extract the base name. Update taxon_name_story.
@@ -839,11 +839,48 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   no_left = current_left - length(index_to_find_matches)
   cli::cli_alert_success("Found {no_left} of {current_left} names")
 
+
+  ###
+  # 8) Try to match by adding hybridisation.
+  ###
+  cli::cli_h2("(5/7) Testing and matching missing hybrid for {length(index_to_find_matches)} name{?s}")
+  current_left = length(index_to_find_matches)
+
+  # A) Find those with length two and try adding a hybrid in the middle.
+  no_words = stringr::str_count(taxon_name[index_to_find_matches], pattern = ' ')+1
+
+  wanted_indices = index_to_find_matches[no_words==2]
+  to_add_hybrid = taxon_name[wanted_indices]
+  name_to_try = stringr::str_replace(to_add_hybrid,pattern = ' ', replacement = ' \u00D7 ')
+  taxon_name_story[wanted_indices] = paste0(taxon_name_story[autonym_indices],
+                                             ' -> (Try adding hybrid) -> ',
+                                             name_to_try)
+
+  # B) Try to match the base name to POWO with single records.
+  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
+  taxon_match[wanted_indices] = match_info$match
+  taxon_name_story[wanted_indices] = paste0(taxon_name_story[wanted_indices], match_info$message)
+  index_complete = c(index_complete, wanted_indices[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% wanted_indices[!is.na(match_info$match)]]
+  name_to_try = name_to_try[is.na(match_info$match)]
+  wanted_indices = wanted_indices[is.na(match_info$match)]
+
+  # C) Try to match the base name to POWO with multiple records.
+  match_info = match_mult_wcvp(name_to_try,taxon_name_full[wanted_indices],  wcvp, mult_indices)
+  taxon_match[wanted_indices] = match_info$match
+  taxon_name_story[wanted_indices] = paste0(taxon_name_story[wanted_indices], match_info$message)
+  index_complete = c(index_complete, wanted_indices[!is.na(match_info$match)])
+  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% wanted_indices[!is.na(match_info$match)]]
+  no_left = current_left - length(index_to_find_matches)
+  cli::cli_alert_success("Found {no_left} of {current_left} names")
+
+
+
   ###
   # 9) Try to find typo and then match.
   ###
   if(find_typos %in% c('fast','full')){
-    cli::cli_h2("(5/6) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
+    cli::cli_h2("(6/7) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
     current_left = length(index_to_find_matches)
     # A) Search for typos.
     if(find_typos == 'fast'){
@@ -880,7 +917,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
     cli::cli_alert_success("Found {no_left} of {current_left} names")
   }
   else{
-    cli::cli_h2("(5/6) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
+    cli::cli_h2("(6/7) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
     cli::cli_alert_warning("Typo checking not performed!")
 
   }
@@ -889,7 +926,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   ###
   # 10) Convert to accepted name where possible.
   ###
-  cli::cli_h2("(6/6) Converting to accepted name..")
+  cli::cli_h2("(7/7) Converting to accepted name..")
 
   match_info = convert_to_accepted_name(taxon_match, wcvp)
   taxon_match = match_info$match
