@@ -4,7 +4,7 @@ test_that("sanitise_name works", {
   expect_equal(sanitise_name('× orchiserapias bevilacquae'), '× Orchiserapias bevilacquae')
   expect_equal(sanitise_name('× ORCHiserapias bevilacquae'), '× Orchiserapias bevilacquae')
   expect_equal(sanitise_name('+ ORCHiserapias bevilacquae'), '+ Orchiserapias bevilacquae')
-  expect_equal(sanitise_name('x ORCHiserapias bevilacquae'), 'x Orchiserapias bevilacquae')
+  expect_equal(sanitise_name('x ORCHiserapias bevilacquae'), '× Orchiserapias bevilacquae')
   expect_equal(sanitise_name('Aruncus dioicus var acuminatus'), 'Aruncus dioicus var. acuminatus')
   expect_equal(sanitise_name('Osmanthus fragrans f aurantiacum'), 'Osmanthus fragrans f. aurantiacum')
   expect_equal(sanitise_name('Picea abies v columnaris'), 'Picea abies var. columnaris')

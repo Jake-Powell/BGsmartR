@@ -517,6 +517,64 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   wcvp_needed_same = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon)]
   wcvp_needed_plus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon+1)]
 
+  #Cases.
+  # a) final letter change.
+  final_letter_change = matrix(c('i','ii',
+                      'ii', 'i',
+                      'i', 'ae',
+                      'a', 'um',
+                      'a', 'us',
+                      'ae', 'eae',
+                      'e', 'is',
+                      'is','e',
+                      'us', 'is',
+                      'ense','iense',
+                      'oides', 'ioides',
+                      'orum', 'iorum'),byrow = T, ncol = 2)
+  # Function that loops over all final letter changes and returns if typo is found.
+  for(i in 1:nrow(final_letter_change)){
+    if(stringr::str_ends(taxon,final_letter_change[i,1])){
+      fixed = wcvp_needed$taxon_name[grepl(stringr::str_replace(taxon,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2]), wcvp_needed$taxon_name)]
+      if(length(fixed) >0){
+        return(fixed[1])
+      }
+    }
+  }
+
+  # c) Common none simple letter swap.
+  letter_change = matrix(c('i','ae'),byrow = T, ncol = 2)
+  for(i in 1:nrow(letter_change)){
+    locations = stringr::str_locate_all(taxon, letter_change)
+    for(j in 1:length(locations)){
+      current = locations[[j]]
+      if(nrow(current) > 0){
+        for(k in 1:nrow(current)){
+          # original letter in middle.
+          if(current[k,1] == 1){
+            new_name = paste0(letter_change[i,3-j],
+                              stringr::str_sub(taxon,current[k,2]+1,-1))
+          }
+          #original letter at end.
+          else if(current[k,2] == length(taxon)){
+            new_name = paste0(stringr::str_sub(taxon,1,current[k,1]-1),
+                              letter_change[i,3-j])
+          }
+          #original letter in middle
+          else{
+            new_name = paste0(stringr::str_sub(taxon,1,current[k,1]-1),
+                              letter_change[i,3-j],
+                              stringr::str_sub(taxon,current[k,2]+1,-1))
+          }
+
+          fixed = wcvp_needed$taxon_name[grepl(new_name, wcvp_needed$taxon_name)]
+          if(length(fixed) >0){
+            return(fixed)
+          }
+        }
+      }
+    }
+  }
+
 
   for(i in (length_taxon-1):1){
     #Check changing a single letter.
