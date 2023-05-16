@@ -439,6 +439,11 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
 #'
 add_splitter <- function(taxon_names, taxon_names_full, wcvp){
   # We know from exploring POWO that var/f/subsp only occurs after the genus species. (with the potential addition of 'x' or '+' for hybrids)
+  #Check for NA in taxon_names and remove if they exist.
+  NAs = which(is.na(taxon_names))
+  if(length(NAs) > 1){
+    warning('In add_splitter(), taxon names contain NA.')
+  }
 
   ########################
   # Setup + find words of length 3 and 4 + words with a splitter.
@@ -448,7 +453,7 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
   out_match = rep(NA, length(taxon_names))
   out_message = rep('',length(taxon_names))
   no_words = stringr::str_count(taxon_names, ' ')+1
-  index_words_3 = which(no_words == 3)
+  index_words_3 = which(no_words == 3 & !grepl('\u00D7|\\+',taxon_names))
   index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
   index_words_with_splitter = which(grepl(splitters_grepl, taxon_names))
   wcvp_index_splitters = which(grepl(splitters_grepl, wcvp$wcvp_names$taxon_name))
@@ -459,7 +464,7 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
   # Try matching splitter for words of length three.
   ########################
   if(length(index_words_3) > 0){
-    cli::cli_alert_info("Trying add splitter (taxon names has length 3) for {length(index_words_4)} name{?s}")
+    cli::cli_alert_info("Trying add splitter (taxon names has length 3) for {length(index_words_3)} name{?s}")
 
     # Get the indices of wcvp we want to search (i.e must contain splitter)
 
@@ -621,8 +626,8 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
     }))
     match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
 
-    out_match[index_words_3] = as.numeric(match_info[,1])
-    out_message[index_words_3] = match_info[,2]
+    out_match[index_words_with_splitter] = as.numeric(match_info[,1])
+    out_message[index_words_with_splitter] = match_info[,2]
 
   }
 
@@ -1001,7 +1006,9 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast', t
   ################################################
   if(try_add_split){
     cli::cli_h2("(4/7) Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
-    match_info = add_splitter(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp)
+    match_info = add_splitter(taxon_names = taxon_name[index_to_find_matches],
+                              taxon_names_full = taxon_name_full[index_to_find_matches],
+                              wcvp = wcvp)
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
 
@@ -1100,11 +1107,11 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast', t
                            "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", '6',
                            "(Not in POWO <known not to be in POWO>)", '7',
                            "(Autonym. Does not exist in POWO. Convert to base name)", '5',
-                           "(Typo)", '6',
+                           "(Typo)", 'T',
                            "(Not in POWO)", '8',
                            "(Go to accepted name)", 'A',
                            "(Sanitise)", 'S',
-                           "Splitter", 'L',
+                           "splitter", 'L',
                            "(Try adding hybrid)", 'H'
                     )
   match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
