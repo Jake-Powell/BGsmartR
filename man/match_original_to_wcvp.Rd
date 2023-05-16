@@ -4,7 +4,12 @@
 \alias{match_original_to_wcvp}
 \title{Match report to POWO via taxon name}
 \usage{
-match_original_to_wcvp(original_report, wcvp, find_typos = "fast")
+match_original_to_wcvp(
+  original_report,
+  wcvp,
+  find_typos = "fast",
+  try_add_split = T
+)
 }
 \arguments{
 \item{original_report}{A gardens original report}
@@ -12,6 +17,8 @@ match_original_to_wcvp(original_report, wcvp, find_typos = "fast")
 \item{wcvp}{POWO database}
 
 \item{find_typos}{Flag for whether we search for typos}
+
+\item{try_add_split}{Flag for whether we search for missing f./var./subsp.}
 }
 \value{
 A list of length two containing:

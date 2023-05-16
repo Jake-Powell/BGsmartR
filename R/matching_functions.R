@@ -428,6 +428,208 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
   return(list(match = match_to_multiple, message = message))
 }
 
+#' add_splitter()
+#'
+#' @param taxon_names taxon names
+#' @param taxon_names_full taxon names with author
+#' @param wcvp enrich information
+#'
+#' @return a list with match and message
+#' @export
+#'
+add_splitter <- function(taxon_names, taxon_names_full, wcvp){
+  # We know from exploring POWO that var/f/subsp only occurs after the genus species. (with the potential addition of 'x' or '+' for hybrids)
+
+  ########################
+  # Setup + find words of length 3 and 4 + words with a splitter.
+  ########################
+  splitters = c('subsp.', 'var.', 'f.', 'nothosubsp.')
+  splitters_grepl = ' subsp\\. | var\\. | f\\. | nothosubsp\\. '
+  out_match = rep(NA, length(taxon_names))
+  out_message = rep('',length(taxon_names))
+  no_words = stringr::str_count(taxon_names, ' ')+1
+  index_words_3 = which(no_words == 3)
+  index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
+  index_words_with_splitter = which(grepl(splitters_grepl, taxon_names))
+  wcvp_index_splitters = which(grepl(splitters_grepl, wcvp$wcvp_names$taxon_name))
+  wcvp_index_splitters_mult = wcvp_index_splitters[wcvp$wcvp_names$single_entry[wcvp_index_splitters] == F]
+  wcvp_index_splitters_single = wcvp_index_splitters[wcvp$wcvp_names$single_entry[wcvp_index_splitters] == T]
+
+  ########################
+  # Try matching splitter for words of length three.
+  ########################
+  if(length(index_words_3) > 0){
+    cli::cli_alert_info("Trying add splitter (taxon names has length 3) for {length(index_words_4)} name{?s}")
+
+    # Get the indices of wcvp we want to search (i.e must contain splitter)
+
+    words_3 = stringr::str_split(taxon_names[index_words_3], ' ')
+    to_try_words = lapply(words_3, function(x){
+      just_splitter = paste(x[1], x[2], splitters, x[3])
+      hybrid_and_splitter =  paste(x[1], '\u00D7', x[2], splitters, x[3])
+      return(c(just_splitter,hybrid_and_splitter))
+    })
+    taxon_full_3 = as.list(taxon_names_full[index_words_3])
+
+    # Combine the taxon names to try with taxon name full.
+    to_try = mapply(list,to_try_words, taxon_full_3, SIMPLIFY = FALSE)
+
+    match_info = unlist(pbapply::pblapply(to_try, function(x){
+      # x here are the potential taxon names with splitters added.
+
+      # Match to either single or multiple.
+      match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult)
+      match_details = list(match = c(match_details_single$match, match_details_mult$match),
+                           message = c(match_details_single$message, match_details_mult$message))
+
+      #Index of the matches we found.
+      found_match_index = which(!is.na(match_details$match))
+
+      # If we get a single match return it.
+      if(length(found_match_index)==1){
+        match = match_details$match[found_match_index]
+        message = paste0(' -> (Add splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        return(c(match,message))
+      }
+      # Multiple matches unclear which is best so don't give a match.
+      if(length(found_match_index)>1){
+        match = -5
+        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        return(c(match,message))
+      }
+
+      #Else we have no match
+      return(c(NA,''))
+
+    }))
+    match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
+
+    out_match[index_words_3] = as.numeric(match_info[,1])
+    out_message[index_words_3] = match_info[,2]
+
+
+  }
+
+  ########################
+  # Try matching splitter for words of length four. (with x or +)
+  ########################
+  if(length(index_words_4) > 0){
+    cli::cli_alert_info("Trying add splitter (with hybrid taxon names) for {length(index_words_4)} name{?s}")
+
+    #Het wcvp indices with only + or x.
+    wcvp_index_splitters_mult_h = wcvp_index_splitters_mult[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_mult])]
+    wcvp_index_splitters_single_h = wcvp_index_splitters_single[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_single])]
+
+
+    words_4 = stringr::str_split(taxon_names[index_words_4], ' ')
+    to_try_words = lapply(words_4, function(x){
+      just_splitter = paste(x[1], x[2], x[3], splitters, x[4])
+      return(just_splitter)
+    })
+    taxon_full_4 = as.list(taxon_names_full[index_words_4])
+
+    # Combine the taxon names to try with taxon name full.
+    to_try = mapply(list,to_try_words, taxon_full_4, SIMPLIFY = FALSE)
+
+    match_info = unlist(pbapply::pblapply(to_try, function(x){
+      # x here are the potential taxon names with splitters added.
+
+      # Match to either single or multiple.
+      match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single_h)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult_h)
+      match_details = list(match = c(match_details_single$match, match_details_mult$match),
+                           message = c(match_details_single$message, match_details_mult$message))
+
+      #Index of the matches we found.
+      found_match_index = which(!is.na(match_details$match))
+
+      # If we get a single match return it.
+      if(length(found_match_index)==1){
+        match = match_details$match[found_match_index]
+        message = paste0(' -> (Add splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        return(c(match,message))
+      }
+      # Multiple matches unclear which is best so don't give a match.
+      if(length(found_match_index)>1){
+        match = -5
+        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        return(c(match,message))
+      }
+
+      #Else we have no match
+      return(c(NA,''))
+
+    }))
+    match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
+
+    out_match[index_words_4] = as.numeric(match_info[,1])
+    out_message[index_words_4] = match_info[,2]
+
+  }
+
+  ########################
+  # Try matching by changing the splitter.
+  ########################
+  if(length(index_words_with_splitter)> 0){
+    cli::cli_alert_info("Trying change splitter for {length(index_words_with_splitter)} name{?s}")
+
+    # Get the words with the splitter changed.
+    to_try_words = lapply(taxon_names[index_words_with_splitter], function(x){
+      A=stringr::str_replace(x,pattern = splitters_grepl, ' var\\. ')
+      B=stringr::str_replace(x,pattern = splitters_grepl, ' f\\. ')
+      C=stringr::str_replace(x,pattern = splitters_grepl, ' subsp\\. ')
+      D=stringr::str_replace(x,pattern = splitters_grepl, ' nothosubsp\\. ')
+      options = c(A,B,C,D)
+      options = options[-match(x, options)]
+      return(options)
+    })
+    #Get the corresponding taxon_names_full (don't change here as we only check for author.)
+    taxon_full_splitter = as.list(taxon_names_full[index_words_with_splitter])
+
+    # Combine the taxon names to try with taxon name full.
+    to_try = mapply(list,to_try_words, taxon_full_splitter, SIMPLIFY = FALSE)
+
+    match_info = unlist(pbapply::pblapply(to_try, function(x){
+      # x here are the potential taxon names with splitters added.
+
+      # Match to either single or multiple.
+      match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult)
+      match_details = list(match = c(match_details_single$match, match_details_mult$match),
+                           message = c(match_details_single$message, match_details_mult$message))
+
+      #Index of the matches we found.
+      found_match_index = which(!is.na(match_details$match))
+
+      # If we get a single match return it.
+      if(length(found_match_index)==1){
+        match = match_details$match[found_match_index]
+        message = paste0(' -> (Change splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        return(c(match,message))
+      }
+      # Multiple matches unclear which is best so don't give a match.
+      if(length(found_match_index)>1){
+        match = -5
+        message = paste0(' -> (Change splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        return(c(match,message))
+      }
+
+      #Else we have no match
+      return(c(NA,''))
+
+    }))
+    match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
+
+    out_match[index_words_3] = as.numeric(match_info[,1])
+    out_message[index_words_3] = match_info[,2]
+
+  }
+
+
+  return(list(match = out_match, message = out_message))
+}
+
 #' convert_to_accepted_name()
 #'
 #' This function is used to update the match to POWO by checking for accepted plant names.
@@ -585,7 +787,7 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
     }
 
     #Check adding a single new letter
-    patternB = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z]',stringr::str_sub(taxon,i+1,length_taxon))
+    patternB = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z-]',stringr::str_sub(taxon,i+1,length_taxon))
     fixed_typoB = wcvp_needed_plus_1[grepl(patternB, wcvp_needed_plus_1)]
     if(length(fixed_typoB) >0){
       return(fixed_typoB[1])
@@ -605,12 +807,13 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
 #' @param find_typos Flag for whether we search for typos
+#' @param try_add_split Flag for whether we search for missing f./var./subsp.
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
-match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
+match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast', try_add_split = T){
   if(!find_typos %in% c('full', 'fast','no')){
     stop('Invalid find_typos input!')
   }
@@ -747,6 +950,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   # C) Try to match the base name to POWO with multiple records.
   match_info = match_mult_wcvp(name_to_try,taxon_name_full[autonym_indices],  wcvp, mult_indices)
   taxon_match[autonym_indices] = match_info$match
+  match_info$message[match_info$message ==''] = ' -> (Does not have match)'
   taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
   index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
   index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
@@ -766,7 +970,7 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   wanted_indices = index_to_find_matches[no_words==2]
   to_add_hybrid = taxon_name[wanted_indices]
   name_to_try = stringr::str_replace(to_add_hybrid,pattern = ' ', replacement = ' \u00D7 ')
-  taxon_name_story[wanted_indices] = paste0(taxon_name_story[autonym_indices],
+  taxon_name_story[wanted_indices] = paste0(taxon_name_story[wanted_indices],
                                              ' -> (Try adding hybrid) -> ',
                                              name_to_try)
 
@@ -782,6 +986,8 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   # C) Try to match the base name to POWO with multiple records.
   match_info = match_mult_wcvp(name_to_try,taxon_name_full[wanted_indices],  wcvp, mult_indices)
   taxon_match[wanted_indices] = match_info$match
+  match_info$message[match_info$message ==''] = ' -> (Does not have match)'
+
   taxon_name_story[wanted_indices] = paste0(taxon_name_story[wanted_indices], match_info$message)
   index_complete = c(index_complete, wanted_indices[!is.na(match_info$match)])
   index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% wanted_indices[!is.na(match_info$match)]]
@@ -789,6 +995,22 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
   cli::cli_alert_success("Found {no_left} of {current_left} names")
 
 
+
+  ################################################
+  # 8) Try adding/updating splitter.
+  ################################################
+  if(try_add_split){
+    cli::cli_h2("(4/7) Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
+    match_info = add_splitter(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp)
+    taxon_match[index_to_find_matches] = match_info$match
+    taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+
+    index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+    no_found = length(index_to_find_matches[!is.na(match_info$match)])
+    cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
+
+    index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+  }
 
   ################################################
   # 10) Try to find typo and then match.
@@ -881,7 +1103,10 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast'){
                            "(Typo)", '6',
                            "(Not in POWO)", '8',
                            "(Go to accepted name)", 'A',
-                           "(Sanitise)", 'S')
+                           "(Sanitise)", 'S',
+                           "Splitter", 'L',
+                           "(Try adding hybrid)", 'H'
+                    )
   match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
   match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
   match_options = matrix(match_options, byrow = T, ncol=2)

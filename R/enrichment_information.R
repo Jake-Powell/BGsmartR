@@ -233,7 +233,15 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
                      with_indet, with_indet_end,
                      with_group, with_unkn, with_hybrid_end, with_Hybrid_space, with_Unknown)
 
-  # 7) Check that the taxon names are of the correct 'casing form'.
+  # # 7) Extract all hyphenated names.
+  # cli::cli_h2("(7/6) Extracting hyphenated words...")
+  # with_hypen = wcvp_names$taxon_name[grepl('-',wcvp_names$taxon_name)]
+  # all_hyphenated = unique(unlist(lapply(with_hypen, function(x){
+  #   words = stringr::str_split(x,' ')[[1]]
+  #   return(words[grepl('-',words)])
+  # })))
+  # hypenated = data.frame(hyphen = all_hyphenated, without_hyphen = stringr::str_remove_all(all_hyphenated, '-'))
+
 
   # 8) Log the changes.
   changes = NULL

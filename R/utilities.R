@@ -42,10 +42,11 @@ sanitise_name <- function(taxon_name){
     taxon_name = stringr::str_replace(taxon_name,' f ',' f\\. ')
     taxon_name = stringr::str_replace(taxon_name,' var | v ',' var\\. ')
     taxon_name = stringr::str_replace(taxon_name,' subsp ',' subsp\\. ')
-  }
+    taxon_name = stringr::str_replace(taxon_name,' nothosubsp ',' nothosubsp\\. ')
 
+  }
   ###########
-  ## 3) Remove whitespace.
+  ## 3) Remove excess whitespace.
   ###########
   taxon_name = stringr::str_squish(taxon_name)
 
