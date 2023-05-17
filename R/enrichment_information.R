@@ -82,9 +82,9 @@ get_accepted_plant <- function(powo_id) {
 import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_columns = c("plant_name_id", "taxon_rank", "taxon_status", "family", "genus", "species", "lifeform_description", "climate_description", "taxon_name", "taxon_authors", "accepted_plant_name_id", "powo_id")){
   cli::cli_h1("Importing wcvp information (wcvp_names)")
 
-  ###
+  #################################
   # 1) Load wcvp_names (using method as described in the download)
-  ###
+  #################################
   cli::cli_h2("(1/6) Loading wvcp_names")
     if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
@@ -124,7 +124,9 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   # Change the taxon name for one special case.
   wcvp_names$taxon_name[wcvp_names$taxon_name == 'xx viridissimus var. viridissimus'] = 'Trigonostemon viridissimus var. viridissimus'
 
+  #################################
   # 2) Sanitise taxon names.
+  #################################
   cli::cli_h2("(2/6) Sanitising taxon names")
   santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
   original_taxon_name = wcvp_names$taxon_name
@@ -132,7 +134,9 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
 
-  # 2) Sanitise authors.
+  #################################
+  # 3) Sanitise authors.
+  #################################
   cli::cli_h2("(2/6) Creating author parts...")
   authors = wcvp_names$taxon_authors
   remove_initials = unlist(pbapply::pblapply(authors,function(x){
@@ -144,13 +148,16 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
 
   wcvp_names$author_parts = remove_initials
 
-
-  # 2) Create new column for the length of the taxonName (used if we search for typos
+  #################################
+  # 4) Create new column for the length of the taxonName (used if we search for typos
+  #################################
   cli::cli_h2("(3/6) Adding taxon_length column")
   taxon_length = unlist(pbapply::pblapply(wcvp_names$taxon_name, stringr::str_length))
   wcvp_names$taxon_length = taxon_length
 
-  # 3) Add flag for whether there exists multiple taxon names.
+  #################################
+  # 5) Add flag for whether there exists multiple taxon names.
+  #################################
   cli::cli_h2("(4/6) Splitting wcvp_names into those with multiple Taxon names and those with only one...")
   name_freq = table(wcvp_names$taxon_name)
   single_entry = rep(NA, nrow(wcvp_names))
@@ -158,35 +165,33 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1]] = FALSE
   wcvp_names = data.frame(wcvp_names, single_entry)
 
-  # 4) Create new column for whether the taxon name is an autonym. (used for checking for matches)
-  # print('(4/6) Adding is_autonym column...')
-  # wcvp_names = add_is_autonym(wcvp_names, progress_bar = T, TaxonName_column = 'taxon_name')
-
-  # 5) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
+  #################################
+  # 6) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
+  #################################
   cli::cli_h2("(5/6) Checking for accepted form issues with synonyms...")
-  synonyms =wcvp_names[wcvp_names$taxon_status == 'Synonym',]
-  non_accepted_synonyms = synonyms[is.na(synonyms$accepted_plant_name_id),]
+  #find the indices of the entries that have missing accepted plant name id when their taxon status is a synonym.
+  issue_index = which(wcvp_names$taxon_status == 'Synonym' & is.na(wcvp_names$accepted_plant_name_id))
+  non_accepted_synonyms = wcvp_names[issue_index,]
+
   powo_ids = non_accepted_synonyms$powo_id
   cli::cli_alert_danger("Found {length(powo_ids)}  synonyms without accepted form...")
   cli::cli_text("searching powo online for accepted forms...")
-  pbapply::pboptions(type = "txt")
+  pbapply::pboptions(type = "timer")
   accepted_details = pbapply::pblapply(powo_ids,get_accepted_plant)
   new_accepted_name = unlist(lapply(accepted_details, function(x){x[1]}))
   new_accepted_powo_id = unlist(lapply(accepted_details, function(x){x[2]}))
-  new_accepted_name_id = wcvp_names$accepted_plant_name_id[match(new_accepted_powo_id, wcvp_names$powo_id)]
+  new_accepted_plant_name_id = wcvp_names$accepted_plant_name_id[match(new_accepted_powo_id, wcvp_names$powo_id)]
 
-  new_accepted_plant_name_id = wcvp_names$accepted_plant_name_id
-  indices = which(wcvp_names$taxon_status == 'Synonym')
-  indices = indices[which(is.na(non_accepted_synonyms$accepted_plant_name_id))]
-  new_accepted_plant_name_id[indices] = new_accepted_name_id
-  wcvp_names$accepted_plant_name_id = new_accepted_plant_name_id
+  wcvp_names$accepted_plant_name_id[issue_index] = new_accepted_plant_name_id
 
-  remaining_NA = sum(is.na(new_accepted_name_id))
-  fixed_synonyms = 100 - remaining_NA/length(new_accepted_name_id)*100
+  remaining_NA = sum(is.na(new_accepted_plant_name_id))
+  fixed_synonyms = 100 - remaining_NA/length(new_accepted_plant_name_id)*100
   cli::cli_alert_success("Fixed {round(fixed_synonyms,digits=1)}% of missing accepted forms...")
   cli::cli_alert_danger("{remaining_NA} remaining unexplained missing accepted forms......")
 
-  # 6)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
+  #################################
+  # 7)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
+  #################################
   cli::cli_h2("(6/6) Checking for common hybrids, cultivar, etc symbols...")
 
   # A)  Note current wcvp has a bug where [*] and [**] are sometimes used instead if var. and f.
@@ -233,17 +238,9 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
                      with_indet, with_indet_end,
                      with_group, with_unkn, with_hybrid_end, with_Hybrid_space, with_Unknown)
 
-  # # 7) Extract all hyphenated names.
-  # cli::cli_h2("(7/6) Extracting hyphenated words...")
-  # with_hypen = wcvp_names$taxon_name[grepl('-',wcvp_names$taxon_name)]
-  # all_hyphenated = unique(unlist(lapply(with_hypen, function(x){
-  #   words = stringr::str_split(x,' ')[[1]]
-  #   return(words[grepl('-',words)])
-  # })))
-  # hypenated = data.frame(hyphen = all_hyphenated, without_hyphen = stringr::str_remove_all(all_hyphenated, '-'))
-
-
+  #################################
   # 8) Log the changes.
+  #################################
   changes = NULL
 
   #add taxon name sanitising.
@@ -262,7 +259,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
                          powo_id = non_accepted_synonyms$powo_id[indices],
                          taxon_name = non_accepted_synonyms$taxon_name[indices],
                          issue_entry = paste0('accepted_plant_name_id = ',non_accepted_synonyms$accepted_plant_name_id[indices]),
-                         fix = paste0('accepted_plant_name_id = ',new_accepted_name_id[indices], ' (',new_accepted_name[indices],')'))
+                         fix = paste0('accepted_plant_name_id = ',new_accepted_plant_name_id[indices], ' (',new_accepted_name[indices],')'))
     changes = rbind(changes, changesB)
   }
 
@@ -277,8 +274,9 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
     changes = rbind(changes, changesB)
   }
 
-
-  # 8) return
+  #################################
+  # 9) return
+  #################################
   return(list(wcvp_names = wcvp_names,
               exceptions = exceptions,
               changes = changes))

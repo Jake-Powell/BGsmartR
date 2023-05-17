@@ -88,7 +88,7 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
   try_author_match = TRUE # flag for whether we have author information
   flag = TRUE # flag for whether we need to do checks.
 
-  Authors = stringr::str_sub(taxon_full_current, start = stringr::str_length(taxon_name_current)+1, end = stringr::str_length(taxon_full_current))
+  Authors = stringr::str_sub(taxon_full_current, start = stringr::str_length(taxon_name_current)+1, end = -1)
   Authors = stringr::str_squish(Authors)
   Authors_grepl = Authors
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
@@ -727,7 +727,6 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   #Cases.
   # a) final letter change.
   final_letter_change = matrix(c('i','ii',
-                      'ii', 'i',
                       'i', 'ae',
                       'a', 'um',
                       'a', 'us',
@@ -738,12 +737,13 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
                       'ense','iense',
                       'oides', 'ioides',
                       'orum', 'iorum'),byrow = T, ncol = 2)
+  final_letter_change = rbind(final_letter_change, final_letter_change[,2:1])
   # Function that loops over all final letter changes and returns if typo is found.
   for(i in 1:nrow(final_letter_change)){
     if(stringr::str_ends(taxon,final_letter_change[i,1])){
       fixed = wcvp_needed$taxon_name[grepl(stringr::str_replace(taxon,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2]), wcvp_needed$taxon_name)]
       if(length(fixed) >0){
-        return(fixed[1])
+        return(fixed)
       }
     }
   }
@@ -1027,10 +1027,12 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast', t
     current_left = length(index_to_find_matches)
     # A) Search for typos.
     if(find_typos == 'fast'){
-      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = T)}))
+      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,NA, fast = T)}))
     }
     else{
-      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp$wcvp_names, fast = F)}))
+      wcvp_without_repeated = wcvp$wcvp_names[match(unique(wcvp$wcvp_names$taxon_name),
+                                                    wcvp$wcvp_names$taxon_name ),]
+      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp_without_repeated, fast = F)}))
 
     }
 
