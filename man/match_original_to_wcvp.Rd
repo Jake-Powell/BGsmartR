@@ -8,7 +8,8 @@ match_original_to_wcvp(
   original_report,
   wcvp,
   find_typos = "fast",
-  try_add_split = T
+  try_add_split = T,
+  try_fix_hybrid = T
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ match_original_to_wcvp(
 \item{find_typos}{Flag for whether we search for typos}
 
 \item{try_add_split}{Flag for whether we search for missing f./var./subsp.}
+
+\item{try_fix_hybrid}{Flag for whether we search for hybrid issues.}
 }
 \value{
 A list of length two containing:
