@@ -9,7 +9,8 @@ match_original_to_wcvp(
   wcvp,
   find_typos = "fast",
   try_add_split = T,
-  try_fix_hybrid = T
+  try_fix_hybrid = T,
+  try_rm_autonym = T
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ match_original_to_wcvp(
 \item{try_add_split}{Flag for whether we search for missing f./var./subsp.}
 
 \item{try_fix_hybrid}{Flag for whether we search for hybrid issues.}
+
+\item{try_rm_autonym}{Flag for whether we try removing autonyms.}
 }
 \value{
 A list of length two containing:

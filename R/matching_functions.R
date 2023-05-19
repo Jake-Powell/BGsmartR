@@ -428,6 +428,81 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
   return(list(match = match_to_multiple, message = message))
 }
 
+#' match_rm_autonym()
+#'
+#' @param taxon_names taxon names
+#' @param taxon_names_full taxon names with author
+#' @param wcvp enrich information
+#' @param single_indices wcvp indices with a unique taxon name
+#' @param mult_indices wcvp indices with non-unique taxon name
+#'
+#' @return a list with match and message
+#' @export
+match_rm_autonym <- function(taxon_names, taxon_names_full, wcvp,
+                             single_indices = NA,
+                             mult_indices = NA){
+
+  #Check for NA in taxon_names and remove if they exist.
+  NAs = which(is.na(taxon_names))
+  if(length(NAs) > 1){
+    warning('In match_autonym(), taxon names contain NA.')
+  }
+
+  ########################
+  # Setup + find autonym taxon names + create wcvp indices + create names to try
+  ########################
+  out_match = rep(NA, length(taxon_names))
+  out_message = rep('',length(taxon_names))
+
+  taxon_names_and_autonym = add_is_autonym(data.frame(TaxonName = taxon_names))
+  autonym_indices =  which(taxon_names_and_autonym$is_autonym)
+
+  if(length(autonym_indices) == 0){
+    return(list(match = out_match, message = out_message))
+  }
+
+  if(is.na(single_indices[1])){
+    single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
+  }
+  if(is.na(mult_indices[1])){
+    mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
+  }
+
+  name_to_try = unlist(lapply(taxon_names[autonym_indices], function(name){
+    split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
+    split_name = unlist(lapply(split_name, stringr::str_squish))
+    return(split_name[1])
+  }))
+
+  ########################
+  # Match to single.
+  ########################
+  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
+  out_match[autonym_indices] = match_info$match
+  out_message[autonym_indices] = paste0(out_message[autonym_indices], match_info$message)
+  index_complete = autonym_indices[!is.na(match_info$match)]
+  index_to_find_matches = which(is.na(match_info$match))
+
+  ########################
+  # Match to multiple.
+  ########################
+  if(length(index_to_find_matches) > 0){
+    auto_index = autonym_indices[index_to_find_matches]
+    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_names_full[auto_index],  wcvp, mult_indices)
+    out_match[auto_index] = match_info$match
+    out_message[auto_index] = paste0(out_message[auto_index], match_info$message)
+  }
+
+  ########################
+  # Update match message to include the removed autonym.
+  ########################
+  with_match = out_message[autonym_indices] != ''
+  out_message[autonym_indices[with_match]] = paste0(" -> (Remove autonym) -> ", name_to_try[with_match],  out_message[autonym_indices[with_match]])
+
+
+  return(list(match = out_match, message = out_message))
+}
+
 #' add_splitter()
 #'
 #' @param taxon_names taxon names
@@ -490,17 +565,19 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Add splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        message = paste0(' -> (Add splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -522,7 +599,7 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
   if(length(index_words_4) > 0){
     cli::cli_alert_info("Trying add splitter (with hybrid taxon names) for {length(index_words_4)} name{?s}")
 
-    #Het wcvp indices with only + or x.
+    #get wcvp indices with only + or x.
     wcvp_index_splitters_mult_h = wcvp_index_splitters_mult[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_mult])]
     wcvp_index_splitters_single_h = wcvp_index_splitters_single[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_single])]
 
@@ -542,23 +619,25 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single_h)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult_h)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_splitters_mult_h)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Add splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        message = paste0(' -> (Add splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -600,23 +679,25 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_splitters_mult)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Change splitter) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        message = paste0(' -> (Change splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Change splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        message = paste0(' -> (Change splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -700,23 +781,25 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_hybrid_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_hybrid_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],2), wcvp, wcvp_index_hybrid_mult)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Hybrid fix) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        message = paste0(' -> (Hybrid fix) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index%/%length(x[[1]])],collapse = ' OR '), ')')
+        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -755,23 +838,25 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_hybrid_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_hybrid_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_hybrid_mult)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Hybrid fix) -> ', x[[1]][found_match_index], match_details$message[found_match_index])
+        message = paste0(' -> (Hybrid fix) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index%/%length(x[[1]])],collapse = ' OR '), ')')
+        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -814,23 +899,25 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp , wcvp_index_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_mult)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
       #Index of the matches we found.
       found_match_index = which(!is.na(match_details$match))
+      mes_index = found_match_index%%length(x[[1]])
+      mes_index[mes_index == 0] = length(x[[1]])
 
       # If we get a single match return it.
       if(length(found_match_index)==1){
         match = match_details$match[found_match_index]
-        message = paste0(' -> (Hybrid fix) -> ', x[[1]][found_match_index%/%length(x[[1]])], match_details$message[found_match_index])
+        message = paste0(' -> (Hybrid fix) -> ', x[[1]][mes_index], match_details$message[found_match_index])
         return(c(match,message))
       }
       # Multiple matches unclear which is best so don't give a match.
       if(length(found_match_index)>1){
         match = -5
-        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][found_match_index],collapse = ' OR '), ')')
+        message = paste0(' -> (Hybrid fix, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
         return(c(match,message))
       }
 
@@ -1031,13 +1118,15 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
 #' @param find_typos Flag for whether we search for typos
 #' @param try_add_split Flag for whether we search for missing f./var./subsp.
 #' @param try_fix_hybrid Flag for whether we search for hybrid issues.
+#' @param try_rm_autonym Flag for whether we try removing autonyms.
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
 match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
-                                   try_add_split = T, try_fix_hybrid = T ){
+                                   try_add_split = T, try_fix_hybrid = T,
+                                   try_rm_autonym = T){
   if(!find_typos %in% c('full', 'fast','no')){
     stop('Invalid find_typos input!')
   }
@@ -1092,7 +1181,6 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
   # 4) Remove known to not be in POWO. (set taxon match to -1)
   ################################################
   cli::cli_h2("(1/7) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
-
   indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
   taxon_match[index_to_find_matches[indices]] = -1
   taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
@@ -1144,43 +1232,26 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
   ################################################
-  # 8) Try to match the autonym.
+  # 8) Try to match with autonym removed.
   ################################################
-  cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
-  current_left = length(index_to_find_matches)
+  if(try_rm_autonym){
+    cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
 
-  # A) Find the index of the remaining autonyms, extract the base name. Update taxon_name_story.
-  remaining_autonyms_flag = unique_taxon_name_and_full$is_autonym[index_to_find_matches]
-  autonym_indices = index_to_find_matches[remaining_autonyms_flag]
-  remaining_autonyms = taxon_name[autonym_indices]
-  name_to_try = unlist(lapply(remaining_autonyms, function(name){
-    split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
-    split_name = unlist(lapply(split_name, stringr::str_squish))
-    return(split_name[1])
-  }))
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices],
-                                             ' -> (Autonym. Does not exist in POWO. Convert to base name) -> ',
-                                             name_to_try)
+    match_info = match_rm_autonym(taxon_names = taxon_name[index_to_find_matches],
+                                  taxon_names_full = taxon_name_full[index_to_find_matches],
+                                  wcvp = wcvp,
+                                  single_indices = single_indices,
+                                  mult_indices = mult_indices)
 
-  # B) Try to match the base name to POWO with single records.
-  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
-  taxon_match[autonym_indices] = match_info$match
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
-  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
-  name_to_try = name_to_try[is.na(match_info$match)]
-  autonym_indices = autonym_indices[is.na(match_info$match)]
+    taxon_match[index_to_find_matches] = match_info$match
+    taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
 
-  # C) Try to match the base name to POWO with multiple records.
-  match_info = match_mult_wcvp(name_to_try,taxon_name_full[autonym_indices],  wcvp, mult_indices)
-  taxon_match[autonym_indices] = match_info$match
-  match_info$message[match_info$message ==''] = ' -> (Does not have match)'
-  taxon_name_story[autonym_indices] = paste0(taxon_name_story[autonym_indices], match_info$message)
-  index_complete = c(index_complete, autonym_indices[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% autonym_indices[!is.na(match_info$match)]]
-  no_left = current_left - length(index_to_find_matches)
-  cli::cli_alert_success("Found {no_left} of {current_left} names")
+    index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+    no_found = length(index_to_find_matches[!is.na(match_info$match)])
+    cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
 
+    index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+  }
 
   ################################################
   # 9) Try to match by adding hybridisation.
