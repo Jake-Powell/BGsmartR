@@ -1,5 +1,55 @@
 # Functions used to match to POWO (wcvp_names)
 
+#' shorten_message
+#'
+#' @param messages messages about matching
+#'
+#' @return shorted form of messages
+#' @export
+#'
+shorten_message <- function(messages){
+  match_short = rep('', length(messages))
+  match_options = c("(matches POWO record with single entry)", 'EXACT',
+                    "(Multiple POWO records, match by exact author)", 'EXACT',
+                    "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", 'EXACT',
+                    "(Multiple POWO records, match by partial author <powo author containing in taxon author>)", "PARTIAL",
+                    "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "PARTIAL",
+                    "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", 'PARTIAL',
+                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", 'PARTIAL',
+                    "(Multiple POWO records, multiple exact author, choose via taxon_status)", "TAXON_STATUS",
+                    "(Multiple POWO records, no author/no matched author, choose via taxon_status)", 'TAXON_STATUS',
+                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)", "TAXON_STATUS",
+                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)", 'TAXON_STATUS',
+                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)", 'TAXON_STATUS',
+                    "(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)", "UNCLEAR",
+                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)", "UNCLEAR",
+                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)", 'UNCLEAR',
+                    "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", 'UNCLEAR',
+                    "(Add splitter, multiple matches, unclear which to match)", 'UNCLEAR',
+                    "(Change splitter, multiple matches, unclear which to match)", 'UNCLEAR',
+                    "(Hybrid fix, multiple matches, unclear which to match)", 'UNCLEAR',
+                    "(Not in POWO <known not to be in POWO>)", 'NOT_IN',
+                    "Remove autonym", 'AUTONYM',
+                    "(Typo)", 'TYPO',
+                    "(Not in POWO)", 'NO_MATCH',
+                    "(Go to accepted name)", 'ACCEPTED',
+                    "(Sanitise)", 'SANITISE',
+                    "Add splitter", 'INFRA',
+                    "Change splitter", 'INFRA',
+                    "(Hybrid", 'HYBRID'
+  )
+  match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
+  match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
+  match_options = matrix(match_options, byrow = T, ncol=2)
+  for(i in 1:nrow(match_options)){
+    indices = grepl(match_options[i,1], messages)
+    match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
+  }
+  match_short = stringr::str_remove(match_short, '^, ')
+  return(match_short)
+}
+
+
 #' known_not_in_wcvp()
 #'
 #' A function that finds the taxon names which are known not to be in POWO. In particular this includes:
@@ -1147,7 +1197,7 @@ match_typos <- function(taxon_names, taxon_names_full, wcvp,
   #Check for NA in taxon_names and remove if they exist.
   NAs = which(is.na(taxon_names))
   if(length(NAs) > 1){
-    warning('In match_autonym(), taxon names contain NA.')
+    warning('In match_typos(), taxon names contain NA.')
   }
 
   ########################
@@ -1391,7 +1441,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
 
 
   ################################################
-  # 8) Try adding/updating splitter.
+  # 10) Try adding/updating splitter.
   ################################################
   if(try_add_split){
     cli::cli_h2("(4/7) Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
@@ -1409,7 +1459,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   }
 
   ################################################
-  # 10) Try to find typo and then match.
+  # 11) Try to find typo and then match.
   ################################################
   if(typo_method %in%  c('fast','full')){
     cli::cli_h2("Testing and matching typos for {length(index_to_find_matches)} name{?s}")
@@ -1433,7 +1483,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   }
 
   ################################################
-  # 11) Convert to accepted name where possible.
+  # 12) Convert to accepted name where possible.
   ################################################
   if(do_convert_accepted){
     cli::cli_h2("Converting to accepted name..")
@@ -1449,51 +1499,18 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
     }
 
   ################################################
-  # 12) Set remaining taxon_match to -3 and add story.
+  # 13) Set remaining taxon_match to -3 and add story.
   ################################################
   taxon_match[index_to_find_matches] = -3
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
 
   ################################################
-  # 13) Create a shortened version on the match details
+  # 14) Create a shortened version on the match details
   ################################################
-  match_short = rep('', length(taxon_name_story))
-  match_options = c("(matches POWO record with single entry)", '1',
-                           "(Multiple POWO records, match by exact author)", '1',
-                           "(Multiple POWO records, multiple exact author, choose via taxon_status)", "3",
-                           "(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)", "6",
-                           "(Multiple POWO records, match by partial author <powo author containing in taxon author>)", "2",
-                           "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)", "3",
-                           "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)", "6",
-                           "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "2",
-                           "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)", '3',
-                           "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)", '6',
-                           "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", '2',
-                           "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", '3',
-                           "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)", '6',
-                           "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", '1',
-                           "(Multiple POWO records, no author/no matched author, choose via taxon_status)", '3',
-                           "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", '6',
-                           "(Not in POWO <known not to be in POWO>)", '7',
-                           "(Autonym. Does not exist in POWO. Convert to base name)", '5',
-                           "(Typo)", 'T',
-                           "(Not in POWO)", '8',
-                           "(Go to accepted name)", 'A',
-                           "(Sanitise)", 'S',
-                           "splitter", 'L',
-                           "(Try adding hybrid)", 'H'
-                    )
-  match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
-  match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
-  match_options = matrix(match_options, byrow = T, ncol=2)
-  for(i in 1:nrow(match_options)){
-    indices = grepl(match_options[i,1], taxon_name_story)
-    match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
-  }
-  match_short = stringr::str_remove(match_short, '^, ')
+  match_short = shorten_message(taxon_name_story)
 
   ################################################
-  # 14) return match (to original report) and details of the matches (for unique plants).
+  # 15) return match (to original report) and details of the matches (for unique plants).
   ################################################
   cli::cli_h2("Matching Complete")
   taxon_match_full = taxon_match[report_match]
