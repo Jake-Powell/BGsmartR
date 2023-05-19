@@ -52,3 +52,33 @@ sanitise_name <- function(taxon_name){
 
   return(taxon_name)
 }
+
+
+#' author_from_taxon_name_full()
+#'
+#' @param taxon_names taxon names
+#' @param taxon_names_full taxon names with author
+#'
+#' @return only author
+#' @export
+#'
+author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
+  #As we're using grepl need to add escape for special characterse
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\.', '\\\\.')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\[', '\\\\[')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\]', '\\\\]')
+
+  # Convert taxon name to a grepl statement, where AA BB goes to AA|BB.
+  taxon_name_words_grepl = unlist(lapply(taxon_names, function(x){
+    words = stringr::str_split(x, ' ')[[1]]
+    return(paste0(words,collapse='|'))
+  }))
+
+  #Loop over all taxon name full removing any word that is also in taxon name.
+  authors = rep(NA,length(taxon_names_full))
+  for(i in 1:length(authors)){
+    auth_cur = stringr::str_replace_all(taxon_names_full[i],taxon_name_words_grepl[i],'')
+    authors[i] = stringr::str_squish(auth_cur)
+  }
+  return(authors)
+}

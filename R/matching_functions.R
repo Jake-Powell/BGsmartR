@@ -26,9 +26,18 @@
 #' @return A vector of the indices in taxon_names that can be removed.
 #' @export
 known_not_in_wcvp <- function(taxon_names){
-  return(which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|indet$|CV|cv$|cv\\.|Group|unkn|hybrid$|Hybrid |Unknown",taxon_names)))
-}
+  #Setup output
+  out_match = rep(NA,length(taxon_names))
+  out_message = rep('',length(taxon_names))
 
+  #Find indices of those known not to be in wcvp.
+  not_in_wcvp = which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|indet$|CV|cv$|cv\\.|Group|unkn|hybrid$|Hybrid |Unknown",taxon_names))
+
+  out_match[not_in_wcvp] = -1
+  out_message[not_in_wcvp] = ' -> (Not in POWO <known not to be in POWO>)'
+
+  return(list(match = out_match, message = out_message))
+}
 
 #' match_single_wcvp()
 #'
@@ -1278,12 +1287,17 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   # 4) Remove known to not be in POWO. (set taxon match to -1)
   ################################################
   cli::cli_h2("(1/7) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
-  indices = known_not_in_wcvp(taxon_name[index_to_find_matches])
-  taxon_match[index_to_find_matches[indices]] = -1
-  taxon_name_story[index_to_find_matches[indices]] = paste0(taxon_name_story[index_to_find_matches[indices]], ' -> (Not in POWO <known not to be in POWO>)')
-  index_complete = c(index_complete, indices)
-  index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% index_to_find_matches[indices]]
-  cli::cli_alert_success("Found {length(indices)} known not to be in POWO")
+
+  match_info = known_not_in_wcvp(taxon_name[index_to_find_matches])
+
+  taxon_match[index_to_find_matches] = match_info$match
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+
+  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+  no_found = length(index_to_find_matches[!is.na(match_info$match)])
+  cli::cli_alert_success("Found {length(index_to_find_matches)} known not to be in POWO")
+
+  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
   ################################################
   # 5) Sanitise taxon names.
