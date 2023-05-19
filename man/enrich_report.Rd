@@ -7,6 +7,9 @@
 enrich_report(
   original_report,
   wcvp,
+  taxon_name_col = "TaxonName",
+  taxon_name_full_col = NA,
+  taxon_author_col = NA,
   do_is_autonym = FALSE,
   do_status_year = FALSE,
   do_infrageneric_level = FALSE,
@@ -17,6 +20,12 @@ enrich_report(
 \item{original_report}{A gardens original report}
 
 \item{wcvp}{POWO database}
+
+\item{taxon_name_col}{Column name in the original report for taxon name}
+
+\item{taxon_name_full_col}{Column name in the original report for taxon name and author/s (combined)}
+
+\item{taxon_author_col}{Column name in the original report for taxon author/s}
 
 \item{do_is_autonym}{Flag for whether to add the column is_autonym}
 

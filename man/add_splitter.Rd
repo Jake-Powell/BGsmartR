@@ -4,12 +4,12 @@
 \alias{add_splitter}
 \title{add_splitter()}
 \usage{
-add_splitter(taxon_names, taxon_names_full, wcvp)
+add_splitter(taxon_names, taxon_authors, wcvp)
 }
 \arguments{
 \item{taxon_names}{taxon names}
 
-\item{taxon_names_full}{taxon names with author}
+\item{taxon_authors}{taxon names with author}
 
 \item{wcvp}{enrich information}
 }

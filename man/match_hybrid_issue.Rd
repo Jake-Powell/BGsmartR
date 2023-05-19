@@ -4,12 +4,12 @@
 \alias{match_hybrid_issue}
 \title{match_hybrid_issue}
 \usage{
-match_hybrid_issue(taxon_names, taxon_names_full, wcvp)
+match_hybrid_issue(taxon_names, taxon_authors, wcvp)
 }
 \arguments{
 \item{taxon_names}{taxon names}
 
-\item{taxon_names_full}{taxon names with author}
+\item{taxon_authors}{taxon names with author}
 
 \item{wcvp}{enrich information}
 }

@@ -7,6 +7,9 @@
 match_original_to_wcvp(
   original_report,
   wcvp,
+  taxon_name_col = "TaxonName",
+  taxon_name_full_col = NA,
+  taxon_author_col = NA,
   typo_method = "fast",
   try_add_split = TRUE,
   try_fix_hybrid = TRUE,
@@ -18,6 +21,12 @@ match_original_to_wcvp(
 \item{original_report}{A gardens original report}
 
 \item{wcvp}{POWO database}
+
+\item{taxon_name_col}{Column name in the original report for taxon name}
+
+\item{taxon_name_full_col}{Column name in the original report for taxon name and author/s (combined)}
+
+\item{taxon_author_col}{Column name in the original report for taxon author/s}
 
 \item{typo_method}{Flag for whether we search for typos}
 

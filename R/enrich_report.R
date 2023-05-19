@@ -9,6 +9,9 @@
 #'
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
+#' @param taxon_name_col Column name in the original report for taxon name
+#' @param taxon_name_full_col Column name in the original report for taxon name and author/s (combined)
+#' @param taxon_author_col Column name in the original report for taxon author/s
 #' @param do_is_autonym Flag for whether to add the column is_autonym
 #' @param do_status_year Flag for whether to add the column status_year
 #' @param do_infrageneric_level Flag for whether to add the column infrageneric_level
@@ -18,7 +21,11 @@
 #' `$enriched_report` the enriched report, and
 #' `match_details` the details of how taxon names have being used to match to POWO.
 #' @export
-enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE, typo_method = 'fast'){
+enrich_report <- function(original_report, wcvp,
+                          taxon_name_col = 'TaxonName',
+                          taxon_name_full_col = NA,
+                          taxon_author_col = NA,
+                          do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE, typo_method = 'fast'){
 
   enriched_report = original_report
 
@@ -41,7 +48,12 @@ enrich_report <- function(original_report, wcvp, do_is_autonym = FALSE, do_statu
   # 4) Add information from POWO.
   ###
   # A) find the match between original report and wcvp.
-  match_info = match_original_to_wcvp(original_report, wcvp, typo_method = typo_method)
+  match_info = match_original_to_wcvp(original_report,
+                                      wcvp,
+                                      taxon_name_col = taxon_name_col,
+                                      taxon_name_full_col = taxon_name_full_col,
+                                      taxon_author_col = taxon_author_col,
+                                      typo_method = typo_method)
 
   # B) Extract the info from wcvp.
   wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area", "Dist_area_code_l3", "Dist_labels")

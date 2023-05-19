@@ -133,29 +133,27 @@ match_single_wcvp <- function(taxon_names, wcvp, wcvp_search_index){
 #' Given a taxon name and its full version we find the records in POWO that share the same taxon name. We then choose the record to match to by:
 #'
 #'
-#' @param taxon_name_and_full the pair of taxon name and taxon name full.
+#' @param taxon_name_and_author the pair of taxon name and taxon name full.
 #' @param wcvp_mult POWO database restricted to records that do not have a unique taxon name.
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`
 #' `$message` a message detailing the match.
 #' @export
-get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
+get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   # 1) Split taxon name and taxon full
-  taxon_name_current = taxon_name_and_full[1]
-  taxon_full_current = taxon_name_and_full[2]
+  taxon_name_current = taxon_name_and_author[1]
+  taxon_author_current = taxon_name_and_author[2]
   try_author_match = TRUE # flag for whether we have author information
   flag = TRUE # flag for whether we need to do checks.
 
-  Authors = stringr::str_sub(taxon_full_current, start = stringr::str_length(taxon_name_current)+1, end = -1)
-  Authors = stringr::str_squish(Authors)
-  Authors_grepl = Authors
+  Authors_grepl = taxon_author_current
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\(', '\\\\(')
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\)', '\\\\)')
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\[', '\\\\[')
   Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\]', '\\\\]')
-  if(Authors == ''){
+  if(taxon_author_current == ''){
     try_author_match = FALSE
   }
 
@@ -173,7 +171,7 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
   ###
   if(try_author_match){
     # A) By author (exact).
-    exact_match = Authors == POWO_cur$taxon_authors
+    exact_match = taxon_author_current == POWO_cur$taxon_authors
     if(sum(exact_match) == 1){ # exactly 1 match
       # Is the single match accepted (or reference to accepted plant)
       # if(!is.na(POWO_cur$accepted_plant_name_id[exact_match])){
@@ -226,7 +224,7 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
 
     # B) By author (partial: powo contained in taxon)
     if(flag){
-      author_match = unlist(lapply(taxon_author_grepl, function(x){grepl(x,Authors)}))
+      author_match = unlist(lapply(taxon_author_grepl, function(x){grepl(x,taxon_author_current)}))
       if(sum(author_match)==1){
         # if(!is.na(POWO_cur$accepted_plant_name_id[author_match])){
         matched = POWO_cur$plant_name_id[author_match]
@@ -335,7 +333,7 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
       author_words = POWO_cur$author_parts
       match_author_words = unlist(lapply(author_words,function(x){
         words = stringr::str_split(x,', ')[[1]]
-        contain_words = unlist(lapply(words, function(x){grepl(x,Authors)}))
+        contain_words = unlist(lapply(words, function(x){grepl(x,taxon_author_current)}))
         return(sum(contain_words))
 
       }))
@@ -432,7 +430,7 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
 
 #' match_mult_wcvp()
 #'
-#' Given the taxon names and full taxon names you want to match (`taxon_names`, `taxon_names_full`), the cleaned version of plants of the world online ( `wcvp` imported through the function `import_wcvp_names()`) and the indices of `wcvp`  records that you want to math to (`wcvp_search_index`). As this function is designed to match to records that share taxon names the user should restrict the search indices to those with non-unique taxon names or a subset of those names.
+#' Given the taxon names and taxon authors you want to match (`taxon_names`, `taxon_authors`), the cleaned version of plants of the world online ( `wcvp` imported through the function `import_wcvp_names()`) and the indices of `wcvp`  records that you want to math to (`wcvp_search_index`). As this function is designed to match to records that share taxon names the user should restrict the search indices to those with non-unique taxon names or a subset of those names.
 #'
 #' The matching of individual taxon names is completed by `get_match_from_multiple()`.
 #'
@@ -441,15 +439,16 @@ get_match_from_multiple <- function(taxon_name_and_full, wcvp_mult){
 #' Moreover, the function creates a message for each taxon name detailing when a match is found and the powo identifier and taxon name of the match in `wcvp`.
 #'
 #' @param taxon_names  a vector of taxon names
-#' @param taxon_names_full a vector of full taxon names (corresponding to `taxon_names`)
+#' @param taxon_authors a vector of full taxon names (corresponding to `taxon_names`)
 #' @param wcvp cleaned POWO database
 #' @param wcvp_search_index Indices of `wcvp` that we want to search for a match
+#' @param show_progress Flag for whether we show progress bar.
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`
 #' `$message` a message detailing the match.
 #' @export
-match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_index){
+match_mult_wcvp <- function(taxon_names,taxon_authors, wcvp, wcvp_search_index, show_progress = TRUE){
   # A) Setup.
   match_to_multiple = rep(NA,length(taxon_names))
   message = rep('',length(taxon_names))
@@ -460,11 +459,18 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
   in_wcvp = which(taxon_names %in% wcvp_multiple$taxon_name)
 
   # 2) Names to find matches for. (list of pairs of taxon name and taxon full)
-  to_find_match = Map(c, taxon_names[in_wcvp], taxon_names_full[in_wcvp])
+  to_find_match = Map(c, taxon_names[in_wcvp], taxon_authors[in_wcvp])
 
   # 3) Find the match.
-  match_info = pbapply::pblapply(to_find_match, function(x){
-    get_match_from_multiple(x,wcvp_multiple)})
+  if(show_progress){
+    match_info = pbapply::pblapply(to_find_match, function(x){
+      get_match_from_multiple(x,wcvp_multiple)})
+  }
+  else{
+    match_info = lapply(to_find_match, function(x){
+      get_match_from_multiple(x,wcvp_multiple)})
+  }
+
   match_info_plant_name_id = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
   match_info_mess = unlist(lapply(match_info,function(x){x[[2]]}))
 
@@ -490,14 +496,14 @@ match_mult_wcvp <- function(taxon_names,taxon_names_full, wcvp, wcvp_search_inde
 #' match_rm_autonym()
 #'
 #' @param taxon_names taxon names
-#' @param taxon_names_full taxon names with author
+#' @param taxon_authors taxon names with author
 #' @param wcvp enrich information
 #' @param single_indices wcvp indices with a unique taxon name
 #' @param mult_indices wcvp indices with non-unique taxon name
 #'
 #' @return a list with match and message
 #' @export
-match_rm_autonym <- function(taxon_names, taxon_names_full, wcvp,
+match_rm_autonym <- function(taxon_names, taxon_authors, wcvp,
                              single_indices = NA,
                              mult_indices = NA){
 
@@ -547,7 +553,7 @@ match_rm_autonym <- function(taxon_names, taxon_names_full, wcvp,
   ########################
   if(length(index_to_find_matches) > 0){
     auto_index = autonym_indices[index_to_find_matches]
-    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_names_full[auto_index],  wcvp, mult_indices)
+    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_authors[auto_index],  wcvp, mult_indices)
     out_match[auto_index] = match_info$match
     out_message[auto_index] = paste0(out_message[auto_index], match_info$message)
   }
@@ -565,13 +571,13 @@ match_rm_autonym <- function(taxon_names, taxon_names_full, wcvp,
 #' add_splitter()
 #'
 #' @param taxon_names taxon names
-#' @param taxon_names_full taxon names with author
+#' @param taxon_authors taxon names with author
 #' @param wcvp enrich information
 #'
 #' @return a list with match and message
 #' @export
 #'
-add_splitter <- function(taxon_names, taxon_names_full, wcvp){
+add_splitter <- function(taxon_names, taxon_authors, wcvp){
   # We know from exploring POWO that var/f/subsp only occurs after the genus species. (with the potential addition of 'x' or '+' for hybrids)
   #Check for NA in taxon_names and remove if they exist.
   NAs = which(is.na(taxon_names))
@@ -608,7 +614,7 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
       hybrid_and_splitter =  paste(x[1], '\u00D7', x[2], splitters, x[3])
       return(c(just_splitter,hybrid_and_splitter))
     })
-    taxon_full_3 = as.list(taxon_names_full[index_words_3])
+    taxon_full_3 = as.list(taxon_authors[index_words_3])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_3, SIMPLIFY = FALSE)
@@ -668,7 +674,7 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
       just_splitter = paste(x[1], x[2], x[3], splitters, x[4])
       return(just_splitter)
     })
-    taxon_full_4 = as.list(taxon_names_full[index_words_4])
+    taxon_full_4 = as.list(taxon_authors[index_words_4])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_4, SIMPLIFY = FALSE)
@@ -727,8 +733,8 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
       options = options[-match(x, options)]
       return(options)
     })
-    #Get the corresponding taxon_names_full (don't change here as we only check for author.)
-    taxon_full_splitter = as.list(taxon_names_full[index_words_with_splitter])
+    #Get the corresponding taxon_authors (don't change here as we only check for author.)
+    taxon_full_splitter = as.list(taxon_authors[index_words_with_splitter])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_splitter, SIMPLIFY = FALSE)
@@ -778,12 +784,12 @@ add_splitter <- function(taxon_names, taxon_names_full, wcvp){
 #' match_hybrid_issue
 #'
 #' @param taxon_names taxon names
-#' @param taxon_names_full taxon names with author
+#' @param taxon_authors taxon names with author
 #' @param wcvp enrich information
 #'
 #' @return a list with match and message
 #' @export
-match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
+match_hybrid_issue <- function(taxon_names, taxon_authors, wcvp){
   # We know from exploring POWO that var/f/subsp only occurs after the genus species. (with the potential addition of 'x' or '+' for hybrids)
 
   #Check for NA in taxon_names and remove if they exist.
@@ -830,7 +836,7 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
     to_try_words = lapply(words_1, function(x){
       return(c(paste('+',x,collapse =' '), paste('\u00D7', x, collapse = ' ')))
     })
-    taxon_full_1 = as.list(taxon_names_full[index_words_1])
+    taxon_full_1 = as.list(taxon_authors[index_words_1])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_1, SIMPLIFY = FALSE)
@@ -887,7 +893,7 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
       after_first_word = paste(x[1], hybrids, x[2])
       return(c(before_first_word,after_first_word))
     })
-    taxon_full_2_3_4 = as.list(taxon_names_full[index_words_2_3_4])
+    taxon_full_2_3_4 = as.list(taxon_authors[index_words_2_3_4])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_2_3_4, SIMPLIFY = FALSE)
@@ -948,7 +954,7 @@ match_hybrid_issue <- function(taxon_names, taxon_names_full, wcvp){
       return(options)
     })
 
-    taxon_full_with_hybrid = as.list(taxon_names_full[index_words_with_hybrid])
+    taxon_full_with_hybrid = as.list(taxon_authors[index_words_with_hybrid])
 
     # Combine the taxon names to try with taxon name full.
     to_try = mapply(list,to_try_words, taxon_full_with_hybrid, SIMPLIFY = FALSE)
@@ -1181,7 +1187,7 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
 #' match_typos()
 #'
 #' @param taxon_names taxon names
-#' @param taxon_names_full taxon names with author
+#' @param taxon_authors taxon names with author
 #' @param wcvp enrich information
 #' @param single_indices wcvp indices with a unique taxon name
 #' @param mult_indices wcvp indices with non-unique taxon name
@@ -1189,7 +1195,7 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
 #'
 #' @return a list with match and message
 #' @export
-match_typos <- function(taxon_names, taxon_names_full, wcvp,
+match_typos <- function(taxon_names, taxon_authors, wcvp,
                         single_indices = NA,
                         mult_indices = NA,
                         typo_method = 'fast'){
@@ -1249,7 +1255,7 @@ match_typos <- function(taxon_names, taxon_names_full, wcvp,
   ########################
   if(length(index_to_find_matches) > 0){
     typo_index = typo_indices[index_to_find_matches]
-    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_names_full[typo_index],  wcvp, mult_indices)
+    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_authors[typo_index],  wcvp, mult_indices)
     out_match[typo_index] = match_info$match
     out_message[typo_index] = paste0(out_message[typo_index], match_info$message)
   }
@@ -1270,6 +1276,9 @@ match_typos <- function(taxon_names, taxon_names_full, wcvp,
 #'
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
+#' @param taxon_name_col Column name in the original report for taxon name
+#' @param taxon_name_full_col Column name in the original report for taxon name and author/s (combined)
+#' @param taxon_author_col Column name in the original report for taxon author/s
 #' @param typo_method Flag for whether we search for typos
 #' @param try_add_split Flag for whether we search for missing f./var./subsp.
 #' @param try_fix_hybrid Flag for whether we search for hybrid issues.
@@ -1280,7 +1289,11 @@ match_typos <- function(taxon_names, taxon_names_full, wcvp,
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
-match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
+match_original_to_wcvp <- function(original_report, wcvp,
+                                   taxon_name_col = 'TaxonName',
+                                   taxon_name_full_col = NA,
+                                   taxon_author_col = NA,
+                                   typo_method = 'fast',
                                    try_add_split = TRUE, try_fix_hybrid = TRUE,
                                    try_rm_autonym = TRUE, do_convert_accepted=TRUE){
   if(!typo_method %in% c('full', 'fast','no')){
@@ -1294,19 +1307,33 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   ################################################
   # 1) Setup original report. (only look at unique taxon name / taxon name full and add is_autonym)
   ################################################
-  # Extract taxon name and taxon name full used in the matching.
-  taxon_name_and_full = original_report[,match(c('TaxonName','TaxonNameFull'), names(original_report))]
-  unique_taxon_name_and_full =unique(taxon_name_and_full)
-  taxon_name_and_full_combined = do.call(paste, c(taxon_name_and_full, sep='-'))
-  unique_taxon_name_and_full_combined = do.call(paste, c(unique_taxon_name_and_full, sep='-'))
+  # Get taxon name and taxon author out of the original report.
+  cli::cli_h2("Extracting taxon names and authors from the original report")
 
-  report_match = match(taxon_name_and_full_combined,unique_taxon_name_and_full_combined)
-  unique_taxon_name_and_full = add_is_autonym(unique_taxon_name_and_full)
-  taxon_name = unique_taxon_name_and_full$TaxonName
-  taxon_name_full =  unique_taxon_name_and_full$TaxonNameFull
+  taxon_name = original_report[,match(taxon_name_col, names(original_report))]
+  if(!is.na(taxon_author_col)){
+    taxon_author = original_report[,match(taxon_author_col, names(original_report))]
+  }
+  else{
+    taxon_name_full = original_report[,match(taxon_name_full_col, names(original_report))]
+    taxon_author = author_from_taxon_name_full(taxon_name, taxon_name_full)
+  }
+
+  cli::cli_h2("Reducing to unique taxon name and author combinations")
+
+  # Restrict to only unique taxon name and author combinations.
+  taxon_name_and_author = data.frame(taxon_name = taxon_name, taxon_author = taxon_author)
+  unique_taxon_name_and_author =unique(taxon_name_and_author)
+  taxon_name_and_author_combined = do.call(paste, c(taxon_name_and_author, sep='-'))
+  unique_taxon_name_and_author_combined = do.call(paste, c(unique_taxon_name_and_author, sep='-'))
+
+  report_match = match(taxon_name_and_author_combined,unique_taxon_name_and_author_combined)
+
+  taxon_name = unique_taxon_name_and_author$taxon_name
+  taxon_author =  unique_taxon_name_and_author$taxon_author
 
   no_unique = length(taxon_name)
-  cli::cli_alert_info("{.var {no_unique}} unique taxon names/ taxon name full combinations found.")
+  cli::cli_alert_info("{.var {no_unique}} unique taxon names/ taxon name author combinations found.")
 
 
   ################################################
@@ -1388,7 +1415,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
   mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
-  match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp, mult_indices)
+  match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_author[index_to_find_matches],  wcvp, mult_indices)
 
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -1406,7 +1433,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
     cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
 
     match_info = match_rm_autonym(taxon_names = taxon_name[index_to_find_matches],
-                                  taxon_names_full = taxon_name_full[index_to_find_matches],
+                                  taxon_authors = taxon_author[index_to_find_matches],
                                   wcvp = wcvp,
                                   single_indices = single_indices,
                                   mult_indices = mult_indices)
@@ -1427,7 +1454,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   if(try_fix_hybrid){
     cli::cli_h2("(5/7) Testing and matching hybrid issues for {length(index_to_find_matches)} name{?s}")
     match_info = match_hybrid_issue(taxon_names = taxon_name[index_to_find_matches],
-                              taxon_names_full = taxon_name_full[index_to_find_matches],
+                              taxon_authors = taxon_author[index_to_find_matches],
                               wcvp = wcvp)
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -1446,7 +1473,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
   if(try_add_split){
     cli::cli_h2("(4/7) Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
     match_info = add_splitter(taxon_names = taxon_name[index_to_find_matches],
-                              taxon_names_full = taxon_name_full[index_to_find_matches],
+                              taxon_authors = taxon_author[index_to_find_matches],
                               wcvp = wcvp)
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -1465,7 +1492,7 @@ match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
     cli::cli_h2("Testing and matching typos for {length(index_to_find_matches)} name{?s}")
 
     match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],
-                                  taxon_names_full = taxon_name_full[index_to_find_matches],
+                                  taxon_authors = taxon_author[index_to_find_matches],
                                   wcvp = wcvp,
                                   single_indices = single_indices,
                                   mult_indices = mult_indices,

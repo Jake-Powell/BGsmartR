@@ -4,10 +4,10 @@
 \alias{get_match_from_multiple}
 \title{get_match_from_multiple()}
 \usage{
-get_match_from_multiple(taxon_name_and_full, wcvp_mult)
+get_match_from_multiple(taxon_name_and_author, wcvp_mult)
 }
 \arguments{
-\item{taxon_name_and_full}{the pair of taxon name and taxon name full.}
+\item{taxon_name_and_author}{the pair of taxon name and taxon name full.}
 
 \item{wcvp_mult}{POWO database restricted to records that do not have a unique taxon name.}
 }

@@ -6,7 +6,7 @@
 \usage{
 match_rm_autonym(
   taxon_names,
-  taxon_names_full,
+  taxon_authors,
   wcvp,
   single_indices = NA,
   mult_indices = NA
@@ -15,7 +15,7 @@ match_rm_autonym(
 \arguments{
 \item{taxon_names}{taxon names}
 
-\item{taxon_names_full}{taxon names with author}
+\item{taxon_authors}{taxon names with author}
 
 \item{wcvp}{enrich information}
 

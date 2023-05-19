@@ -6,7 +6,7 @@
 \usage{
 match_typos(
   taxon_names,
-  taxon_names_full,
+  taxon_authors,
   wcvp,
   single_indices = NA,
   mult_indices = NA,
@@ -16,7 +16,7 @@ match_typos(
 \arguments{
 \item{taxon_names}{taxon names}
 
-\item{taxon_names_full}{taxon names with author}
+\item{taxon_authors}{taxon names with author}
 
 \item{wcvp}{enrich information}
 

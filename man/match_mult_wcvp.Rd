@@ -4,16 +4,24 @@
 \alias{match_mult_wcvp}
 \title{match_mult_wcvp()}
 \usage{
-match_mult_wcvp(taxon_names, taxon_names_full, wcvp, wcvp_search_index)
+match_mult_wcvp(
+  taxon_names,
+  taxon_authors,
+  wcvp,
+  wcvp_search_index,
+  show_progress = TRUE
+)
 }
 \arguments{
 \item{taxon_names}{a vector of taxon names}
 
-\item{taxon_names_full}{a vector of full taxon names (corresponding to \code{taxon_names})}
+\item{taxon_authors}{a vector of full taxon names (corresponding to \code{taxon_names})}
 
 \item{wcvp}{cleaned POWO database}
 
 \item{wcvp_search_index}{Indices of \code{wcvp} that we want to search for a match}
+
+\item{show_progress}{Flag for whether we show progress bar.}
 }
 \value{
 A list of length two containing:
@@ -21,7 +29,7 @@ A list of length two containing:
 \verb{$message} a message detailing the match.
 }
 \description{
-Given the taxon names and full taxon names you want to match (\code{taxon_names}, \code{taxon_names_full}), the cleaned version of plants of the world online ( \code{wcvp} imported through the function \code{import_wcvp_names()}) and the indices of \code{wcvp}  records that you want to math to (\code{wcvp_search_index}). As this function is designed to match to records that share taxon names the user should restrict the search indices to those with non-unique taxon names or a subset of those names.
+Given the taxon names and taxon authors you want to match (\code{taxon_names}, \code{taxon_authors}), the cleaned version of plants of the world online ( \code{wcvp} imported through the function \code{import_wcvp_names()}) and the indices of \code{wcvp}  records that you want to math to (\code{wcvp_search_index}). As this function is designed to match to records that share taxon names the user should restrict the search indices to those with non-unique taxon names or a subset of those names.
 }
 \details{
 The matching of individual taxon names is completed by \code{get_match_from_multiple()}.
