@@ -7,10 +7,11 @@
 match_original_to_wcvp(
   original_report,
   wcvp,
-  find_typos = "fast",
-  try_add_split = T,
-  try_fix_hybrid = T,
-  try_rm_autonym = T
+  typo_method = "fast",
+  try_add_split = TRUE,
+  try_fix_hybrid = TRUE,
+  try_rm_autonym = TRUE,
+  do_convert_accepted = TRUE
 )
 }
 \arguments{
@@ -18,13 +19,15 @@ match_original_to_wcvp(
 
 \item{wcvp}{POWO database}
 
-\item{find_typos}{Flag for whether we search for typos}
+\item{typo_method}{Flag for whether we search for typos}
 
 \item{try_add_split}{Flag for whether we search for missing f./var./subsp.}
 
 \item{try_fix_hybrid}{Flag for whether we search for hybrid issues.}
 
 \item{try_rm_autonym}{Flag for whether we try removing autonyms.}
+
+\item{do_convert_accepted}{Flag for whether we convert to accepted names in POWO.}
 }
 \value{
 A list of length two containing:

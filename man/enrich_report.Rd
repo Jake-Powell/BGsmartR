@@ -10,7 +10,7 @@ enrich_report(
   do_is_autonym = FALSE,
   do_status_year = FALSE,
   do_infrageneric_level = FALSE,
-  find_typos = TRUE
+  typo_method = "fast"
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ enrich_report(
 
 \item{do_infrageneric_level}{Flag for whether to add the column infrageneric_level}
 
-\item{find_typos}{Flag for whether we search for typos}
+\item{typo_method}{Flag for whether we search for typos}
 }
 \value{
 a list of length two:

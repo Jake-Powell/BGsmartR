@@ -994,27 +994,29 @@ convert_to_accepted_name <- function(original_match, wcvp){
 #' @return a potential fixed name, or NA if no correction is found.
 #' @export
 check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fast = T){
-  # 1) Since no words in wcvp have '(',')', '?' or '*' we return NA.
+  ########################
+  # 1) Return NA for non-words and special characters
+  ########################
   if(is.null(taxon))(return(NA))
   if(is.na(taxon)){return(NA)}
   if(taxon ==''){return(NA)}
-  if(grepl('\\(|\\)|\\*|\\?|\\$|\\^',taxon)){return(NA)}
+  if(grepl('\\(|\\)|\\*|\\?|\\$|\\^',taxon)){return(NA)} # Since no words in wcvp have '(',')', '?' or '*', '$', '^' we return NA.
 
+  ########################
   # 2) Check if the typo is in typo list.
+  ########################
   match_to_typo = match(taxon,typo_df[,1])
   if(!is.na(match_to_typo)){
     return(typo_df[match_to_typo,2])
   }
-
-  #If we want to only check the typo list, then wcvp might not be provided.
-  #Therefore check if wcvp is of type list if it isn't return NA.
+  #If we only want to check the typo list return NA for non-matches at this stage.
   if(fast){
     return(NA)
   }
 
-
+  ########################
   # 3) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
-
+  ########################
   #     A) Make sure the wcvp names are either the same length or one extra character.
   length_taxon = stringr::str_length(taxon)
   wcvp_needed = wcvp[wcvp$taxon_length %in% c(length_taxon-1, length_taxon, length_taxon+1),]
@@ -1028,7 +1030,9 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   wcvp_needed_same = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon)]
   wcvp_needed_plus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon+1)]
 
-  #Cases.
+  ########################
+  # 4) Find common typos in taxon names
+  ########################
   # a) final letter change.
   final_letter_change = matrix(c('i','ii',
                       'i', 'ae',
@@ -1052,7 +1056,7 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
     }
   }
 
-  # c) Common none simple letter swap.
+  # b) Common none simple letter swap.
   letter_change = matrix(c('i','ae'),byrow = T, ncol = 2)
   for(i in 1:nrow(letter_change)){
     locations = stringr::str_locate_all(taxon, letter_change)
@@ -1086,7 +1090,9 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
     }
   }
 
-
+  ########################
+  # 4) More general search of one letter differences.
+  ########################
   for(i in (length_taxon-1):1){
     #Check changing a single letter.
     patternA = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z]',stringr::str_sub(taxon,i+2,length_taxon))
@@ -1108,27 +1114,118 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
       return(fixed_typoC[1])
     }
   }
+
+  # If no typo is found by this stage we haven't managed to find a fix and return NA.
   return(NA)
 }
+
+#' match_typos()
+#'
+#' @param taxon_names taxon names
+#' @param taxon_names_full taxon names with author
+#' @param wcvp enrich information
+#' @param single_indices wcvp indices with a unique taxon name
+#' @param mult_indices wcvp indices with non-unique taxon name
+#' @param typo_method method for finding typos
+#'
+#' @return a list with match and message
+#' @export
+match_typos <- function(taxon_names, taxon_names_full, wcvp,
+                        single_indices = NA,
+                        mult_indices = NA,
+                        typo_method = 'fast'){
+
+  #Check for NA in taxon_names and remove if they exist.
+  NAs = which(is.na(taxon_names))
+  if(length(NAs) > 1){
+    warning('In match_autonym(), taxon names contain NA.')
+  }
+
+  ########################
+  # Setup + find typos + create wcvp indices
+  ########################
+  # setup output
+  out_match = rep(NA, length(taxon_names))
+  out_message = rep('',length(taxon_names))
+
+  # Get typos
+  if(typo_method == 'fast'){
+    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,NA, fast = T)}))
+  }
+  else{
+    wcvp_without_repeated = wcvp$wcvp_names[match(unique(wcvp$wcvp_names$taxon_name),
+                                                  wcvp$wcvp_names$taxon_name ),]
+    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,wcvp_without_repeated, fast = F)}))
+
+  }
+
+  # Get index of taxons found to have typos.
+  typo_indices =  which(!is.na(fixed_typo))
+
+  # If no typos return.
+  if(length(typo_indices) == 0){
+    return(list(match = out_match, message = out_message))
+  }
+
+  if(is.na(single_indices[1])){
+    single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
+  }
+  if(is.na(mult_indices[1])){
+    mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
+  }
+
+  name_to_try = fixed_typo[typo_indices]
+
+  ########################
+  # Match to single.
+  ########################
+  match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
+  out_match[typo_indices] = match_info$match
+  out_message[typo_indices] = paste0(out_message[typo_indices], match_info$message)
+  index_complete = typo_indices[!is.na(match_info$match)]
+  index_to_find_matches = which(is.na(match_info$match))
+
+  ########################
+  # Match to multiple.
+  ########################
+  if(length(index_to_find_matches) > 0){
+    typo_index = typo_indices[index_to_find_matches]
+    match_info = match_mult_wcvp(name_to_try[index_to_find_matches], taxon_names_full[typo_index],  wcvp, mult_indices)
+    out_match[typo_index] = match_info$match
+    out_message[typo_index] = paste0(out_message[typo_index], match_info$message)
+  }
+
+  ########################
+  # Update match message to include the removed autonym.
+  ########################
+  with_match = out_message[typo_indices] != ''
+  out_message[typo_indices[with_match]] = paste0(" -> (Typo) -> ", name_to_try[with_match],  out_message[typo_indices[with_match]])
+
+
+  return(list(match = out_match, message = out_message))
+}
+
+
 
 #' Match report to POWO via taxon name
 #'
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
-#' @param find_typos Flag for whether we search for typos
+#' @param typo_method Flag for whether we search for typos
 #' @param try_add_split Flag for whether we search for missing f./var./subsp.
 #' @param try_fix_hybrid Flag for whether we search for hybrid issues.
 #' @param try_rm_autonym Flag for whether we try removing autonyms.
+#' @param do_convert_accepted Flag for whether we convert to accepted names in POWO.
 #'
 #' @return A list of length two containing:
 #' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
 #' `$message` a message detailing the match.
 #' @export
-match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
-                                   try_add_split = T, try_fix_hybrid = T,
-                                   try_rm_autonym = T){
-  if(!find_typos %in% c('full', 'fast','no')){
-    stop('Invalid find_typos input!')
+match_original_to_wcvp <- function(original_report, wcvp, typo_method = 'fast',
+                                   try_add_split = TRUE, try_fix_hybrid = TRUE,
+                                   try_rm_autonym = TRUE, do_convert_accepted=TRUE){
+  if(!typo_method %in% c('full', 'fast','no')){
+    stop('Invalid typo_method input!')
   }
   #Implies original_report and wcvp are already in the workspace.
   cli::cli_h1("Matching names to POWO (WCVP)")
@@ -1192,9 +1289,11 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
   # 5) Sanitise taxon names.
   ################################################
   cli::cli_h2("(2/7) Sanitise taxon names")
+
   santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
   original_taxon_name = taxon_name
   taxon_name[index_to_find_matches] = santise_taxon_name
+
   indices_require_sanitise=which(taxon_name != original_taxon_name)
   taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
                                              ' -> (Sanitise name) -> ',
@@ -1205,10 +1304,13 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
   # 6) Match original report to all unique taxon names in POWO.
   ################################################
   cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
+
   single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
   match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
+
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
   no_found = length(index_to_find_matches[!is.na(match_info$match)])
   cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
@@ -1223,8 +1325,10 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
 
   mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
   match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_name_full[index_to_find_matches],  wcvp, mult_indices)
+
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
   no_found = length(index_to_find_matches[!is.na(match_info$match)])
   cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
@@ -1293,64 +1397,42 @@ match_original_to_wcvp <- function(original_report, wcvp, find_typos = 'fast',
   ################################################
   # 10) Try to find typo and then match.
   ################################################
-  if(find_typos %in% c('fast','full')){
-    cli::cli_h2("(6/7) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
-    current_left = length(index_to_find_matches)
-    # A) Search for typos.
-    if(find_typos == 'fast'){
-      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,NA, fast = T)}))
-    }
-    else{
-      wcvp_without_repeated = wcvp$wcvp_names[match(unique(wcvp$wcvp_names$taxon_name),
-                                                    wcvp$wcvp_names$taxon_name ),]
-      fixed_typo = unlist(pbapply::pblapply(taxon_name[index_to_find_matches], function(x){check_taxon_typo(x,wcvp_without_repeated, fast = F)}))
+  if(typo_method %in%  c('fast','full')){
+    cli::cli_h2("Testing and matching typos for {length(index_to_find_matches)} name{?s}")
 
-    }
+    match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],
+                                  taxon_names_full = taxon_name_full[index_to_find_matches],
+                                  wcvp = wcvp,
+                                  single_indices = single_indices,
+                                  mult_indices = mult_indices,
+                                  typo_method = typo_method)
+
+    taxon_match[index_to_find_matches] = match_info$match
+    taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+
+    index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+    no_found = length(index_to_find_matches[!is.na(match_info$match)])
+    cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
 
 
-    typo_index = index_to_find_matches[which(!is.na(fixed_typo))]
-    name_to_try = fixed_typo[which(!is.na(fixed_typo))]
-    taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index],
-                                          ' -> (Typo) -> ',
-                                          name_to_try)
-
-    # B) Try to match the base name to POWO with single records.
-    match_info = match_single_wcvp(name_to_try, wcvp, single_indices)
-    taxon_match[typo_index] = match_info$match
-    taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
-    index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
-    index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
-    name_to_try = name_to_try[is.na(match_info$match)]
-    typo_index = typo_index[is.na(match_info$match)]
-
-    # C) Try to match the base name to POWO with multiple records.
-    match_info = match_mult_wcvp(name_to_try,taxon_name_full[typo_index],  wcvp, mult_indices)
-    taxon_match[typo_index] = match_info$match
-    taxon_name_story[typo_index] = paste0(taxon_name_story[typo_index], match_info$message)
-    index_complete = c(index_complete, typo_index[!is.na(match_info$match)])
-    index_to_find_matches = index_to_find_matches[!index_to_find_matches %in% typo_index[!is.na(match_info$match)]]
-
-    no_left = current_left - length(index_to_find_matches)
-    cli::cli_alert_success("Found {no_left} of {current_left} names")
+    index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
   }
-  else{
-    cli::cli_h2("(6/7) Testing and matching typos for {length(index_to_find_matches)} name{?s}")
-    cli::cli_alert_warning("Typo checking not performed!")
-
-  }
-
 
   ################################################
   # 11) Convert to accepted name where possible.
   ################################################
-  cli::cli_h2("(7/7) Converting to accepted name..")
+  if(do_convert_accepted){
+    cli::cli_h2("Converting to accepted name..")
 
-  match_info = convert_to_accepted_name(taxon_match, wcvp)
-  taxon_match = match_info$match
-  taxon_name_story = paste0(taxon_name_story, match_info$message)
-  updated = sum(match_info$message != '')
-  cli::cli_alert_success("Updated to accepted name for {updated} of {no_unique} names")
+    match_info = convert_to_accepted_name(taxon_match, wcvp)
 
+    taxon_match = match_info$match
+    taxon_name_story = paste0(taxon_name_story, match_info$message)
+
+    updated = sum(match_info$message != '')
+    cli::cli_alert_success("Updated to accepted name for {updated} of {no_unique} names")
+
+    }
 
   ################################################
   # 12) Set remaining taxon_match to -3 and add story.
