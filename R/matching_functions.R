@@ -10,21 +10,16 @@
 shorten_message <- function(messages){
   match_short = rep('', length(messages))
   match_options = c("(matches POWO record with single entry)", 'EXACT',
-                    "(Multiple POWO records, match by exact author)", 'EXACT',
+                    "(Exact author match)", 'EXACT',
+                    "all point to same accepted plant", 'EXACT',
                     "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", 'EXACT',
-                    "(Multiple POWO records, match by partial author <powo author containing in taxon author>)", "PARTIAL",
+                    "(Partial author:", "PARTIAL",
                     "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "PARTIAL",
                     "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", 'PARTIAL',
                     "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", 'PARTIAL',
-                    "(Multiple POWO records, multiple exact author, choose via taxon_status)", "TAXON_STATUS",
-                    "(Multiple POWO records, no author/no matched author, choose via taxon_status)", 'TAXON_STATUS',
-                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)", "TAXON_STATUS",
-                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)", 'TAXON_STATUS',
-                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)", 'TAXON_STATUS',
-                    "(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)", "UNCLEAR",
-                    "(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)", "UNCLEAR",
-                    "(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)", 'UNCLEAR',
-                    "(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)", 'UNCLEAR',
+                    "choose via taxon_status", "TAXON_STATUS",
+                    "multiple best taxon status, do not match", "UNCLEAR",
+                    "no accepted or synonym", "UNCLEAR",
                     "(Add splitter, multiple matches, unclear which to match)", 'UNCLEAR',
                     "(Change splitter, multiple matches, unclear which to match)", 'UNCLEAR',
                     "(Hybrid fix, multiple matches, unclear which to match)", 'UNCLEAR',
@@ -46,6 +41,12 @@ shorten_message <- function(messages){
     match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
   }
   match_short = stringr::str_remove(match_short, '^, ')
+
+  #If we have multiple of EXACT, PARTIAL, TAXON_STATUS only keep the worst level of matching.
+  match_short = stringr::str_replace_all(match_short,'EXACT, PARTIAL','PARTIAL')
+  match_short = stringr::str_replace_all(match_short,'PARTIAL, TAXON_STATUS','TAXON_STATUS')
+  match_short = stringr::str_replace_all(match_short,'EXACT, UNCLEAR','UNCLEAR')
+
   return(match_short)
 }
 
@@ -128,6 +129,85 @@ match_single_wcvp <- function(taxon_names, wcvp, wcvp_search_index){
   return(list(match = wcvp_search_index[match_to_single], message = message))
 }
 
+#' match_taxon_status
+#'
+#' @param author_match vector of true of false whether we have a match
+#' @param corres_POWO  the corresponding entries in POWO (rows must equal length author match)
+#' @param current_message the current message
+#'
+#' @return list of length 3
+#' @export
+#'
+match_taxon_status <- function(author_match, corres_POWO, current_message = ''){
+  match_flag = FALSE
+  if(sum(author_match) == 0){
+    matched = NA
+    message = ''
+    match_flag = FALSE
+  }
+  # Exactly one match return it.
+  else if(sum(author_match) == 1){
+    matched = corres_POWO$plant_name_id[author_match]
+    message = '(single match)'
+    match_flag = TRUE
+  }
+  else if(sum(author_match) > 1){ # > 1 match
+    message = ' > 1 match, '
+    corres_POWO = corres_POWO[author_match,]
+    accepted_plant_id = corres_POWO$accepted_plant_name_id
+
+    # Check if all exact matches point to the same accepted name
+    if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+      # match to accepted if one exists if not the first plant that matches.
+      taxon_accepted = corres_POWO$taxon_status == 'Accepted'
+      if(any(taxon_accepted)){
+        matched = corres_POWO$plant_name_id[taxon_accepted][1]
+        message = paste0('(', message, 'all point to same accepted plant',')',collapse = '')
+      }
+      else{
+        matched = corres_POWO$plant_name_id[1]
+        message = paste0('(', message, 'all point to same accepted plant',')',collapse = '')
+
+      }
+      match_flag = TRUE
+    }
+
+    # Check for differences in taxon_status.
+    if(!match_flag){
+      taxon_status = corres_POWO$taxon_status
+      taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+      if(all(is.na(taxon_status_match))){
+        matched = -2
+        message = paste0('(', message, 'no accepted or synonym',')',collapse = '')
+        match_flag = TRUE
+      }
+      else{
+        chosen_record = which(taxon_status_match == min(taxon_status_match, na.rm = T))
+        if(length(chosen_record) == 1){
+          matched = corres_POWO$plant_name_id[chosen_record]
+          message = paste0('(', message, 'choose via taxon_status',')',collapse = '')
+          match_flag = TRUE
+        }
+        else if(length(chosen_record) >1){
+          matched = -2
+          message = paste0('(', message, 'multiple best taxon status, do not match',')',collapse = '')
+          match_flag = TRUE
+        }
+      }
+
+    }
+  }
+  else{
+    matched = NA
+    message = ''
+    match_flag = FALSE
+  }
+
+  message = paste0(current_message,message, collapse =' ')
+  return(list(match = matched, message = message, match_flag = match_flag))
+}
+
+
 #' get_match_from_multiple()
 #'
 #' Given a taxon name and its full version we find the records in POWO that share the same taxon name. We then choose the record to match to by:
@@ -172,260 +252,55 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   if(try_author_match){
     # A) By author (exact).
     exact_match = taxon_author_current == POWO_cur$taxon_authors
-    if(sum(exact_match) == 1){ # exactly 1 match
-      # Is the single match accepted (or reference to accepted plant)
-      # if(!is.na(POWO_cur$accepted_plant_name_id[exact_match])){
-      matched = POWO_cur$plant_name_id[exact_match]
-      message = '(Multiple POWO records, match by exact author)'
-      flag = F
-      # }
-    }
-    if(sum(exact_match) > 1){ # > 1 match
-      POWO_cur = POWO_cur[exact_match,]
-      accepted_plant_id = POWO_cur$accepted_plant_name_id
-
-      # Check if all exact matches point to the same accepted name
-      if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
-        # match to accepted if one exists if not the first plant that matches.
-        taxon_accepted = POWO_cur$taxon_status == 'Accepted'
-        if(any(taxon_accepted)){
-          matched = POWO_cur$plant_name_id[taxon_accepted][1]
-          message = '(Multiple POWO records, match by exact author)'
-        }
-        else{
-          matched = POWO_cur$plant_name_id[1]
-          message = '(Multiple POWO records, match by exact author)'
-
-        }
-        flag = F
-      }
-
-      # Check for differences in taxon_status.
-      if(flag){
-        taxon_status = POWO_cur$taxon_status
-        taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
-        chosen_record = which.min(taxon_status_match)
-        if(length(chosen_record)>0){
-          matched = POWO_cur$plant_name_id[chosen_record]
-          message = '(Multiple POWO records, multiple exact author, choose via taxon_status)'
-          flag = F
-        }
-      }
-
-      # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
-      if(flag){
-        matched = -2
-        message = '(Multiple POWO records, multiple exact author, no accepted or synonym taxon status, unclear so no match)'
-      }
-
-      flag = F
-    }
-
+    match_cur = match_taxon_status(exact_match, POWO_cur, current_message = '(Exact author match) -> ')
 
     # B) By author (partial: powo contained in taxon)
-    if(flag){
+    if(!match_cur$match_flag){
       author_match = unlist(lapply(taxon_author_grepl, function(x){grepl(x,taxon_author_current)}))
-      if(sum(author_match)==1){
-        # if(!is.na(POWO_cur$accepted_plant_name_id[author_match])){
-        matched = POWO_cur$plant_name_id[author_match]
-        message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
-        flag = F
-        # }
-
-      }
-      if(sum(author_match) > 1){ # > 1 match
-        POWO_cur = POWO_cur[author_match,]
-        accepted_plant_id = POWO_cur$accepted_plant_name_id
-
-        # Check if all exact matches point to the same accepted name
-        if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
-          # match to accepted if one exists if not the first plant that matches.
-          taxon_accepted = POWO_cur$taxon_status == 'Accepted'
-          if(any(taxon_accepted)){
-            matched = POWO_cur$plant_name_id[taxon_accepted][1]
-            message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
-          }
-          else{
-            matched = POWO_cur$plant_name_id[1]
-            message = '(Multiple POWO records, match by partial author <powo author containing in taxon author>)'
-          }
-          flag = F
-        }
-
-        # Check for differences in taxon_status.
-        if(flag){
-          taxon_status = POWO_cur$taxon_status
-          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
-          chosen_record = which.min(taxon_status_match)
-          if(length(chosen_record)>0){
-            matched = POWO_cur$plant_name_id[chosen_record]
-            message = '(Multiple POWO records, multiple partial author <powo author containing in taxon author>, choose via taxon_status)'
-            flag = F
-          }
-        }
-
-        # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
-        if(flag){
-          matched = -2
-          message = '(Multiple POWO records, multiple partial author <powo author containing in taxon author>, no accepted or synonym taxon status, unclear so no match)'
-        }
-
-
-        flag = F
-
-      }
+      match_cur = match_taxon_status(author_match, POWO_cur, current_message = '(Partial author: powo contained in taxon) -> ')
     }
 
     # C) By author (partial taxon contained in powo)
-    if(flag){
+    if(!match_cur$match_flag){
       author_match = grepl(Authors_grepl, POWO_cur$taxon_authors)
-      if(sum(author_match)==1){
-        # if(!is.na(POWO_cur$accepted_plant_name_id[author_match])){
-        matched = POWO_cur$plant_name_id[author_match]
-        message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
-        flag = F
-        # }
-
-      }
-      if(sum(author_match) > 1){ # > 1 match
-        POWO_cur = POWO_cur[author_match,]
-        accepted_plant_id = POWO_cur$accepted_plant_name_id
-
-        # Check if all exact matches point to the same accepted name
-        if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
-          # match to accepted if one exists if not the first plant that matches.
-          taxon_accepted = POWO_cur$taxon_status == 'Accepted'
-          if(any(taxon_accepted)){
-            matched = POWO_cur$plant_name_id[taxon_accepted][1]
-            message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
-          }
-          else{
-            matched = POWO_cur$plant_name_id[1]
-            message = '(Multiple POWO records, match by partial author <taxon author containing in powo author>)'
-          }
-        }
-
-        # Check for differences in taxon_status.
-        if(flag){
-          taxon_status = POWO_cur$taxon_status
-          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
-          chosen_record = which.min(taxon_status_match)
-          if(length(chosen_record)>0){
-            matched = POWO_cur$plant_name_id[chosen_record]
-            message = '(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, choose via taxon_status)'
-            flag = F
-          }
-        }
-
-        # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
-        if(flag){
-          matched = -2
-          message = '(Multiple POWO records, multiple partial author  <taxon author containing in powo author>, no accepted or synonym taxon status, unclear so no match)'
-        }
-
-        flag = F
-
-      }
+      match_cur = match_taxon_status(author_match, POWO_cur,  current_message = '(Partial author: taxon contained in powo) -> ')
     }
 
     # D) By author (partial powo words contained in taxon)
-    if(flag){
+    if(!match_cur$match_flag){
       author_words = POWO_cur$author_parts
       match_author_words = unlist(lapply(author_words,function(x){
         words = stringr::str_split(x,', ')[[1]]
+        words = words[words != '']
         contain_words = unlist(lapply(words, function(x){grepl(x,taxon_author_current)}))
         return(sum(contain_words))
 
       }))
-
-      # Older version without author_parts in wcvp.
-      # match_author_words = unlist(lapply(taxon_author_grepl, function(x){
-      #   words = stringr::str_split(x, ' ')[[1]]
-      #   words = words[stringr::str_length(words)>2]
-      #   contain_words = unlist(lapply(words, function(x){grepl(x,Authors)}))
-      #   return(sum(contain_words))
-      # }))
-
-      if(length(match_author_words[match_author_words>0]) == 1){
-        chosen_record = which.max(match_author_words)
-        matched = POWO_cur$plant_name_id[chosen_record]
-        message = '(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)'
-        flag = F
+      max_words_found =  max(match_author_words, na.rm=T)
+      if(max_words_found > 0){
+        match_author_words = match_author_words == max(match_author_words, na.rm=T)
+        match_cur = match_taxon_status(match_author_words, POWO_cur,  current_message = '(Partial author: powo words contained in taxon) -> ')
       }
-      else if(length(match_author_words[match_author_words>0]) > 1){
-
-        #One record has the most words
-        if(sum(match_author_words == max(match_author_words))==1){
-          chosen_record = which.max(match_author_words)
-          matched = POWO_cur$plant_name_id[chosen_record]
-          message = '(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)'
-          flag = F
-
-        }
-        else{
-          #Use taxon status for those with the most words.
-          record_with_most_words = which(match_author_words == max(match_author_words))
-
-          taxon_status = POWO_cur$taxon_status[record_with_most_words]
-          taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
-          chosen_record = which.min(taxon_status_match)
-          if(length(chosen_record)>0){
-            matched = POWO_cur$plant_name_id[record_with_most_words[chosen_record]]
-            message = '(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, multiple records with max number of partial word match, choose via taxon_status)'
-            flag = F
-          }
-        }
-      }
-
     }
   }
 
   ###
   # 4) Try to match when we do not have the author or the author doesn't match any in POWO.
   ###
+  if(!try_author_match){
+    match_cur = match_taxon_status(rep(TRUE, nrow(POWO_cur)), POWO_cur, current_message = '(No authors) -> ')
+  }
+  else{
+    if(!match_cur$match_flag){
+      match_cur = match_taxon_status(rep(TRUE, nrow(POWO_cur)), POWO_cur, current_message = '(No authors match) -> ')
 
-  # A) Check if the accepted_plant_id is identical across all POWO records.
-  if(flag){
-    accepted_plant_id = POWO_cur$accepted_plant_name_id
-
-    if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
-      # match to accepted if one exists if not the first plant that matches.
-      taxon_accepted = POWO_cur$taxon_status == 'Accepted'
-      if(any(taxon_accepted)){
-        matched = POWO_cur$plant_name_id[taxon_accepted][1]
-        message = '(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)'
-      }
-      else{
-        matched = POWO_cur$plant_name_id[1]
-        message = '(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)'
-
-      }
-      flag = F
     }
-
   }
 
-  # B) Use taxon_status to choose POWO record.
-  if(flag){
-    taxon_status = POWO_cur$taxon_status
-    taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
-    chosen_record = which.min(taxon_status_match)
-    if(length(chosen_record)>0){
-      matched = POWO_cur$plant_name_id[chosen_record]
-      message = '(Multiple POWO records, no author/no matched author, choose via taxon_status)'
-      flag = F
-    }
-
-
+  if(match_cur$match_flag == TRUE){
+    match_cur$message = paste0('(Multiple records in POWO) ->', match_cur$message, collapse = ' ')
   }
-
-  # If we can't chose by taxon_status (i.e no Accepted or Synonym) set to no match
-  if(flag){
-    matched = -2
-    message = '(Multiple POWO records, no author/no matched author, no accepted or synonym taxon status, unclear so no match)'
-  }
-
-  return(list(plant_name_id = matched, message = message))
+  return(list(plant_name_id = match_cur$match, message = match_cur$message))
 }
 
 #' match_mult_wcvp()
