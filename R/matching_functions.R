@@ -139,6 +139,8 @@ match_single_wcvp <- function(taxon_names, wcvp, wcvp_search_index){
 #' @export
 #'
 match_taxon_status <- function(author_match, corres_POWO, current_message = ''){
+  author_match[is.na(author_match)] = FALSE # NA matches go to FALSE. This occurs when POWO author = NA.
+
   match_flag = FALSE
   if(sum(author_match) == 0){
     matched = NA
@@ -1189,9 +1191,12 @@ match_original_to_wcvp <- function(original_report, wcvp,
   if(!is.na(taxon_author_col)){
     taxon_author = original_report[,match(taxon_author_col, names(original_report))]
   }
-  else{
+  else if (!is.na(taxon_name_full_col)){
     taxon_name_full = original_report[,match(taxon_name_full_col, names(original_report))]
     taxon_author = author_from_taxon_name_full(taxon_name, taxon_name_full)
+  }
+  else{
+    taxon_author = rep('', length(taxon_name))
   }
 
   cli::cli_h2("Reducing to unique taxon name and author combinations")
@@ -1238,7 +1243,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 4) Remove known to not be in POWO. (set taxon match to -1)
   ################################################
-  cli::cli_h2("(1/7) Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
+  cli::cli_h2("Removing known not to be in POWO {length(index_to_find_matches)} name{?s}")
 
   match_info = known_not_in_wcvp(taxon_name[index_to_find_matches])
 
@@ -1247,65 +1252,70 @@ match_original_to_wcvp <- function(original_report, wcvp,
 
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
   no_found = length(index_to_find_matches[!is.na(match_info$match)])
-  cli::cli_alert_success("Found {length(index_to_find_matches)} known not to be in POWO")
+  cli::cli_alert_success("Found {length(no_found)} known not to be in POWO")
 
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
   ################################################
   # 5) Sanitise taxon names.
   ################################################
-  cli::cli_h2("(2/7) Sanitise taxon names")
+  if(length(index_to_find_matches) > 0){
+    cli::cli_h2("Sanitise taxon names")
 
-  santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
-  original_taxon_name = taxon_name
-  taxon_name[index_to_find_matches] = santise_taxon_name
+    santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
+    original_taxon_name = taxon_name
+    taxon_name[index_to_find_matches] = santise_taxon_name
 
-  indices_require_sanitise=which(taxon_name != original_taxon_name)
-  taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
-                                             ' -> (Sanitise name) -> ',
-                                             taxon_name[indices_require_sanitise])
-  cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+    indices_require_sanitise=which(taxon_name != original_taxon_name)
+    taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
+                                                        ' -> (Sanitise name) -> ',
+                                                        taxon_name[indices_require_sanitise])
+    cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+  }
 
   ################################################
   # 6) Match original report to all unique taxon names in POWO.
   ################################################
-  cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
+  if(length(index_to_find_matches) > 0){
+    cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
 
-  single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
-  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
+    single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
+    match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
 
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+    taxon_match[index_to_find_matches] = match_info$match
+    taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
 
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  no_found = length(index_to_find_matches[!is.na(match_info$match)])
-  cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
+    index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+    no_found = length(index_to_find_matches[!is.na(match_info$match)])
+    cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
 
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-
+    index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+  }
 
   ################################################
   # 7) Match original report to all taxon names with a multiple entry in POWO.
   ################################################
-  cli::cli_h2("(3/7) Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
+  if(length(index_to_find_matches) > 0){
+    cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
-  mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
-  match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_author[index_to_find_matches],  wcvp, mult_indices)
+    mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
+    match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_author[index_to_find_matches],  wcvp, mult_indices)
 
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
+    taxon_match[index_to_find_matches] = match_info$match
+    taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
 
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  no_found = length(index_to_find_matches[!is.na(match_info$match)])
-  cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
+    index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
+    no_found = length(index_to_find_matches[!is.na(match_info$match)])
+    cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
 
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+    index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
+  }
 
   ################################################
   # 8) Try to match with autonym removed.
   ################################################
-  if(try_rm_autonym){
-    cli::cli_h2("(4/7) Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
+  if(try_rm_autonym & length(index_to_find_matches) > 0){
+    cli::cli_h2("Testing and matching autonynms for {length(index_to_find_matches)} name{?s}")
 
     match_info = match_rm_autonym(taxon_names = taxon_name[index_to_find_matches],
                                   taxon_authors = taxon_author[index_to_find_matches],
@@ -1326,8 +1336,8 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 9) Try to match by adding hybridisation.
   ################################################
-  if(try_fix_hybrid){
-    cli::cli_h2("(5/7) Testing and matching hybrid issues for {length(index_to_find_matches)} name{?s}")
+  if(try_fix_hybrid & length(index_to_find_matches) > 0){
+    cli::cli_h2("Testing and matching hybrid issues for {length(index_to_find_matches)} name{?s}")
     match_info = match_hybrid_issue(taxon_names = taxon_name[index_to_find_matches],
                               taxon_authors = taxon_author[index_to_find_matches],
                               wcvp = wcvp)
@@ -1345,8 +1355,8 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 10) Try adding/updating splitter.
   ################################################
-  if(try_add_split){
-    cli::cli_h2("(4/7) Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
+  if(try_add_split & length(index_to_find_matches) > 0){
+    cli::cli_h2("Testing and matching adding f/var/subsp for {length(index_to_find_matches)} name{?s}")
     match_info = add_splitter(taxon_names = taxon_name[index_to_find_matches],
                               taxon_authors = taxon_author[index_to_find_matches],
                               wcvp = wcvp)
@@ -1363,7 +1373,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 11) Try to find typo and then match.
   ################################################
-  if(typo_method %in%  c('fast','full')){
+  if(typo_method %in%  c('fast','full') & length(index_to_find_matches) > 0){
     cli::cli_h2("Testing and matching typos for {length(index_to_find_matches)} name{?s}")
 
     match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],

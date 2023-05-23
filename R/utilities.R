@@ -68,6 +68,9 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\[', '\\\\[')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\]', '\\\\]')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\+', '\\\\+')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\?', '\\\\?')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\(', '\\\\(')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\)', '\\\\)')
 
   # Convert taxon name to a grepl statement, where AA BB goes to AA|BB.
   taxon_name_words_grepl = unlist(lapply(taxon_names, function(x){
