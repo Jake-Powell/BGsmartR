@@ -12,11 +12,7 @@ shorten_message <- function(messages){
   match_options = c("(matches POWO record with single entry)", 'EXACT',
                     "(Exact author match)", 'EXACT',
                     "all point to same accepted plant", 'EXACT',
-                    "(Multiple POWO records, no author/no matched author, all lead to same accepted plant name)", 'EXACT',
-                    "(Partial author:", "PARTIAL",
-                    "(Multiple POWO records, match by partial author <taxon author containing in powo author>)", "PARTIAL",
-                    "(Multiple POWO records, match by partial author  <taxon author contains words found in powo author>)", 'PARTIAL',
-                    "(Multiple POWO records, multiple partial author  <taxon author contains words found in powo author>, choose one with most words)", 'PARTIAL',
+                    "Partial author", 'PARTIAL',
                     "choose via taxon_status", "TAXON_STATUS",
                     "multiple best taxon status, do not match", "UNCLEAR",
                     "no accepted or synonym", "UNCLEAR",
@@ -235,27 +231,14 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   if(is.na(taxon_author_current)){
     try_author_match = FALSE
   }
-  else{
-    Authors_grepl = taxon_author_current
-    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
-    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\(', '\\\\(')
-    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\)', '\\\\)')
-    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\[', '\\\\[')
-    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\]', '\\\\]')
-    if(taxon_author_current == ''){
-      try_author_match = FALSE
-    }
+  if(taxon_author_current == ''){
+    try_author_match = FALSE
+
   }
 
 
   # 2) Get the corresponding records in wcvp_mult.
-  # As we use grepl to match authors add escape characters (\\).
   POWO_cur = wcvp_mult[wcvp_mult$taxon_name == taxon_name_current,]
-  taxon_author_grepl = POWO_cur$taxon_authors_simp
-  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\.', '\\\\.')
-  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\(', '\\\\(')
-  taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\)', '\\\\)')
-
 
   ###
   # 3) Get the match by author (if one exists)
@@ -265,36 +248,35 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
     exact_match = taxon_author_current == POWO_cur$taxon_authors_simp
     match_cur = match_taxon_status(exact_match, POWO_cur, current_message = '(Exact author match) -> ')
 
-    # B) By author (partial: powo contained in taxon)
+    # B) By partial author.
     if(!match_cur$match_flag){
-      author_match = unlist(lapply(taxon_author_grepl, function(x){grepl(x,taxon_author_current)}))
-      match_cur = match_taxon_status(author_match, POWO_cur, current_message = '(Partial author: powo contained in taxon) -> ')
-    }
 
-    # C) By author (partial taxon contained in powo)
-    if(!match_cur$match_flag){
-      author_match = grepl(Authors_grepl, POWO_cur$taxon_authors_simp)
-      match_cur = match_taxon_status(author_match, POWO_cur,  current_message = '(Partial author: taxon contained in powo) -> ')
-    }
+      # Get the words for the original and POWO authors.
+      POWO_author_words = POWO_cur$author_parts
+      original_author_words = author_words(taxon_author_current)
 
-    # D) By author (partial powo words contained in taxon)
-    if(!match_cur$match_flag){
-      author_words = POWO_cur$author_parts
-      match_author_words = unlist(lapply(author_words,function(x){
+      #Find number of words in POWO authors found in the original author
+      no_powo_author_in_original = unlist(lapply(POWO_author_words,function(x){
         words = stringr::str_split(x,', ')[[1]]
         words = words[words != '']
         contain_words = unlist(lapply(words, function(x){grepl(x,taxon_author_current)}))
         return(sum(contain_words))
-
       }))
-      max_words_found =  max(match_author_words, na.rm=T)
+
+      #Find number of words in original author found in the POWO authors
+      no_original_author_in_powo = rowSums(data.frame(lapply(original_author_words, function(x){grepl(x,POWO_cur$taxon_authors_simp)})))
+
+      # Combine above and find the maximum shared words.
+      total_match_word_count = rowSums(cbind(no_powo_author_in_original,no_original_author_in_powo))
+      max_words_found =  max(total_match_word_count, na.rm=T)
+
+      # If maximum shared words > 0 then try and find a match with those with the maximum number of shared words.
       if(max_words_found > 0){
-        match_author_words = match_author_words == max(match_author_words, na.rm=T)
-        match_cur = match_taxon_status(match_author_words, POWO_cur,  current_message = '(Partial author: powo words contained in taxon) -> ')
+        match_author_words = total_match_word_count == max_words_found
+        match_cur = match_taxon_status(match_author_words, POWO_cur,  current_message = '(Partial author) -> ')
       }
     }
   }
-
   ###
   # 4) Try to match when we do not have the author or the author doesn't match any in POWO.
   ###
@@ -1209,7 +1191,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
       do_taxon_author = FALSE
     }
   }
-  else if (!is.na(taxon_name_full_col)){
+  else if(!is.na(taxon_name_full_col)){
     taxon_name_full = original_report[,match(taxon_name_full_col, names(original_report))]
     taxon_author = author_from_taxon_name_full(taxon_name, taxon_name_full)
     if(all(taxon_author == '')){
