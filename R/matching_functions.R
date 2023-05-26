@@ -226,23 +226,32 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   # 1) Split taxon name and taxon full
   taxon_name_current = taxon_name_and_author[1]
   taxon_author_current = taxon_name_and_author[2]
+
+
+
   try_author_match = TRUE # flag for whether we have author information
   flag = TRUE # flag for whether we need to do checks.
-
-  Authors_grepl = taxon_author_current
-  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
-  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\(', '\\\\(')
-  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\)', '\\\\)')
-  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\[', '\\\\[')
-  Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\]', '\\\\]')
-  if(taxon_author_current == ''){
+  #If the author is NA
+  if(is.na(taxon_author_current)){
     try_author_match = FALSE
   }
+  else{
+    Authors_grepl = taxon_author_current
+    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\.', '\\\\.')
+    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\(', '\\\\(')
+    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\)', '\\\\)')
+    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\[', '\\\\[')
+    Authors_grepl = stringr::str_replace_all(Authors_grepl,'\\]', '\\\\]')
+    if(taxon_author_current == ''){
+      try_author_match = FALSE
+    }
+  }
+
 
   # 2) Get the corresponding records in wcvp_mult.
   # As we use grepl to match authors add escape characters (\\).
   POWO_cur = wcvp_mult[wcvp_mult$taxon_name == taxon_name_current,]
-  taxon_author_grepl = POWO_cur$taxon_authors
+  taxon_author_grepl = POWO_cur$taxon_authors_simp
   taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\.', '\\\\.')
   taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\(', '\\\\(')
   taxon_author_grepl = stringr::str_replace_all(taxon_author_grepl,'\\)', '\\\\)')
@@ -253,7 +262,7 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   ###
   if(try_author_match){
     # A) By author (exact).
-    exact_match = taxon_author_current == POWO_cur$taxon_authors
+    exact_match = taxon_author_current == POWO_cur$taxon_authors_simp
     match_cur = match_taxon_status(exact_match, POWO_cur, current_message = '(Exact author match) -> ')
 
     # B) By author (partial: powo contained in taxon)
@@ -264,7 +273,7 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
 
     # C) By author (partial taxon contained in powo)
     if(!match_cur$match_flag){
-      author_match = grepl(Authors_grepl, POWO_cur$taxon_authors)
+      author_match = grepl(Authors_grepl, POWO_cur$taxon_authors_simp)
       match_cur = match_taxon_status(author_match, POWO_cur,  current_message = '(Partial author: taxon contained in powo) -> ')
     }
 
@@ -501,7 +510,7 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],8), wcvp, wcvp_index_splitters_mult, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -561,7 +570,7 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single_h)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_splitters_mult_h)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_splitters_mult_h, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -621,7 +630,7 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_splitters_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_splitters_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_splitters_mult, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -723,7 +732,7 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_hybrid_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],2), wcvp, wcvp_index_hybrid_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],2), wcvp, wcvp_index_hybrid_mult, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -780,7 +789,7 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp, wcvp_index_hybrid_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_hybrid_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],4), wcvp, wcvp_index_hybrid_mult, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -841,7 +850,7 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, wcvp){
 
       # Match to either single or multiple.
       match_details_single = match_single_wcvp(x[[1]], wcvp , wcvp_index_single)
-      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_mult)
+      match_details_mult = match_mult_wcvp(x[[1]], rep(x[[2]],3), wcvp, wcvp_index_mult, show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -1193,18 +1202,33 @@ match_original_to_wcvp <- function(original_report, wcvp,
   cli::cli_h2("Extracting taxon names and authors from the original report")
 
   taxon_name = original_report[,match(taxon_name_col, names(original_report))]
+  do_taxon_author = TRUE
   if(!is.na(taxon_author_col)){
     taxon_author = original_report[,match(taxon_author_col, names(original_report))]
+    if(all(taxon_author == '')){
+      do_taxon_author = FALSE
+    }
   }
   else if (!is.na(taxon_name_full_col)){
     taxon_name_full = original_report[,match(taxon_name_full_col, names(original_report))]
     taxon_author = author_from_taxon_name_full(taxon_name, taxon_name_full)
+    if(all(taxon_author == '')){
+      do_taxon_author = FALSE
+    }
   }
   else{
     taxon_author = rep('', length(taxon_name))
+    do_taxon_author = FALSE
   }
-
-  cli::cli_h2("Reducing to unique taxon name and author combinations")
+  if(!do_taxon_author){
+    #Simplify taxon_author names.
+    cli::cli_h2("Taxon authors not provided.")
+    cli::cli_h2("Reducing to unique taxon names")
+  }
+  else{
+    taxon_author = stringi::stri_trans_general(taxon_author, id = "Latin-ASCII")
+    cli::cli_h2("Reducing to unique taxon name and author combinations")
+  }
 
   # Restrict to only unique taxon name and author combinations.
   taxon_name_and_author = data.frame(taxon_name = taxon_name, taxon_author = taxon_author)
@@ -1400,7 +1424,26 @@ match_original_to_wcvp <- function(original_report, wcvp,
   }
 
   ################################################
-  # 12) Convert to accepted name where possible.
+  # 12) Check if the authors match from the name match (before going to accepted name)
+  ################################################
+  # Get the proposed authors.
+  proposed_authors = rep(NA, length(taxon_author))
+  current_match = taxon_match
+  current_match[is.na(current_match)] = -3
+  proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
+
+  # Check if proposed author is same/similar to original.
+  author_checked = rep(NA, length(proposed_authors))
+  for(i in 1:length(author_checked)){
+    author_checked[i] = author_check(taxon_author[i],  proposed_authors[i])
+  }
+  author_checked[current_match < 0] = 'No Match'
+  # Get the matched name to return before going to the accepted name.
+  matched_name = rep(NA, length(taxon_author))
+  matched_name[current_match > 0] = wcvp$wcvp_name$taxon_name[current_match[current_match >0]]
+
+  ################################################
+  # 13) Convert to accepted name where possible.
   ################################################
   if(do_convert_accepted){
     cli::cli_h2("Converting to accepted name..")
@@ -1416,22 +1459,33 @@ match_original_to_wcvp <- function(original_report, wcvp,
     }
 
   ################################################
-  # 13) Set remaining taxon_match to -3 and add story.
+  # 14) Set remaining taxon_match to -3 and add story.
   ################################################
   taxon_match[index_to_find_matches] = -3
+  author_checked[index_to_find_matches] = 'No Match'
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
 
   ################################################
-  # 14) Create a shortened version on the match details
+  # 15) Create a shortened version on the match details
   ################################################
   match_short = shorten_message(taxon_name_story)
 
   ################################################
-  # 15) return match (to original report) and details of the matches (for unique plants).
+  # 16) return match (to original report) and details of the matches (for unique plants).
   ################################################
   cli::cli_h2("Matching Complete")
   taxon_match_full = taxon_match[report_match]
   taxon_name_story_full = taxon_name_story[report_match]
   match_short_full = match_short[report_match]
-  return(list(match = taxon_match_full, details = taxon_name_story_full, details_short = match_short_full))
+  matched_name_full = matched_name[report_match]
+  proposed_authors_full = proposed_authors[report_match]
+  author_checked_full = author_checked[report_match]
+  original_authors_full = taxon_author[report_match]
+  return(list(match = taxon_match_full,
+              details = taxon_name_story_full,
+              details_short = match_short_full,
+              match_taxon_name = matched_name_full,
+              original_authors = original_authors_full,
+              match_authors = proposed_authors_full,
+              author_check = author_checked_full))
 }

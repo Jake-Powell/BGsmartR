@@ -98,6 +98,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
     }
     else if(grepl('\\.rds$',filepath)){
       readRDS(filepath)
+      wcvp_names = data.frame(wcvp_names) # To reformat to standard data frame not a tibble.
     }
     else{
       stop('filepath is not a csv or R data file!')
@@ -139,13 +140,9 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   cli::cli_h2("(2/6) Creating author parts...")
   authors = wcvp_names$taxon_authors
-  remove_initials = unlist(pbapply::pblapply(authors,function(x){
-    parts = stringr::str_split(x,'\\.| |,')[[1]]
-    parts = stringr::str_squish(parts)
-    parts = paste0(parts[stringr::str_length(parts)>3], collapse = ', ')
-  }))
-  remove_initials = stringr::str_replace_all(remove_initials, '\\(|\\)','')
-
+  authors = stringi::stri_trans_general(authors, id = "Latin-ASCII")
+  remove_initials = unlist(pbapply::pblapply(authors,function(x){paste0(author_words(x),collapse =', ')}))
+  wcvp_names$taxon_authors_simp = authors
   wcvp_names$author_parts = remove_initials
 
   #################################

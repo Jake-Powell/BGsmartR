@@ -70,7 +70,13 @@ enrich_report <- function(original_report, wcvp,
 
 
   # E) add to enriched report.
-  enriched_report = data.frame(enriched_report, match_detail = match_info$details, match_detail_short =match_info$details_short,
+  enriched_report = data.frame(enriched_report,
+                               original_authors = match_info$original_authors,
+                               match_taxon_name = match_info$match_taxon_name,
+                               match_authors = match_info$match_authors,
+                               author_check = match_info$author_check,
+                               match_detail = match_info$details,
+                               match_detail_short =match_info$details_short,
                                POWO_web_address = POWO_web_address, POWO_info)
 
 
