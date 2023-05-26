@@ -140,6 +140,6 @@ author_check <- function(original_author, proposed_author){
 author_words <- function(author){
   author_wordsA = unlist(stringr::str_extract_all(author,'[A-Z]{1}[a-z-]{2,}'))
   author_wordsB = unlist(stringr::str_extract_all(author,'DC\\.|Sm\\.|Br\\.'))
-
+  author_wordsB = stringr::str_replace_all(author_wordsB,'\\.','\\\\.')
   return(c(author_wordsA,author_wordsB))
 }
