@@ -25,8 +25,7 @@ shorten_message <- function(messages){
                     "(Not in POWO)", 'NO_MATCH',
                     "(Go to accepted name)", 'ACCEPTED',
                     "(Sanitise)", 'SANITISE',
-                    "Add splitter", 'INFRA',
-                    "Change splitter", 'INFRA',
+                    "Infrageneric level update", 'INFRA',
                     "(Hybrid", 'HYBRID'
   )
   match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
@@ -205,6 +204,73 @@ match_taxon_status <- function(author_match, corres_POWO, current_message = ''){
   return(list(match = matched, message = message, match_flag = match_flag))
 }
 
+#' match_error()
+#'
+#' @param new_taxon_names  new_taxon_names
+#' @param match_details match_details
+#' @param original_author original_author
+#' @param wcvp wcvp
+#' @param current_message current_message
+#'
+#' @return list of message and match
+#' @export
+#'
+match_error <- function(new_taxon_names, match_details, original_author, wcvp, current_message =''){
+  # A) Index of the matches we found.
+  found_match_index = which(!is.na(match_details$match))
+  if(length(found_match_index) == 0){
+    return(c(NA,''))
+  }
+
+  match_detail = list(match = match_details$match[found_match_index],
+                      message = match_details$message[found_match_index],
+                      taxon_name = rep(new_taxon_names,2)[found_match_index])
+
+
+  # If we get a single match return it.
+  if(length(match_detail$match)==1){
+    match = match_detail$match
+    message = paste0(current_message, match_detail$taxon_name, match_detail$message)
+    return(c(match,message))
+  }
+
+  # Multiple matches currently don't know which is best.
+  if(length(found_match_index)>1){
+    # Does a match have better authors?
+    match_authors = wcvp$wcvp_names$taxon_authors_simp[match_detail$match]
+    author_compare = unlist(lapply(match_authors,function(x){author_check(original_author,x)}))
+    best_match = match(author_compare,c('Exact','Partial', 'Different'))
+    best_matches = which(best_match == min(best_match))
+
+    # update match_detail to the best authors.
+    match_detail = list(match = match_detail$match[best_matches],
+                        message = match_detail$message[best_matches],
+                        taxon_name =  match_detail$taxon_name[best_matches])
+
+    # If we get a single match return it.
+    if(length(match_detail$match)==1){
+      match_detail$message = paste0('(Multiple attempted fixed taxon names match) -> (Choose record by author matching) -> ')
+      match = match_detail$match
+      message = paste0(current_message, match_detail$taxon_name, match_detail$message)
+      return(c(match,message))
+    }
+
+
+    # Try and use taxon status or all point to same accepted plant.
+    taxon_match = match_taxon_status(author_match = rep(T,length(match_detail$match)),
+                                     corres_POWO = wcvp$wcvp_names[match_detail$match,],
+                                     current_message = '(Multiple attempted fixed taxon names match) -> (Cannot choose record by author match) -> ')
+    #Note that the match provided by match_taxon_status is the plant_name_id and not the row number in wcvp. So we need to convert.
+    if(!is.na(taxon_match$match)){
+     match_index = match(taxon_match$match, wcvp$wcvp_names$plant_name_id)
+    }
+    match = match_index
+    message = paste0(current_message, taxon_match$message)
+
+    return(c(match,message))
+  }
+
+}
 
 #' get_match_from_multiple()
 #'
@@ -461,8 +527,14 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
   out_match = rep(NA, length(taxon_names))
   out_message = rep('',length(taxon_names))
   no_words = stringr::str_count(taxon_names, ' ')+1
+
+  #Get the index of words with length 3 without a hybrid sign.
   index_words_3 = which(no_words == 3 & !grepl('\u00D7|\\+',taxon_names))
+  #Get the index of words of length 4 with a hybrid sign only before or after the first word.
   index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
+  hybrid_position = unlist(lapply(stringr::str_split(taxon_names[index_words_4], ' '),function(x){which(grepl('\u00D7|\\+',x))}))
+  index_words_4 = index_words_4[hybrid_position %in% c(1,2)]
+
   index_words_with_splitter = which(grepl(splitters_grepl, taxon_names))
   wcvp_index_splitters = which(grepl(splitters_grepl, wcvp$wcvp_names$taxon_name))
   wcvp_index_splitters_mult = wcvp_index_splitters[wcvp$wcvp_names$single_entry[wcvp_index_splitters] == F]
@@ -496,27 +568,12 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
-      #Index of the matches we found.
-      found_match_index = which(!is.na(match_details$match))
-      mes_index = found_match_index%%length(x[[1]])
-      mes_index[mes_index == 0] = length(x[[1]])
-
-      # If we get a single match return it.
-      if(length(found_match_index)==1){
-        match = match_details$match[found_match_index]
-        message = paste0(' -> (Add splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
-        return(c(match,message))
-      }
-      # Multiple matches unclear which is best so don't give a match.
-      if(length(found_match_index)>1){
-        match = -5
-        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
-        return(c(match,message))
-      }
-
-      #Else we have no match
-      return(c(NA,''))
-
+      chosen_record = match_error(new_taxon_names = x[[1]],
+                  match_details = match_details,
+                  original_author = x[[2]],
+                  wcvp = wcvp,
+                  current_message = ' -> (Infrageneric level update) -> ')
+     return(chosen_record)
     }))
     match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
 
@@ -536,6 +593,7 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
     wcvp_index_splitters_mult_h = wcvp_index_splitters_mult[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_mult])]
     wcvp_index_splitters_single_h = wcvp_index_splitters_single[grepl('\u00D7|\\+',wcvp$wcvp_names$taxon_name[wcvp_index_splitters_single])]
 
+    # Make sure the hybrid only occurs before or after the first word
 
     words_4 = stringr::str_split(taxon_names[index_words_4], ' ')
     to_try_words = lapply(words_4, function(x){
@@ -556,26 +614,12 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
-      #Index of the matches we found.
-      found_match_index = which(!is.na(match_details$match))
-      mes_index = found_match_index%%length(x[[1]])
-      mes_index[mes_index == 0] = length(x[[1]])
-
-      # If we get a single match return it.
-      if(length(found_match_index)==1){
-        match = match_details$match[found_match_index]
-        message = paste0(' -> (Add splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
-        return(c(match,message))
-      }
-      # Multiple matches unclear which is best so don't give a match.
-      if(length(found_match_index)>1){
-        match = -5
-        message = paste0(' -> (Add splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
-        return(c(match,message))
-      }
-
-      #Else we have no match
-      return(c(NA,''))
+      chosen_record = match_error(new_taxon_names = x[[1]],
+                                  match_details = match_details,
+                                  original_author = x[[2]],
+                                  wcvp = wcvp,
+                                  current_message = ' -> (Infrageneric level update) -> ')
+      return(chosen_record)
 
     }))
     match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
@@ -616,26 +660,12 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
-      #Index of the matches we found.
-      found_match_index = which(!is.na(match_details$match))
-      mes_index = found_match_index%%length(x[[1]])
-      mes_index[mes_index == 0] = length(x[[1]])
-
-      # If we get a single match return it.
-      if(length(found_match_index)==1){
-        match = match_details$match[found_match_index]
-        message = paste0(' -> (Change splitter) -> ', x[[1]][mes_index], match_details$message[found_match_index])
-        return(c(match,message))
-      }
-      # Multiple matches unclear which is best so don't give a match.
-      if(length(found_match_index)>1){
-        match = -5
-        message = paste0(' -> (Change splitter, multiple matches, unclear which to match) -> (', paste0(x[[1]][mes_index],collapse = ' OR '), ')')
-        return(c(match,message))
-      }
-
-      #Else we have no match
-      return(c(NA,''))
+      chosen_record = match_error(new_taxon_names = x[[1]],
+                                  match_details = match_details,
+                                  original_author = x[[2]],
+                                  wcvp = wcvp,
+                                  current_message = ' -> (Infrageneric level update) -> ')
+      return(chosen_record)
 
     }))
     match_info = data.frame(matrix(match_info, ncol =2, byrow = T))
