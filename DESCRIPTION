@@ -24,5 +24,6 @@ Imports:
     dplyr,
     utils,
     rlang,
-    cli
+    cli,
+    stringi
 VignetteBuilder: knitr
