@@ -85,7 +85,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   # 1) Load wcvp_names (using method as described in the download)
   #################################
-  cli::cli_h2("(1/6) Loading wvcp_names")
+  cli::cli_h2("Loading wvcp_names")
     if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
     if(grepl('\\.csv$',filepath)){
@@ -128,12 +128,47 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   # 2) Sanitise taxon names.
   #################################
-  cli::cli_h2("(2/6) Sanitising taxon names")
+  cli::cli_h2("Sanitising taxon names")
   santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
   original_taxon_name = wcvp_names$taxon_name
   wcvp_names$taxon_name = santise_taxon_name
   indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+
+  #################################
+  # 3) Update author of autonyms to match the none-autonymed species.
+  #################################
+  # If no author is provided for an autonym, extract the Genus Species then:
+  # - Use the author of genus species if only a single record exists.
+  # - IF > 1 record exists use the accepted record, otherwise return NA.
+  cli::cli_h2("Updating author for autonyms...")
+
+  # Create a data frame of taxon name, is_autonym, authors, and the GenusSpecies.
+  GenusSpecies = paste0(wcvp_names$genus, ' ', wcvp_names$species)
+  autonym_names = BGSmartR::add_is_autonym(data.frame(taxon = wcvp_names$taxon_name),TaxonName_column = 'taxon',progress_bar = T)
+  autonym_names = data.frame(autonym_names,
+                             author = wcvp_names$taxon_authors,
+                             GenusSpecies = GenusSpecies)
+
+  # Those we want to try and update.
+  issue_index = which(autonym_names$is_autonym == TRUE & is.na(autonym_names$author))
+  cli::cli_alert_success("Updating required for {length(issue_index)} records")
+
+  new_author = unlist(pbapply::pblapply(issue_index, function(x){
+    genusSpecies = autonym_names$GenusSpecies[x]
+    POWO_records = wcvp_names[wcvp_names$taxon_name == genusSpecies,c(3,5)]
+    if(nrow(POWO_records) == 1){
+      return(POWO_records$taxon_authors)
+    }
+    else{
+      accepted_record = which(POWO_records$taxon_status == 'Accepted')
+      if(!is.na(accepted_record[1])){
+        return(POWO_records$taxon_authors[accepted_record])
+      }
+      else{return(NA)}
+    }
+  }))
+  wcvp_names$taxon_authors[issue_index] = new_author
 
   #################################
   # 3) Sanitise authors.
