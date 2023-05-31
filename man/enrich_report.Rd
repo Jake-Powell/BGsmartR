@@ -6,7 +6,9 @@
 \usage{
 enrich_report(
   original_report,
-  wcvp,
+  wcvp = NA,
+  redList = NA,
+  BGCI = NA,
   taxon_name_col = "TaxonName",
   taxon_name_full_col = NA,
   taxon_author_col = NA,
@@ -20,6 +22,10 @@ enrich_report(
 \item{original_report}{A gardens original report}
 
 \item{wcvp}{POWO database}
+
+\item{redList}{RedList database}
+
+\item{BGCI}{BGCI database}
 
 \item{taxon_name_col}{Column name in the original report for taxon name}
 

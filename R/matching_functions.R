@@ -219,17 +219,19 @@ get_match_from_multiple <- function(taxon_name_and_author, wcvp_mult){
   taxon_author_current = taxon_name_and_author[2]
 
 
-
   try_author_match = TRUE # flag for whether we have author information
   flag = TRUE # flag for whether we need to do checks.
   #If the author is NA
   if(is.na(taxon_author_current)){
     try_author_match = FALSE
   }
-  if(taxon_author_current == ''){
-    try_author_match = FALSE
+  else{
+    if(taxon_author_current == ''){
+      try_author_match = FALSE
 
+    }
   }
+
 
 
   # 2) Get the corresponding records in wcvp_mult.
@@ -375,7 +377,9 @@ match_rm_autonym <- function(taxon_names, taxon_authors, wcvp,
   if(length(NAs) > 1){
     warning('In match_autonym(), taxon names contain NA.')
   }
-
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
   ########################
   # Setup + find autonym taxon names + create wcvp indices + create names to try
   ########################
@@ -516,7 +520,9 @@ add_splitter <- function(taxon_names, taxon_authors, wcvp){
   if(length(NAs) > 1){
     warning('In add_splitter(), taxon names contain NA.')
   }
-
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
   ########################
   # Setup + find words of length 3 and 4 + words with a splitter.
   ########################
@@ -693,7 +699,9 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, wcvp){
   if(length(NAs) > 1){
     warning('In match_hybrid_issue(), taxon names contain NA.')
   }
-
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
   ########################
   # Setup + find words of length 3 and 4 + words with a splitter.
   ########################
@@ -1143,6 +1151,9 @@ match_all_issue <- function(taxon_names,
                             wcvp,
                             single_indices = NA,
                             mult_indices = NA){
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
   # Try removing autonyms
   match_auto = match_rm_autonym(taxon_names, taxon_authors, wcvp,
                                 single_indices = single_indices,
@@ -1219,17 +1230,23 @@ match_all_issue <- function(taxon_names,
     if(length(mult_indices) > 0){
       matches_cur = rep(NA, length(mult_indices))
       messages_cur = rep(NA, length(mult_indices))
+
       #Choose the best records according to author matching.
       author_choose = apply(authors[mult_indices,],1,function(x){
         # Get the original author and matched authors
         auth_orig = as.character(x[1])
         auth_match = as.character(x[-1])
-        auth_match = auth_match[!is.na(auth_match)]
+        # auth_match = auth_match[!is.na(auth_match)]
+
+        #If the original author = NA no author match possible.
+        if(is.na(auth_orig)){
+          return(list(match = rep(TRUE, length(auth_match)), message = '(No author match)'))
+        }
 
         #Try to match the authors exactly.
         exact_match = auth_match == auth_orig
         if(sum(exact_match,na.rm = T)>0){
-          # exact_match[is.na(exact_match)] = FALSE
+          exact_match[is.na(exact_match)] = FALSE
           return(list(match = exact_match, message = '(Exact author match)'))
         }
 
@@ -1240,6 +1257,10 @@ match_all_issue <- function(taxon_names,
 
         #Find number of words in POWO authors found in the original author
         no_powo_author_in_original = unlist(lapply(possible_author_words,function(x){
+          # If no author words return zero.
+          if(length(x) == 0){
+            return(0)
+          }
           words = stringr::str_split(x,', ')[[1]]
           words = words[words != '']
           contain_words = unlist(lapply(words, function(x){grepl(x,auth_orig)}))
@@ -1247,7 +1268,15 @@ match_all_issue <- function(taxon_names,
         }))
 
         #Find number of words in original author found in the POWO authors
-        no_original_author_in_powo = rowSums(data.frame(lapply(original_author_words, function(x){grepl(x,auth_match)})))
+        if(length(original_author_words)==0){
+          no_original_author_in_powo = rep(0,length(auth_match))
+        }
+        else{
+          no_original_author_in_powo = rowSums(data.frame(lapply(original_author_words, function(x){
+            grepl(x,auth_match)}
+          )))
+        }
+
 
         # Combine above and find the maximum shared words.
         total_match_word_count = rowSums(cbind(no_powo_author_in_original,no_original_author_in_powo))
@@ -1256,9 +1285,11 @@ match_all_issue <- function(taxon_names,
         # If maximum shared words > 0 then try and find a match with those with the maximum number of shared words.
         if(max_words_found > 0){
           partial_match = total_match_word_count == max_words_found
-          # partial_match[is.na(partial_match)] = FALSE
+          partial_match[is.na(partial_match)] = FALSE
           return(list(match = partial_match, message = '(Partial author match)'))
-
+        }
+        else{
+          return(list(match = rep(TRUE, length(auth_match)), message = '(No author match)'))
         }
 
       })
@@ -1266,7 +1297,8 @@ match_all_issue <- function(taxon_names,
       # Run match_taxon_status on each selection of best authors.
       for(i in 1:length(mult_indices)){
         corres_POWO = wcvp$wcvp_names[as.numeric(matches[mult_indices[i],!is.na(matches[mult_indices[i],])]),]
-        match_cur = match_taxon_status(author_choose[[i]]$match,
+        corres_match_cur = author_choose[[i]]$match[!is.na(matches[mult_indices[i],])]
+        match_cur = match_taxon_status(corres_match_cur,
                                        corres_POWO = corres_POWO,
                                        current_message = author_choose[[i]]$message)
         matches_cur[i] = match_cur$match
@@ -1501,6 +1533,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 8) Try fixing taxon name issues.
   ################################################
+  if(length(index_to_find_matches) > 0){
   cli::cli_h2("Testing and matching taxon name issues for {length(index_to_find_matches)} name{?s}")
 
   match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
@@ -1518,7 +1551,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
     cli::cli_alert_success("Found {no_found} of {length(index_to_find_matches)} names")
 
     index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-
+  }
 
   ################################################
   # 9) Try to find typo and then match.
@@ -1568,6 +1601,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
     author_diff = which(author_checked == 'Different')
     diff_index = author_diff[grepl('\\(matches POWO record with single entry\\)',taxon_name_story[author_diff])]
 
+    if(length(diff_index) > 0){
     # Get matches trying to fix taxon name.
     match_info = match_all_issue(taxon_names = taxon_name[diff_index],
                                  taxon_authors = taxon_author[diff_index],
@@ -1596,7 +1630,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
                ' -> (Author differ) -> (Try fixing taxon name)',
                match_info$message[improved_author_index])
     }
-
+}
   }
 
   ################################################

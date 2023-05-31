@@ -9,6 +9,8 @@
 #'
 #' @param original_report A gardens original report
 #' @param wcvp POWO database
+#' @param redList RedList database
+#' @param BGCI BGCI database
 #' @param taxon_name_col Column name in the original report for taxon name
 #' @param taxon_name_full_col Column name in the original report for taxon name and author/s (combined)
 #' @param taxon_author_col Column name in the original report for taxon author/s
@@ -21,7 +23,10 @@
 #' `$enriched_report` the enriched report, and
 #' `match_details` the details of how taxon names have being used to match to POWO.
 #' @export
-enrich_report <- function(original_report, wcvp,
+enrich_report <- function(original_report,
+                          wcvp = NA,
+                          redList = NA,
+                          BGCI = NA,
                           taxon_name_col = 'TaxonName',
                           taxon_name_full_col = NA,
                           taxon_author_col = NA,
@@ -29,24 +34,25 @@ enrich_report <- function(original_report, wcvp,
 
   enriched_report = original_report
 
-  ###
+  ############################################
   # 1) Add is_autonym.
-  ###
+  ############################################
   if(do_is_autonym){
     enriched_report = add_is_autonym(enriched_report)
   }
 
-  ###
+  ############################################
   # 2) Add status_year.
-  ###
+  ############################################
   if(do_status_year){
     enriched_report = add_status_year(enriched_report)
   }
 
 
-  ###
+  ############################################
   # 4) Add information from POWO.
-  ###
+  ############################################
+  if(!is.na(wcvp)[1]){
   # A) find the match between original report and wcvp.
   match_info = match_original_to_wcvp(original_report,
                                       wcvp,
@@ -78,14 +84,56 @@ enrich_report <- function(original_report, wcvp,
                                match_detail = match_info$details,
                                match_detail_short =match_info$details_short,
                                POWO_web_address = POWO_web_address, POWO_info)
+  }
 
-
-  ###
+  ############################################
   # 4) Add infrageneric_level.
-  ###
+  ############################################
   # We run infrageneric_level on the taxonName from POWO unless we didn't find a match then we use the original taxon name.
   if(do_infrageneric_level){
     enriched_report = add_infrageneric_level(enriched_report, POWO_TaxonNameColumn = 'POWO_taxon_name')
+  }
+
+  ############################################
+  # 5) Add RedList information.
+  ############################################
+  if(!is.na(redList)[1]){
+    redList$taxon_status = rep('NA',nrow(redList))
+    redList$accepted_plant_name_id = 1:nrow(redList)
+    redList$plant_name_id = 1:nrow(redList)
+
+    match_info = match_original_to_wcvp(original_report,
+                                        wcvp = list(wcvp_names = redList, exceptions = NULL, changes = NULL),
+                                        taxon_name_col = taxon_name_col,
+                                        taxon_name_full_col = taxon_name_full_col,
+                                        taxon_author_col = taxon_author_col,
+                                        typo_method = typo_method)
+
+    redList_wanted_columns = c("category","main_common_name")
+    redList_wanted_columns = redList_wanted_columns[redList_wanted_columns %in% names(redList)]
+    redList_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(redList_wanted_columns)))
+    names(redList_info) = paste0('redList_',redList_wanted_columns)
+    indices = which(!(is.na(match_info$match) | match_info$match < 0))
+    redList_info[indices,] = redList[match_info$match[indices],match(redList_wanted_columns,names(redList))]
+
+    enriched_report = data.frame(enriched_report,
+                                 redList_match_authors = match_info$match_authors,
+                                 redList_author_check = match_info$author_check,
+                                 redList_match_detail = match_info$details,
+                                 redList_match_detail_short =match_info$details_short,
+                                 redList_info)
+  }
+
+  ############################################
+  # 5) Add Number of Gardens (BGCI).
+  ############################################
+  if(!is.na(BGCI)[1]){
+    no_gardens = match_original_to_BGCI(original_report,
+                                        BGCI,
+                                        taxon_name_col = taxon_name_col)
+
+    enriched_report = data.frame(enriched_report,
+                                 no_gardens = no_gardens$no_gardens)
   }
 
   #Return the enriched report.
