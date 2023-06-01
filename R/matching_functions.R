@@ -1531,6 +1531,59 @@ match_original_to_wcvp <- function(original_report, wcvp,
   }
 
   ################################################
+  # 11) If the matched author is different after exact matching try to find a similar taxon name.
+  ################################################
+  if(do_taxon_author){
+    # Find the records which have disagreeing authors.
+    with_match = index_complete[which(!grepl('Not in POWO',taxon_name_story[index_complete]))]
+
+    original_authors = taxon_author[with_match]
+    matched_authors = rep(NA,length(original_authors))
+    match_bigger_0 = taxon_match[with_match] > 0
+    matched_authors[match_bigger_0] = wcvp$wcvp_names$taxon_authors_simp[taxon_match[with_match][match_bigger_0]]
+
+    author_checked = rep(NA, length(original_authors))
+    for(i in 1:length(author_checked)){
+      author_checked[i] = author_check(original_authors[i],  matched_authors[i])
+    }
+
+    # Get the indices of those matched to a single record with author checked = 'Different'.
+    diff_index = with_match[which(author_checked == 'Different')]
+
+    if(length(diff_index) > 0){
+      # Get matches trying to fix taxon name.
+      match_info = match_all_issue(taxon_names = taxon_name[diff_index],
+                                   taxon_authors = taxon_author[diff_index],
+                                   wcvp = wcvp,
+                                   single_indices = single_indices,
+                                   mult_indices = mult_indices,
+                                   do_taxon_author = do_taxon_author)
+
+      proposed_authors = rep(NA, length(taxon_author[diff_index]))
+      current_match = match_info$match
+      current_match[is.na(current_match)] = -3
+      proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
+
+      # Check if proposed author is same/similar to original.
+      compare_author_new = rep(NA, length(proposed_authors))
+      for(i in 1:length(diff_index)){
+        compare_author_new[i] = author_check(taxon_author[diff_index[i]],  proposed_authors[i])
+      }
+      compare_author_new[current_match < 0] = 'No Match'
+
+      improved_author_index = which(compare_author_new %in% c('Identical', 'Partial'))
+      if(length(improved_author_index)>0){
+        taxon_match[diff_index[improved_author_index]] = match_info$match[improved_author_index]
+        taxon_name_story[diff_index[improved_author_index]] =
+          paste0(taxon_name_story[diff_index[improved_author_index]],
+                 ' -> (Author differ) -> (Try fixing taxon name)',
+                 match_info$message[improved_author_index])
+      }
+    }
+  }
+
+
+  ################################################
   # 8) Try fixing taxon name issues.
   ################################################
   if(length(index_to_find_matches) > 0){
@@ -1585,62 +1638,6 @@ match_original_to_wcvp <- function(original_report, wcvp,
   current_match = taxon_match
   current_match[is.na(current_match)] = -3
   proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
-
-  # Check if proposed author is same/similar to original.
-  author_checked = rep(NA, length(proposed_authors))
-  for(i in 1:length(author_checked)){
-    author_checked[i] = author_check(taxon_author[i],  proposed_authors[i])
-  }
-  author_checked[current_match < 0] = 'No Match'
-
-  ################################################
-  # 11) If the matched author is different after exact matching try to find a similar taxon name.
-  ################################################
-  if(do_taxon_author){
-    # Get the indices of those matched to a single record with author checked = 'Different'.
-    author_diff = which(author_checked == 'Different')
-    diff_index = author_diff[grepl('\\(matches POWO record with single entry\\)',taxon_name_story[author_diff])]
-
-    if(length(diff_index) > 0){
-    # Get matches trying to fix taxon name.
-    match_info = match_all_issue(taxon_names = taxon_name[diff_index],
-                                 taxon_authors = taxon_author[diff_index],
-                                 wcvp = wcvp,
-                                 single_indices = single_indices,
-                                 mult_indices = mult_indices,
-                                 do_taxon_author = do_taxon_author)
-
-    proposed_authors = rep(NA, length(taxon_author[diff_index]))
-    current_match = match_info$match
-    current_match[is.na(current_match)] = -3
-    proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
-
-    # Check if proposed author is same/similar to original.
-    compare_author_new = rep(NA, length(proposed_authors))
-    for(i in 1:length(diff_index)){
-      compare_author_new[i] = author_check(taxon_author[diff_index[i]],  proposed_authors[i])
-    }
-    compare_author_new[current_match < 0] = 'No Match'
-
-    improved_author_index = which(compare_author_new %in% c('Identical', 'Partial'))
-    if(length(improved_author_index)>0){
-      taxon_match[diff_index[improved_author_index]] = match_info$match[improved_author_index]
-      taxon_name_story[diff_index[improved_author_index]] =
-        paste0(taxon_name_story[diff_index[improved_author_index]],
-               ' -> (Author differ) -> (Try fixing taxon name)',
-               match_info$message[improved_author_index])
-    }
-}
-  }
-
-  ################################################
-  # 12) Repeat step 10..
-  ################################################
-  # Get the proposed authors.
-  proposed_authors = rep(NA, length(taxon_author))
-  current_match = taxon_match
-  current_match[is.na(current_match)] = -3
-  proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
   matched_name = rep(NA, length(taxon_author))
   matched_name[current_match > 0] = wcvp$wcvp_name$taxon_name[current_match[current_match >0]]
 
@@ -1652,7 +1649,7 @@ match_original_to_wcvp <- function(original_report, wcvp,
   author_checked[current_match < 0] = 'No Match'
 
   ################################################
-  # 13) Convert to accepted name where possible.
+  # 11) Convert to accepted name where possible.
   ################################################
   if(do_convert_accepted){
     cli::cli_h2("Converting to accepted name..")
@@ -1668,19 +1665,19 @@ match_original_to_wcvp <- function(original_report, wcvp,
   }
 
   ################################################
-  # 14) Set remaining taxon_match to -3 and add story.
+  # 12) Set remaining taxon_match to -3 and add story.
   ################################################
   taxon_match[index_to_find_matches] = -3
   author_checked[index_to_find_matches] = 'No Match'
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
 
   ################################################
-  # 15) Create a shortened version on the match details
+  # 13) Create a shortened version on the match details
   ################################################
   match_short = shorten_message(taxon_name_story)
 
   ################################################
-  # 16) return match (to original report) and details of the matches (for unique plants).
+  # 15) return match (to original report) and details of the matches (for unique plants).
   ################################################
   cli::cli_h2("Matching Complete")
   taxon_match_full = taxon_match[report_match]
