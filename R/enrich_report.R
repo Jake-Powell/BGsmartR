@@ -38,6 +38,7 @@ enrich_report <- function(original_report,
   # 1) Add is_autonym.
   ############################################
   if(do_is_autonym){
+    cli::cli_h2("Adding is autonym")
     enriched_report = add_is_autonym(enriched_report)
   }
 
@@ -45,6 +46,7 @@ enrich_report <- function(original_report,
   # 2) Add status_year.
   ############################################
   if(do_status_year){
+    cli::cli_h2("Adding status year")
     enriched_report = add_status_year(enriched_report)
   }
 
@@ -53,6 +55,8 @@ enrich_report <- function(original_report,
   # 4) Add information from POWO.
   ############################################
   if(!is.na(wcvp)[1]){
+  cli::cli_h2("Adding POWO information")
+
   # A) find the match between original report and wcvp.
   match_info = match_original_to_wcvp(original_report,
                                       wcvp,
@@ -91,6 +95,7 @@ enrich_report <- function(original_report,
   ############################################
   # We run infrageneric_level on the taxonName from POWO unless we didn't find a match then we use the original taxon name.
   if(do_infrageneric_level){
+    cli::cli_h2("Adding infrageneric level")
     enriched_report = add_infrageneric_level(enriched_report, POWO_TaxonNameColumn = 'POWO_taxon_name')
   }
 
@@ -98,6 +103,8 @@ enrich_report <- function(original_report,
   # 5) Add RedList information.
   ############################################
   if(!is.na(redList)[1]){
+    cli::cli_h2("Adding ICUN Red list information")
+
     redList$taxon_status = rep('NA',nrow(redList))
     redList$accepted_plant_name_id = 1:nrow(redList)
     redList$plant_name_id = 1:nrow(redList)
@@ -109,7 +116,11 @@ enrich_report <- function(original_report,
                                         taxon_author_col = taxon_author_col,
                                         typo_method = typo_method)
 
-    redList_wanted_columns = c("category","main_common_name")
+    redList_wanted_columns = c("scientific_name", 'authority', "main_common_name",
+                               "category", "published_year", "assessment_date",
+                               'criteria', 'population_trend',
+                               'aoo_km2', 'eoo_km2',
+                               'elevation_upper', 'elevation_lower')
     redList_wanted_columns = redList_wanted_columns[redList_wanted_columns %in% names(redList)]
     redList_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(redList_wanted_columns)))
     names(redList_info) = paste0('redList_',redList_wanted_columns)
@@ -117,6 +128,8 @@ enrich_report <- function(original_report,
     redList_info[indices,] = redList[match_info$match[indices],match(redList_wanted_columns,names(redList))]
 
     enriched_report = data.frame(enriched_report,
+                                 redList_original_authors = match_info$original_authors,
+                                 redList_match_taxon_name = match_info$match_taxon_name,
                                  redList_match_authors = match_info$match_authors,
                                  redList_author_check = match_info$author_check,
                                  redList_match_detail = match_info$details,
@@ -128,6 +141,8 @@ enrich_report <- function(original_report,
   # 5) Add Number of Gardens (BGCI).
   ############################################
   if(!is.na(BGCI)[1]){
+    cli::cli_h2("Adding Number of gardens")
+
     no_gardens = match_original_to_BGCI(original_report,
                                         BGCI,
                                         taxon_name_col = taxon_name_col)
