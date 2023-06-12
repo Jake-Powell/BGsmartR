@@ -1024,6 +1024,7 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   for(i in (length_taxon-1):1){
     #Check changing a single letter.
     patternA = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z]',stringr::str_sub(taxon,i+2,length_taxon))
+    patternA = stringr::str_replace_all(patternA,'\\.','\\\\.')
     fixed_typoA = wcvp_needed_same[grepl(patternA, wcvp_needed_same)]
     if(length(fixed_typoA) >0){
       return(fixed_typoA[1])
@@ -1031,12 +1032,14 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
 
     #Check adding a single new letter
     patternB = paste0(stringr::str_sub(taxon,1,i),'[a-zA-Z-]',stringr::str_sub(taxon,i+1,length_taxon))
+    patternB = stringr::str_replace_all(patternB,'\\.','\\\\.')
     fixed_typoB = wcvp_needed_plus_1[grepl(patternB, wcvp_needed_plus_1)]
     if(length(fixed_typoB) >0){
       return(fixed_typoB[1])
     }
     #Check removing a single new letter
     patternC = paste0(stringr::str_sub(taxon,1,i),stringr::str_sub(taxon,i+2,length_taxon))
+    patternC = stringr::str_replace_all(patternC,'\\.','\\\\.')
     fixed_typoC = wcvp_needed_minus_1[grepl(patternC, wcvp_needed_minus_1)]
     if(length(fixed_typoC) >0){
       return(fixed_typoC[1])
@@ -1231,10 +1234,10 @@ match_all_issue <- function(taxon_names,
       author_auto[auto_index] = wcvp$wcvp_names$taxon_authors_simp[match_auto$match[mult_indices][auto_index]]
 
       splitter_index = which(match_splitter$match[mult_indices] > 0)
-      author_splitter[splitter_index] = wcvp$wcvp_names$taxon_authors_simp[match_splitter$match[match_splitter$match[mult_indices][splitter_index]]]
+      author_splitter[splitter_index] = wcvp$wcvp_names$taxon_authors_simp[match_splitter$match[mult_indices][splitter_index]]
 
       hybrid_index = which(match_hybrid$match[mult_indices] > 0)
-      author_hybrid[hybrid_index] = wcvp$wcvp_names$taxon_authors_simp[match_hybrid$match[match_hybrid$match[mult_indices][hybrid_index]]]
+      author_hybrid[hybrid_index] = wcvp$wcvp_names$taxon_authors_simp[match_hybrid$match[mult_indices][hybrid_index]]
 
       authors = data.frame(original = taxon_authors[mult_indices],autonym = author_auto, infra = author_splitter, hybrid = author_hybrid)
 
@@ -1308,14 +1311,14 @@ match_all_issue <- function(taxon_names,
         corres_match_cur = author_choose[[i]]$match[!is.na(matches[mult_indices[i],])]
         match_cur = match_taxon_status(author_match = corres_match_cur,
                                        corres_POWO = corres_POWO,
-                                       current_message = paste0('-> ',author_choose[[i]]$message))
+                                       current_message = paste0('-> ',author_choose[[i]]$message, ' -> '))
         #Note that match_taxon_status returns the plant_name_id and not the row number of the match
         matches_cur[i] = match(match_cur$plant_name_id, wcvp$wcvp_names$plant_name_id)
         messages_cur[i] = match_cur$message
       }
 
       # If the match == -2 use the method in our preferred order.
-      no_match = matches_cur == -2
+      no_match = is.na(matches_cur)
       corres_matches = apply(matches[mult_indices,][no_match,],1,function(x){
         if(!is.na(x[2])){
           return(x[2])
@@ -1486,19 +1489,19 @@ match_original_to_wcvp <- function(original_report, wcvp,
   ################################################
   # 5) Sanitise taxon names.
   ################################################
-  if(length(index_to_find_matches) > 0){
-    cli::cli_h2("Sanitise taxon names")
-
-    santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
-    original_taxon_name = taxon_name
-    taxon_name[index_to_find_matches] = santise_taxon_name
-
-    indices_require_sanitise=which(taxon_name != original_taxon_name)
-    taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
-                                                        ' -> (Sanitise name) -> ',
-                                                        taxon_name[indices_require_sanitise])
-    cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
-  }
+  # if(length(index_to_find_matches) > 0){
+  #   cli::cli_h2("Sanitise taxon names")
+  #
+  #   santise_taxon_name = unlist(pbapply::pblapply(taxon_name[index_to_find_matches],BGSmartR::sanitise_name))
+  #   original_taxon_name = taxon_name
+  #   taxon_name[index_to_find_matches] = santise_taxon_name
+  #
+  #   indices_require_sanitise=which(taxon_name != original_taxon_name)
+  #   taxon_name_story[indices_require_sanitise] = paste0(taxon_name_story[indices_require_sanitise],
+  #                                                       ' -> (Sanitise name) -> ',
+  #                                                       taxon_name[indices_require_sanitise])
+  #   cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+  # }
 
   ################################################
   # 6) Match original report to all unique taxon names in POWO.

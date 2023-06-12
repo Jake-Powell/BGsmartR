@@ -81,7 +81,10 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
   #Loop over all taxon name full removing any word that is also in taxon name.
   authors = rep(NA,length(taxon_names_full))
   for(i in 1:length(authors)){
-    if(taxon_names_full[i] != ''){
+    if(is.na(taxon_names_full[i])){
+      authors[i] = ''
+    }
+    else if(taxon_names_full[i] != ''){
       auth_cur = stringr::str_replace_all(taxon_names_full[i],taxon_name_words_grepl[i],'')
       authors[i] = stringr::str_squish(auth_cur)
     }
@@ -94,8 +97,72 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
   return(authors)
 }
 
+#' clean_names_authors()
+#'
+#' @param taxon_names  taxon names
+#' @param taxon_authors taxon_authors
+#' @param taxon_name_full taxon names with author
+#'
+#' @return list of cleaned taxon names and author
+#' @export
+clean_names_authors <- function(taxon_names,
+                                taxon_authors = NA,
+                                taxon_name_full = NA){
+  # A) Sanitise the taxon names.
+  clean_taxon_name = unlist(lapply(taxon_names, sanitise_name))
+
+  # B) Extract author if needed.
+  # i) Both taxon_authors and taxon_name_full = NA
+  if(length(taxon_authors) == 1  & length(taxon_name_full) == 1 & all(is.na(taxon_authors)) & all(is.na(taxon_name_full))){
+    author = rep('',length(taxon_names))
+  }
+  # ii) Both taxon_authors is NA  and taxon_name_full is not
+  else if(length(taxon_authors) == 1  & length(taxon_name_full) > 1 & all(is.na(taxon_authors))){
+    author = author_from_taxon_name_full(taxon_names, taxon_name_full)
+  }
+  #iii) Taxon authors in not NA.
+  else{
+    author = taxon_authors
+  }
 
 
+  #C) Was sanitising needed.
+  sanitised = rep(F,length(taxon_names))
+  sanitised[taxon_names != clean_taxon_name] = T
+
+  return(list(taxon_name = clean_taxon_name, author = author, sanitised = sanitised))
+}
+
+
+#' clean_names_authors_report
+#'
+#' @param original_report original_report
+#' @param taxon_name_col taxon_name_col
+#' @param taxon_name_full_col taxon_name_full_col
+#' @param taxon_author_col taxon_author_col
+#'
+#' @return list of cleaned taxon names and author
+#' @export
+clean_names_authors_report <- function(original_report,
+                                       taxon_name_col = 'TaxonName',
+                                       taxon_name_full_col = NA,
+                                       taxon_author_col = NA){
+  # Get the values out of original report.
+  taxon_names = original_report[,match(taxon_name_col, names(original_report))]
+  if(is.na(taxon_name_full_col)){
+    taxon_name_full = NA
+  }else{
+    taxon_name_full = original_report[,match(taxon_name_full_col,names(original_report))]
+  }
+
+  if(is.na(taxon_author_col)){
+    taxon_authors = NA
+  }else{
+    taxon_authors = original_report[,match(taxon_author_col,names(original_report))]
+  }
+
+  return(clean_names_authors(taxon_names = taxon_names, taxon_name_full = taxon_name_full, taxon_authors = taxon_authors))
+}
 #' author_check()
 #'
 #' @param original_author original_author

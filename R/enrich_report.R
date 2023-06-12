@@ -32,7 +32,22 @@ enrich_report <- function(original_report,
                           taxon_author_col = NA,
                           do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE, typo_method = 'fast'){
 
+  ############################################
+  # 1) Clean/extract taxon name + taxon author
+  ############################################
+  cli::cli_h2("Sanitise taxon name and extract author")
+  taxon_name_and_author = clean_names_authors_report(original_report,
+                             taxon_name_col = taxon_name_col,
+                             taxon_name_full_col = taxon_name_full_col,
+                             taxon_author_col = taxon_author_col)
+
+
+  original_report = data.frame(original_report,
+                               sanitised_taxon = taxon_name_and_author$taxon_name,
+                               need_sanitise = taxon_name_and_author$sanitised,
+                               extracted_author = taxon_name_and_author$author)
   enriched_report = original_report
+
 
   ############################################
   # 1) Add is_autonym.
@@ -60,9 +75,9 @@ enrich_report <- function(original_report,
   # A) find the match between original report and wcvp.
   match_info = match_original_to_wcvp(original_report,
                                       wcvp,
-                                      taxon_name_col = taxon_name_col,
-                                      taxon_name_full_col = taxon_name_full_col,
-                                      taxon_author_col = taxon_author_col,
+                                      taxon_name_col = 'sanitised_taxon',
+                                      taxon_name_full_col = NA,
+                                      taxon_author_col = 'extracted_author',
                                       typo_method = typo_method)
 
   # B) Extract the info from wcvp.
@@ -111,9 +126,9 @@ enrich_report <- function(original_report,
 
     match_info = match_original_to_wcvp(original_report,
                                         wcvp = list(wcvp_names = redList, exceptions = NULL, changes = NULL),
-                                        taxon_name_col = taxon_name_col,
-                                        taxon_name_full_col = taxon_name_full_col,
-                                        taxon_author_col = taxon_author_col,
+                                        taxon_name_col = 'sanitised_taxon',
+                                        taxon_name_full_col = NA,
+                                        taxon_author_col = 'extracted_author',
                                         typo_method = typo_method)
 
     redList_wanted_columns = c("scientific_name", 'authority', "main_common_name",
@@ -145,7 +160,7 @@ enrich_report <- function(original_report,
 
     no_gardens = match_original_to_BGCI(original_report,
                                         BGCI,
-                                        taxon_name_col = taxon_name_col)
+                                        taxon_name_col = 'sanitised_taxon')
 
     enriched_report = data.frame(enriched_report,
                                  no_gardens = no_gardens$no_gardens)
