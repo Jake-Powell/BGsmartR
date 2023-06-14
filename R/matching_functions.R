@@ -977,9 +977,9 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
   # Function that loops over all final letter changes and returns if typo is found.
   for(i in 1:nrow(final_letter_change)){
     if(stringr::str_ends(taxon,final_letter_change[i,1])){
-      fixed = wcvp_needed$taxon_name[grepl(stringr::str_replace(taxon,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2]), wcvp_needed$taxon_name)]
+      fixed = wcvp_needed$taxon_name[wcvp_needed$taxon_name == stringr::str_replace(taxon,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2])]
       if(length(fixed) >0){
-        return(fixed)
+        return(fixed[1])
       }
     }
   }
@@ -1009,9 +1009,9 @@ check_taxon_typo <- function(taxon, wcvp = NA, typo_df = BGSmartR::typo_list, fa
                               stringr::str_sub(taxon,current[k,2]+1,-1))
           }
 
-          fixed = wcvp_needed$taxon_name[grepl(new_name, wcvp_needed$taxon_name)]
+          fixed = wcvp_needed$taxon_name[wcvp_needed$taxon_name == new_name]
           if(length(fixed) >0){
-            return(fixed)
+            return(fixed[1])
           }
         }
       }
@@ -1186,8 +1186,8 @@ match_all_issue <- function(taxon_names,
     match_best[!is.na(matches$infra)] = matches$infra[!is.na(matches$infra)]
 
     message = messages$autonym
-    message[!is.na(messages$hybrid)] = messages$hybrid[!is.na(messages$hybrid)]
-    message[!is.na(messages$infra)] = messages$infra[!is.na(messages$infra)]
+    message[messages$hybrid != ''] = messages$hybrid[messages$hybrid != '']
+    message[messages$infra != ''] = messages$infra[messages$infra != '']
 
     message[no_method_find_match > 1] <- paste0(' -> (Multiple methods provide possible match solutions) -> (',
                                                 combined_names[no_method_find_match > 1],
