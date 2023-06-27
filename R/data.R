@@ -9,3 +9,16 @@
 #'   \item{Fixed}{Fixed Taxon name}
 #' }
 "typo_list"
+
+
+#' wgsrpd3
+#'
+#' A data frame containing BRU level 3 areas and their geometries.
+#'
+#' @format ## `wgsrpd3`
+#' A data frame with 369 rows and 5 columns:
+#' \describe{
+#'   \item{Original}{Original Taxon name with typo}
+#'   \item{Fixed}{Fixed Taxon name}
+#' }
+"wgsrpd3"
