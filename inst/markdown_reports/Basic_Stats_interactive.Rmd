@@ -1,12 +1,13 @@
 ---
 title: "Current and retrospective overview of the collection"
-output:
-  word_document: default
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 library(ggplot2)
+library(plotly)
+library(rjson)
 ```
 
 ```{r, echo = F}
@@ -24,7 +25,7 @@ if(is.null(min_year)){
 }
 ```
 
-This report uses data from `r collection`.
+This report uses data from `r collection`. 
 
 ## Current overview of the collection
 
@@ -82,19 +83,14 @@ general_taxonomic_div<-ggplot(data=taxa, aes(x=TaxonomicCategory, y=count)) +
   geom_bar(stat="identity", fill="#78c679")+
   # add values to the bars
   geom_text(aes(label=count), vjust=-0.3, color="black",
-            position = position_dodge(0.9), size=5/14*15)+
+            position = position_dodge(0.9), size=3)+
   theme_minimal()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.line = element_line())+
   ylim(0,max(taxa$count)+max(taxa$count*0.05))+
   labs(title = "",x=NULL, y = "Number"
-       )
-
- general_taxonomic_div = general_taxonomic_div + theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15), 
-        )
+       )+
+  theme(plot.title = element_text(color = "#78c679", face = "bold"))
 
 general_taxonomic_div
 ```
@@ -141,11 +137,10 @@ TaxLev_plot<- ggplot(data = taxa_infra, aes(x=2, y=number, fill=InfragenericLeve
   coord_polar("y", start=0, direction = -1) +
   theme(legend.position = "right")+
   scale_fill_manual(values = c('#e6e6e6', '#d9f0a3','#78c679'))+
-  geom_text(aes(y= lab.ypos, label = number), color = "black", size=5/14*15)+
-  xlim(0.5, 2.5) + labs(fill = 'Taxonomic Level')
-
-TaxLev_plot = TaxLev_plot +theme(legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+  geom_text(aes(y= lab.ypos, label = number), color = "black", size=4)+
+  xlim(0.5, 2.5)+ labs(fill = 'Taxonomic Level')
+# labs(caption = "'infra sp' includes subsp., var., and f.,\n'horticultural' hybrids and cultivars",
+#        fill = "Infrageneric diversity")+
 
 TaxLev_plot
 ```
@@ -170,20 +165,15 @@ general_numbers<-ggplot(data=basics, aes(x=objects, y=count)) +
   geom_bar(stat="identity", fill="#78c679")+
   # add values to the bars
   geom_text(aes(label=count), vjust=-0.3, color="black",
-            position = position_dodge(0.9), size=5/14*15)+
+            position = position_dodge(0.9), size=3)+
   theme_minimal()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
   theme(axis.line = element_line())+
   ylim(0,max(basics$count)+max(basics$count*0.05))+
   labs(title="\n",subtitle = "" ,x=NULL, y = "Number")
-
-general_numbers = general_numbers + theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15), 
-        )
 general_numbers
 ```
+
 
 In the above:
 
@@ -204,6 +194,7 @@ re$good_name = paste0(re$sanitised_taxon, ' ', re$extracted_author)
 ```{r, echo = F, eval = T}
 # load all geo areas
 wgsrpd3 = BGSmartR::wgsrpd3
+
 details = data.frame(name = wgsrpd3$LEVEL3_NAM, code = wgsrpd3$LEVEL3_COD)
 plants = rep('', nrow(details))
 no_plants = rep(NA,nrow(details))
@@ -220,8 +211,7 @@ for(i in 1:length(details$code)){
 }
 
 details = data.frame(details, plants = plants, plant_ex = plant_ex,  no_plants = no_plants, no_unique_plants = no_unique_plants)
-details$contain = rep('No',nrow(details))
-details$contain[which(details$no_plants > 1)] = 'Yes'
+
 text = paste0('Region: ', details$name, '<br />', 
               'Number of plants: ', details$no_plants,  '<br />',
               'Unique plants: ', details$no_unique_plants,  '<br />',
@@ -229,55 +219,114 @@ text = paste0('Region: ', details$name, '<br />',
 details$hover = text
 
 
-area_polygons <- wgsrpd3
-mapp = sf::st_cast(area_polygons, "MULTIPOLYGON")
+# Convert geometry into a format accepted by plotly
+mapp = sf::st_cast(wgsrpd3, "MULTIPOLYGON")
+geo_sf = geojsonsf::sf_geojson(mapp)
+data = rjson::fromJSON(geo_sf)
+feat = data$features
+for(i in 1:length(feat)){
+  feat[[i]]$id = feat[[i]]$properties$LEVEL3_COD
+}
+data$features = feat
 
-# Yes/ No present map
-p = ggplot(mapp) +
-  geom_sf(aes(fill = details$contain)) + theme_void() + 
-   theme(legend.position = "bottom")+
-  scale_fill_manual(values = c("Yes"="#78c679","No"="#e6e6e6"))
+# geo styling
+g <- list(
+  scope = 'world',
+  showland = TRUE,
+  landcolor = toRGB("White"),
+  showocean = TRUE,
+  oceancolor = toRGB("LightBlue"),
+  showcountries = F,
+  lonaxis = list(showgrid = T),
+  lataxis = list(showgrid = T)
+)
+fig <- plot_ly()
+fig <- fig %>% add_trace(
+  type="choropleth",
+  geojson=data,
+  locations=details$code,
+  text = details$hover,
+  hoverinfo = 'text',
+  z=details$no_unique_plants,
+  colorscale="Viridis",
+  zmin=0,
+  zmax=max(details$no_unique_plants),
+  marker=list(line=list(
+    width=0)
+  )
+)
+fig <- fig %>% colorbar(title = "Number of Unique Plants")
+# fig <- fig %>% layout(
+#   title = "Geographic Distribution of Garden's collection"
+# )
 
-p <- p + guides(fill=guide_legend(title="Present"))
+fig <- fig %>% layout(
+  geo = g
+)
 
+fig <- fig   %>% config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
 
-# Yes/ No present map
-q = ggplot(mapp) +
-  geom_sf(aes(fill = details$no_unique_plants)) + theme_void() + 
-   scale_fill_gradientn(colours = c("#FFFFCC","#78c679" ,"#238443"),na.value = "white", guide = "colourbar", name="Number of Unique Plants")
 ```
 
 For plants that we successfully matched to POWO (`r nrow(re)` records corresponding to `r length(unique(re$good_name))` unique plants) we have geographic distribution data. 
 
-***
 
-#### BRU level 3 areas represented by the garden's collection
-
-```{r, echo =F, fig.dim = c(10, 4), eval = T}
-p + theme(legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+```{r, echo =F, fig.dim = c(10, 8), eval = T}
+fig
 ```
+Hover over regions for:
+
+- Name of the `Region`.
+- `Number of plants` in the collection that are native to the region.
+- Number of `unique plants` in the collection that are native to the region.
+- A single plant from the collection that is native to the region. 
 
 ***
 
-#### Number of unique plants present from each BRU level 3 area in the garden's collection
-
-```{r, echo =F, fig.dim = c(10, 4), eval = T}
-q + theme(legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
-```
-
-***
-
-<hr style="border: 3px solid green; width:90%;"></hr>
+<hr style="border: 0.3px solid green; width:80%;"></hr>
 
 
 ## Retrospective overview of the collection
 
 ```{r, echo = F}
+# Function that gives the records that exist at a certain date. 
+exist_at_date <- function(date, acc, ItemStatusDate, ItemStatusType){
+  
+  date = as.Date(date)
+  # Accession date.
+  pre_date = rep(NA,length(acc)) ; pre_date_char = rep(NA,length(acc)) 
+  pre_date[which(acc > 1650)] =as.Date(paste(acc[which(acc > 1650)], '01', '01', sep = "-"), "%Y-%m-%d") 
+  pre_date_char[which(acc > 1650)] = paste(acc[which(acc > 1650)], '01', '01', sep = "-")
+  
+  # use the current day, unless not existing then use the date of that entry. 
+  post_date = rep(as.character(Sys.Date()),length(acc))
+  post_date[ItemStatusType == 'NotExisting'] = ItemStatusDate[ItemStatusType == 'NotExisting']
+  # If only a year is given assume it occurs on the 1st of Jan.
+  post_date[stringr::str_length(post_date) == 4] = paste( post_date[stringr::str_length(post_date) == 4], '01', '01', sep = "-")
+  # If only a year and month is given assume the dat is the 1st. 
+  post_date[stringr::str_length(post_date) == 7] = paste( post_date[stringr::str_length(post_date) == 7], '01', sep = "-")
+  dates = data.frame(pre = pre_date_char, post = post_date, pre_date = pre_date, post_date = as.Date(post_date, "%Y-%m-%d"))
+  
+  # Vector of whether the plant is existing on the date. 
+  out = matrix(NA, nrow = length(acc), ncol = length(date))
+  for(i in 1:length(date)){
+    existing_on_date = rep(FALSE, length(acc))
+    existing_on_date[which(date[i] >= dates$pre_date & date[i] < dates$post_date)] = TRUE
+    
+    out[,i] = existing_on_date
+  }
+  
+  out = data.frame(out)
+  names(out) = date
+
+  return(out)  
+}
+
+# min_year = min(enriched_report$AccYear[enriched_report$AccYear>1750],na.rm = T) + 1
+
 date = paste0(min_year:2023, '-01-01')
 
-result = BGSmartR::exist_at_date(date, acc = enriched_report$AccYear,
+result = exist_at_date(date, acc = enriched_report$AccYear,
                        ItemStatusDate = enriched_report$ItemStatusDate,
                        ItemStatusType = enriched_report$ItemStatusType)
 
@@ -336,12 +385,12 @@ families = unlist(lapply(time_series_info, function(x){x$no_families}))
 data = data.frame(year = as.numeric(stringr::str_extract(names(families),'[0-9]{4}')), no_families = families)
 data$text = paste0('Date: ',names(families), ' <br>', 'Families: ', data$no_families)
 
-fig = ggplot(data=data, aes(x=year, y=no_families)) +
-  geom_line(colour = "#78c679",size=2)+
-  theme_minimal() +
-  geom_point() + labs(title="",x="Year", y = "Number of Families")
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17))
+fig <- plot_ly(data, x = ~year, y = ~no_families, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Families")) 
+fig <- fig %>% layout(hovermode = 'x')
+
 fig
 ```
 
@@ -356,14 +405,13 @@ no_genus = unlist(lapply(time_series_info, function(x){x$no_genus}))
 data = data.frame(year = as.numeric(stringr::str_extract(names(no_genus),'[0-9]{4}')), no_genus = no_genus)
 data$text = paste0('Date: ',names(no_genus), ' <br>', 'Genus: ', data$no_genus)
 
-fig = ggplot(data=data, aes(x=year, y=no_genus)) +
-  geom_line(colour = "#78c679",size=2)+
-  theme_minimal() +
-  geom_point() + labs(title="",x="Year", y = "Number of Genera")
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17))
-fig
+fig <- plot_ly(data, x = ~year, y = ~no_genus, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Genera")) 
+fig <- fig %>% layout(hovermode = 'x')
 
+fig
 ```
 
 We use the genus taken from matched POWO record where available, otherwise we use the genus from the original report.
@@ -377,14 +425,13 @@ no_species = unlist(lapply(time_series_info, function(x){x$no_species}))
 data = data.frame(year = as.numeric(stringr::str_extract(names(no_species),'[0-9]{4}')), no_species = no_species)
 data$text = paste0('Date: ',names(no_species), ' <br>', 'Species: ', data$no_species)
 
-fig = ggplot(data=data, aes(x=year, y=no_species)) +
-  geom_line(colour = "#78c679",size=2)+
-  theme_minimal() +
-  geom_point() + labs(title="",x="Year", y = "Number of Species")
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17))
-fig
+fig <- plot_ly(data, x = ~year, y = ~no_species, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Species")) 
+fig <- fig %>% layout(hovermode = 'x')
 
+fig
 ```
 
 We ignore records that are indeterminants, cultivars and hybrids. We then use `GenusSpecies` from matched POWO records where available, otherwise we use `GenusSpecies` from the original report. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`. 
@@ -398,14 +445,13 @@ no_accessions = unlist(lapply(time_series_info, function(x){x$no_accessions}))
 data = data.frame(year = as.numeric(stringr::str_extract(names(no_accessions),'[0-9]{4}')), no_accessions = no_accessions)
 data$text = paste0('Date: ',names(no_species), ' <br>', 'Accessions: ', data$no_accessions)
 
-fig = ggplot(data=data, aes(x=year, y=no_accessions)) +
-  geom_line(colour = "#78c679",size=2)+
-  theme_minimal() +
-  geom_point() + labs(title="",x="Year", y = "Number of Accessions")
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17))
-fig
+fig <- plot_ly(data, x = ~year, y = ~no_accessions, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Accessions")) 
+fig <- fig %>% layout(hovermode = 'x')
 
+fig
 ```
 
 We use `AccNoFull` from the original report. 
@@ -419,14 +465,13 @@ no_items = unlist(lapply(time_series_info, function(x){x$no_items}))
 data = data.frame(year = as.numeric(stringr::str_extract(names(no_items),'[0-9]{4}')), no_items = no_items)
 data$text = paste0('Date: ',names(no_items), ' <br>', 'Items: ', data$no_items)
 
-fig = ggplot(data=data, aes(x=year, y=no_items)) +
-  geom_line(colour = "#78c679",size=2)+
-  theme_minimal() +
-  geom_point() + labs(title="",x="Year", y = "Number of Items")
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17))
-fig
+fig <- plot_ly(data, x = ~year, y = ~no_items, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Items")) 
+fig <- fig %>% layout(hovermode = 'x')
 
+fig
 ```
 
 The number of items is defined by the number of 'existing' records. By 'existing' we mean that the current date is after the item's accession year and the item is still existing. 
@@ -454,38 +499,29 @@ no_items = data.frame(t(data.frame(lapply(time_series_info, function(x){
   
   return(c(indet, species, infra, hort))
   }))))
-names(no_items) = c('Indeterminant', 'Species', 'Infrageneric', 'Horticultral')
-year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}'))
-
-# Re format no_items for ggplot.
-dat = NULL
-for(i in 1:ncol(no_items)){
-  dat = rbind(dat, data.frame(year,no_items[,i], rep(names(no_items)[i], length(year) ) ))
-}
-names(dat) = c('year', 'no_items', 'category')
-
-# Format for proportion pplt.
+names(no_items) = c('indet', 'species', 'infra', 'hort')
 prop = round(no_items/rowSums(no_items)*100,digits=2)
-dat_prop = NULL
-for(i in 1:ncol(no_items)){
-  dat_prop = rbind(dat_prop, data.frame(year,prop[,i], rep(names(no_items)[i], length(year) ) ))
-}
-names(dat_prop) = c('year', 'no_items', 'category')
-
+names(prop) =paste0(names(prop),'_prop')
+data = data.frame(year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}')), no_items, prop)
+data$text = paste0('Date: ', names(time_series_info), ' <br>', 'Indeterminat: ', data$indet,
+                   ' <br>', 'Species: ', data$species,
+                   ' <br>', 'Infrageneic: ', data$infra,
+                   ' <br>', 'Horticultral: ', data$hort)
 ```
 
 We first produce a plot of the raw number of plants (records) over time
 
 ```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 #plot_ly line plot (raw)
-
-fig = ggplot(data=dat, aes(x=year, y=no_items, colour = category)) +
-  geom_line(size=1.5)+
-  theme_minimal() + labs(colour = 'Taxonomic Level') + xlab('Year') + ylab('Number of Items')
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~indet, name = 'Indeterminant',mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~species, name = 'Species', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~infra, name = 'Infrageneric', mode = 'lines',type = 'scatter')
+fig <- fig %>% add_trace(y = ~hort, name = 'Horticultral', mode = 'lines',type = 'scatter')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
 fig
 ```
 
@@ -493,13 +529,15 @@ Then as the proportion of plants (records) at each time point.
 
 ```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 
-fig = ggplot(data=dat_prop, aes(x=year, y=no_items, colour = category)) +
-  geom_line(size=1.5)+
-  theme_minimal() + labs(colour = 'Taxonomic Level') + xlab('Year') + ylab('Proportion of Items')
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~indet_prop, name = 'Indeterminant',mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~species_prop, name = 'Species', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~infra_prop, name = 'Infrageneric', mode = 'lines',type = 'scatter')
+fig <- fig %>% add_trace(y = ~hort_prop, name = 'Horticultral', mode = 'lines',type = 'scatter')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Proportion of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
 fig
 ```
 
@@ -526,37 +564,24 @@ no_items = data.frame(t(data.frame(lapply(time_series_info, function(x){
 
   return(c(garden, unknown, wild))
   }))))
-names(no_items) = c('Garden', 'Unknown', 'Wild')
-year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}'))
-
-# Re format no_items for ggplot.
-dat = NULL
-for(i in 1:ncol(no_items)){
-  dat = rbind(dat, data.frame(year,no_items[,i], rep(names(no_items)[i], length(year) ) ))
-}
-names(dat) = c('year', 'no_items', 'category')
-
-# Format for proportion pplt.
+names(no_items) = c('garden', 'unknown', 'wild')
 prop = round(no_items/rowSums(no_items)*100,digits=2)
-dat_prop = NULL
-for(i in 1:ncol(no_items)){
-  dat_prop = rbind(dat_prop, data.frame(year,prop[,i], rep(names(no_items)[i], length(year) ) ))
-}
-names(dat_prop) = c('year', 'no_items', 'category')
+names(prop) =paste0(names(prop),'_prop')
+data = data.frame(year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}')), no_items, prop)
 ```
 
 We first produce a plot of the raw number of plants (records) over time
 
 ```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 #plot_ly line plot (raw)
-
-fig = ggplot(data=dat, aes(x=year, y=no_items, colour = category)) +
-  geom_line(size=1.5)+
-  theme_minimal() + labs(colour = 'Provenance') + xlab('Year') + ylab('Number of Items')
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~garden, name = 'Garden', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~unknown, name = 'Unknown', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~wild, name = 'Wild', mode = 'lines',type = 'scatter')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
 fig
 ```
 
@@ -564,15 +589,15 @@ Then as the proportion of plants (records) at each time point.
 
 ```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 
-fig = ggplot(data=dat_prop, aes(x=year, y=no_items, colour = category)) +
-  geom_line(size=1.5)+
-  theme_minimal() + labs(colour = 'Provenance') + xlab('Year') + ylab('Proportion of Items')
-fig = fig +theme(axis.text=element_text(size=15),
-        axis.title=element_text(size=17), 
-        legend.title = element_text(size=17),
-        legend.text = element_text(size=15))
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~garden_prop, name = 'Garden', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~unknown_prop, name = 'Unknown', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = ~wild_prop, name = 'Wild', mode = 'lines',type = 'scatter')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Proportion of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
 fig
 ```
 
-
-<hr style="border: 3px solid green; width:90%;"></hr>
+***
