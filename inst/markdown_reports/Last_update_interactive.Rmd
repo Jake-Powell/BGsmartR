@@ -1,0 +1,174 @@
+---
+title: "Last Status Update"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+library(plotly)
+library(anytime)
+```
+
+```{r, imported parameters, echo = F}
+# Inputs
+# As an input we get 
+# - Enriched report
+# - collection the name to be printed in the report.
+
+report = enriched_report
+```
+
+```{r, Anaylsis, echo = F}
+# First let's reduce our report to only the information we need.
+
+# Only exisiting items
+report = report[report$ItemStatusType == 'Existing',]
+
+# Only columns of interest.
+report = report[,match(c('sanitised_taxon', 'extracted_author', 'AccNoFull', 'ItemAccNoFull', 'ItemStatusDate', 'ItemType'), names(report))]
+
+size_report = nrow(report)
+
+# Get the current date. 
+current_date <- Sys.Date()
+current_year <- as.numeric(format(current_date, '%Y'))
+
+#How many records have missing ItemStatusDate?
+missing_index = which(report$ItemStatusDate == '')
+missing_ItemStatusDate = length(missing_index)
+
+# Get the year from each item.
+ItemYear = BGSmartR::extract_year(report$ItemStatusDate)
+# anytime::addFormats(c('%d-%m-%Y', '%d/%m/%Y'))
+# ItemStatusDate = as.Date(format(anytime::anydate(report$ItemStatusDate), "%Y-%m-%d"))
+
+#How many records have a date after the current date?
+future_index = which(ItemYear - current_year > 0)
+future_ItemStatusDate = length(future_index)
+
+#How many records have a date that appears to be a placeholder?
+placeholder_index = which(1650 - ItemYear > 0)
+placeholder_ItemStatusDate = length(placeholder_index)
+
+# Reduce report into data removing missing/future itemstatusdates. 
+data = report[-c(missing_index,future_index, placeholder_index),]
+data$year = BGSmartR::extract_year(data$ItemStatusDate)
+
+# Items (year).
+year = data$year
+table_year = table(year)
+year = names(table_year) ; no_items = as.numeric(table_year)
+
+years = min(as.numeric(year)):current_year
+no_items_full = rep(0,length(years))
+no_items_full[match(as.numeric(year), years)] = no_items
+
+last_update_items = data.frame(year = years, no_items = no_items_full)
+last_update_items$cumulative = cumsum(last_update_items$no_items)
+last_update_items$year_num = as.numeric(last_update_items$year)
+last_update_items$year_ago = current_year -last_update_items$year_num
+last_update_items$textA = paste0(last_update_items$year_ago, ' year/s ago<br>',
+                                 last_update_items$no_items, ' items')
+
+
+# if(is.null(min_year)){
+#   min_year = min(last_update_items$year_num,na.rm = T)
+# }
+```
+
+This report uses data from `r collection`.
+
+***
+
+The collection has `r format(size_report, big.mark = ',')` plants that are currently existing. Of these:
+
+- `r format(missing_ItemStatusDate, big.mark = ',')` have missing item status date.
+
+```{r,echo=F}
+if(missing_ItemStatusDate > 0){
+  to_show = report[missing_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  names(to_show) = c('ID', 'Item Status Date', 'Taxa')
+  DT::datatable(to_show, rownames= FALSE)
+}
+  
+```
+
+- `r format(future_ItemStatusDate, big.mark = ',')` have a status date that is in the future (i.e after `r current_date`).
+
+```{r,echo=F}
+if(future_ItemStatusDate > 0){
+  to_show = report[future_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  names(to_show) = c('ID', 'Item Status Date', 'Taxa')
+  DT::datatable(to_show, rownames= FALSE)
+}
+  
+```
+
+- `r format(placeholder_ItemStatusDate, big.mark = ',')` have a status date that is prior to 1650 which we assume are placeholders.
+
+```{r,echo=F}
+if(placeholder_ItemStatusDate > 0){
+  to_show = report[placeholder_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  names(to_show) = c('ID', 'Item Status Date', 'Taxa')
+  DT::datatable(to_show, rownames = FALSE)
+}
+  
+```
+
+## Last update of items
+
+We restrict the database to only items that have an item status date, whose date is not in the future. 
+
+#### Bar plot of Last status date of items in the collection
+
+```{r, echo = F}
+fig <- plot_ly(last_update_items, x = ~year, y = ~no_items, type = 'bar')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Last Status Update (Year)"),
+         yaxis = list (title = "Number of items")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+   
+```
+
+#### Bar plot of number of years since last status update of items in the collection
+
+```{r, echo = F}
+fig <- plot_ly(last_update_items, x = ~year_ago, y = ~no_items, hoverinfo = "text",  hovertext = ~textA, type = 'bar')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Years Since Last Status Update"),
+         yaxis = list (title = "Number of Items")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+#### Cumulative plot of Last status date of items in the collection
+
+```{r, echo = F}
+text = paste0(last_update_items$cumulative, ' items with status <br> date ', last_update_items$year_num,' or older')
+
+fig <- plot_ly(last_update_items, x = ~year_num) 
+fig <- fig %>% add_trace(y = ~cumulative, name = '', mode = 'lines',type = 'scatter', hoverinfo = "text",  hovertext = text) 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Last status update"),
+         yaxis = list (title = "Cumulative number of items")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+#### Cumulative plot of number of years since last status update of items in the collection
+
+```{r, echo = F}
+text = paste0(last_update_items$cumulative, ' items with status <br> date at least ', last_update_items$year_ago,' year/s old')
+
+fig <- plot_ly(last_update_items, x = ~year_ago) 
+fig <- fig %>% add_trace(y = ~cumulative, name = '', mode = 'lines',type = 'scatter', hoverinfo = "text",  hovertext = text) 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of years since last status update"),
+         yaxis = list (title = "Cumulative number of items")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+***
+
