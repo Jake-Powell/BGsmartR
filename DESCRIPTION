@@ -25,5 +25,6 @@ Imports:
     utils,
     rlang,
     cli,
-    stringi
+    stringi,
+    grDevices
 VignetteBuilder: knitr

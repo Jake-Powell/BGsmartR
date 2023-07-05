@@ -1,0 +1,351 @@
+---
+title: "Duplication and rarity at the global and local scales"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plotly)
+library(dplyr)
+```
+
+
+```{r, echo = FALSE}
+# Inputs
+# As an input we get 
+# - Enriched report
+# - collection the name to be printed in the report.
+report = enriched_report
+
+# load('/Users/jakepowell/Cambridge/Enriched reports/CUBG_enriched_report.rda')
+# report = enriched_report
+# collection = 'CUBG'
+```
+
+```{r,echo = FALSE}
+# Reduce to only exisiting and not hybrids or cultivars.
+index_want = which(report$ItemStatusType == 'Existing' & grepl('1|2|3|4',report$infrageneric_level))
+no_want = length(index_want)
+report = report[index_want,]
+
+#Select columns of interest
+interest = report[,match(c('sanitised_taxon', 'extracted_author', 'no_gardens'), names(report))]
+
+# only unique records.
+report_unique = unique(interest)
+no_unique_records = nrow(report_unique)
+report_unique$no_gardens[is.na(report_unique$no_gardens)] = 0
+
+```
+
+This report uses data from `r collection`.
+
+***
+
+## Duplication on the global scale
+
+In this section, we only consider plants that are:
+
+- Existing in your collection. 
+- Are not hybrids or cultivars.
+
+This reduces the number of records from your collection to `r format(no_want, big.mark =',')` from `r format(nrow(enriched_report), big.mark =',')`.
+
+Consider first the rarity of plants found in the Global collections context. We do this by using BGCI information on the number of collections that plants are grown at. To avoid duplication we restrict to only unique plants in your collection. This further reduces the plants considered to `r format(no_unique_records, big.mark =',')` unique plants. If a given plant name is not found in BGCI we set the number of gardens to zero. 
+
+We also group taxa by the number of collections they are found in globally. These are:
+
+- **Very Rare**: found in 15 or less collections.
+- **Rare**: found in between 16 and 50 collections.
+- **Common**: found in between 51 and 100 collections.
+- **Very Common**: found in more than 100 collections.
+
+
+```{r, echo=FALSE,fig.dim = c(10, 4)}
+# Reduce report unique by the number in each.
+report_unique$count = rep(1,nrow(report_unique))
+data_plot <- report_unique |>
+    dplyr::group_by(.data$no_gardens) |>
+    dplyr::summarise(plants = toString(.data$sanitised_taxon),
+                     no_species_in_garden = sum(.data$count),
+                     one_plant = .data$sanitised_taxon[1]
+    ) |>
+    dplyr::ungroup() 
+
+text = paste0(data_plot$no_species_in_garden, ' species in the garden are found in ', data_plot$no_gardens, ' collections globally. <br> For example: ', data_plot$one_plant)
+
+fig <- plot_ly(data_plot, x = ~no_gardens, y = ~no_species_in_garden, 
+         type = 'scatter',  mode = 'markers', hoverinfo = "text",  hovertext = text, colors = rgb(0,0,0,alpha=0.7), color = 'color')
+fig <- fig %>% layout(title = "",
+  xaxis = list(title = "Number of Collections Holding a Species Worldwide"),
+  yaxis = list (title = "Number of Species Grown at the Collection")) 
+fig <- layout(fig,
+             shapes = list(
+               list(type = "rect",
+                    fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
+                    x0 = 0, x1 = 15.5, xref = "x",
+                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+                list(type = "rect",
+                    fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
+                    x0 = 15.5, x1 = 50.5, xref = "x",
+                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+               list(type = "rect",
+                    fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
+                    x0 = 50.5, x1 = 100.5, xref = "x",
+                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+                list(type = "rect",
+                    fillcolor = "#d9f0a3", line = list(color = "#d9f0a3"), opacity = 0.3,
+                    x0 = 100.5, x1 = max(data_plot$no_gardens), xref = "x",
+                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y")               
+              ))
+
+fig
+```
+
+
+Doughnut graph of rarity of species at the collection
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+v_rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 0:15])  
+rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 16:50]) 
+common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 51:100]) 
+v_common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 100:1500]) 
+
+doughnut_data = data.frame(rarity = c('Very Rare', 'Rare', 'Common', 'Very Common'),
+                        no_items = c(v_rare, rare, common, v_common),
+                        color = c('#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+
+text = paste0(doughnut_data$no_items, ' records classed as ', doughnut_data$rarity )
+
+fig <- plot_ly(doughnut_data, labels = ~rarity, values = ~no_items, hoverinfo = "text",  hovertext = text, marker = list(colors = ~color) )
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",  showlegend = T,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+
+***
+
+## Duplication in the collection
+
+This section considers only duplication in your collection. 
+
+
+### Number of accessions per taxa
+
+Here we only look at existing plants in your collection. To determine unique taxa we use the 'sanitised' taxonomic names given in the original database together with the taxonomic author (when provided). 
+
+(Do we want to only use records that have been matched to POWO and use the name of the accepted taxa in POWO??)
+
+
+```{r, echo = FALSE}
+# Currently do not remove cultivars and hybrids. 
+
+# Report reduced to existing records. 
+index_want =  which(report$ItemStatusType == 'Existing')
+report_cur = report[index_want,]
+  
+# Reduced to only unique accessions.
+report_cur = report[match(unique(report_cur$AccNoFull),report_cur$AccNoFull),]
+
+# Get a vector of all the plant names in unique accessions and work out frequencies. 
+taxa = paste0(report_cur$sanitised_taxon, ' ', report_cur$extracted_author)
+taxa = table(taxa)
+data_cur = data.frame(taxa = names(taxa), no_accessions = as.numeric(taxa))
+
+accession_taxa = table(data_cur$no_accessions)
+accession_taxa = data.frame(total_accessions = as.numeric(names(accession_taxa)), 
+                            no_species = as.numeric(accession_taxa))
+```
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+fig <- plot_ly(accession_taxa, x = ~total_accessions, y = ~no_species, type = "bar")
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Accessions"),
+         yaxis = list (title = "Number of Taxa")) 
+
+fig
+```
+
+Statistics from number of accessions per taxa:
+
+- The maximum number of accessions for a given taxa is **`r max(accession_taxa$total_accessions)`** for the accession **`r data_cur$taxa[data_cur$no_accessions == max(accession_taxa$total_accessions)]`**. 
+- The mean number of accessions per taxa is **`r round(mean(data_cur$no_accessions),digits=2)`**.
+- The median number of accessions per taxa is **`r median(data_cur$no_accessions)`**.
+
+
+Doughnut chart of number of accessions per taxa. 
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+text = paste0('Accessions = ',accession_taxa$total_accessions, '<br>',
+             'Taxa = ',accession_taxa$no_species, '<br>')
+             
+fig <- plot_ly(accession_taxa, labels = ~total_accessions, values = ~no_species, hoverinfo = "text",  hovertext = text)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",  showlegend = F,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+
+***
+
+### Number of items per taxa
+
+Here we only look at existing plants in your collection. To determine unique taxa we use the 'sanitised' taxonomic names given in the original database together with the taxonomic author (when provided). 
+
+(Do we want to only use records that have been matched to POWO and use the name of the accepted taxa in POWO??)
+
+
+```{r, echo = FALSE}
+# Currently do not remove cultivars and hybrids. 
+
+# Report reduced to existing records. 
+index_want =  which(report$ItemStatusType == 'Existing')
+report_cur = report[index_want,]
+
+# Get a vector of all the plant names in unique accessions and work out frequencies. 
+taxa = paste0(report_cur$sanitised_taxon, ' ', report_cur$extracted_author)
+taxa = table(taxa)
+data_cur = data.frame(taxa = names(taxa), no_items = as.numeric(taxa))
+
+item_taxa = table(data_cur$no_items)
+item_taxa = data.frame(total_items = as.numeric(names(item_taxa)), 
+                            no_species = as.numeric(item_taxa))
+```
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+fig <- plot_ly(item_taxa, x = ~total_items, y = ~no_species, type = "bar")
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Items"),
+         yaxis = list (title = "Number of Taxa")) 
+
+fig
+```
+
+Statistics from number of items per taxa:
+
+- The maximum number of items for a given taxa is **`r max(item_taxa$total_items)`** for the item **`r data_cur$taxa[data_cur$no_items == max(item_taxa$total_items)]`**. 
+- The mean number of items per taxa is **`r round(mean(data_cur$no_items),digits=2)`**.
+- The median number of items per taxa is **`r median(data_cur$no_items)`**.
+
+
+Doughnut chart of number of items per taxa. 
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+text = paste0('Items = ',item_taxa$total_items, '<br>',
+             'Taxa = ',item_taxa$no_species, '<br>')
+             
+fig <- plot_ly(item_taxa, labels = ~total_items, values = ~no_species, hoverinfo = "text",  hovertext = text)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",  showlegend = F,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+
+***
+
+
+### Number of items per accession 
+
+(We currently look at the number of items per accessions for the entire database (not reducing to existing plants, if we want to go to existing plants do we remove accessions numbers that have died/removed?)
+
+Bar graph of the number of accessions in the collection by their number of items.
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+
+## Do I need to restrict to only existing plants? If yes, how to cope with accessions where some items have died?
+
+item_per_access = table(report$AccNoFull)
+item_per_access = data.frame(accession = names(item_per_access), no_items = as.numeric(item_per_access))
+
+item_dist = table(item_per_access$no_items)
+item_dist = data.frame(total_items = as.numeric(names(item_dist)), no_accessions = as.numeric(item_dist))
+
+max_accession = item_per_access$accession[item_per_access$no_items == max(item_dist$total_items)] 
+
+plant_max_accession = paste0(report$sanitised_taxon[match(max_accession, report$AccNoFull)], ' ', report$extracted_author[match(max_accession, report$AccNoFull)])
+  
+fig <- plot_ly(item_dist, x = ~total_items, y = ~no_accessions, type = "bar")
+# fig = fig %>% layout(xaxis = list(categoryorder = "array",
+#                     categoryarray = category))
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Items"),
+         yaxis = list (title = "Number of Accessions")) 
+
+fig
+```
+
+Statistics from number of items per accession:
+
+- The maximum number of items in an accession is **`r max(item_dist$total_items)`** for the accession **`r max_accession`** (`r plant_max_accession`). 
+- The mean number of items per accession is **`r round(mean(item_per_access$no_items),digits=2)`**.
+- The median number of items per accession is **`r median(item_per_access$no_items)`**.
+
+
+doughnut chart of number of items per accession. 
+
+```{r, echo = FALSE, fig.dim = c(10, 4)}
+text = paste0('Items = ',item_dist$total_items, '<br>',
+             'Accessions = ',item_dist$no_accessions, '<br>')
+             
+fig <- plot_ly(item_dist, labels = ~total_items, values = ~no_accessions, hoverinfo = "text",  hovertext = text)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",  showlegend = F,
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+```
+
+
+Graph showing the number of accessions with at most XX items. 
+
+```{r, echo = F, fig.dim = c(10, 4)}
+items_full = 1:max(item_dist$total_items)
+accessions_full = rep(0,length(items_full))
+accessions_full[match(item_dist$total_items,items_full)] = item_dist$no_accessions
+
+item_dist_full = data.frame(total_items = items_full, no_accessions = accessions_full)
+item_dist_full$cumulative = cumsum(item_dist_full$no_accessions)
+text = paste0(item_dist_full$cumulative, ' accessions with <br> ', item_dist_full$total_items, ' or fewer items')
+
+
+fig <- plot_ly(item_dist_full, x = ~total_items) 
+fig <- fig %>% add_trace(y = ~cumulative, name = '', mode = 'lines',type = 'scatter', hoverinfo = "text",  hovertext = text) 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Items"),
+         yaxis = list (title = "Number of accessions")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+Graph showing the number of accessions with at least XX items. 
+
+```{r, echo = F, fig.dim = c(10, 4)}
+item_dist_full$cumulative_rev = rev(cumsum(rev(item_dist_full$no_accessions)))
+
+text = paste0(item_dist_full$cumulative_rev, ' accessions with <br> ', item_dist_full$total_items, ' or more items')
+
+
+fig <- plot_ly(item_dist_full, x = ~total_items) 
+fig <- fig %>% add_trace(y = ~cumulative_rev, name = '', mode = 'lines',type = 'scatter', hoverinfo = "text",  hovertext = text) 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Number of Items"),
+         yaxis = list (title = "Number of accessions")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+***

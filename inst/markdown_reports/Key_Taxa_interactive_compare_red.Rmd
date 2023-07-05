@@ -1,0 +1,311 @@
+---
+title: "Overview of key taxa in the collection"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+library(plotly)
+require(rjson)
+require(BGSmartR)
+```
+
+```{r, echo = F}
+# path = '/Users/jakepowell/Cambridge/Enriched reports/Wales_enriched_report.rda'
+# load(path)
+report = enriched_report
+```
+
+This report uses data from `r collection`. 
+
+We explore the key taxa from the gardens collection by considering:
+
+- Red list status.
+
+***
+
+## Red list status
+
+```{r, echo = F}
+no_records = nrow(report)
+
+in_redlist = which(!is.na(report$redList_authority))
+no_records_redlist = nrow(report[in_redlist,])
+
+in_redlist_powo = which(!is.na(report$POWO_redlist_category))
+no_records_redlist_powo = nrow(report[in_redlist_powo,])
+```
+
+A taxa in the collection has a red list status if we are able to match the record to [IUCN red list database](https://www.iucnredlist.org). 
+
+Due to discrepancies between taxonomic naming between POWO and IUCN there are a minority of clashes between the two databases. Therefore, BGSmartR provide two methods to enrich the red list status. In this report we compare the methods:
+
+- Match taxa directly to IUCN. 
+- Match taxa to accepted name in POWO, then match the accepted name to IUCN red list.
+
+Of the `r format(no_records,big.mark=',')` records in your collection:
+
+- `r format(no_records_redlist,big.mark=',')` were matched directly to IUCN redlist.
+- `r format(no_records_redlist_powo,big.mark=',')` receive red list category after matching to accepted name using POWO (then POWO matched to IUCN red list).
+
+
+
+***
+
+### Current overview of red list status in the collection 
+
+```{r,echo=F}
+# Reduce to plants that are threatened.
+re = report[which(report$ItemStatusType == 'Existing'),]
+re$good_name = paste0(re$sanitised_taxon, ' ', re$extracted_author)
+```
+
+#### Summary of red list status
+
+The number of individual plants in the collection within a threatened red list status. 
+
+```{r, echo=F, fig.dim = c(10, 4)}
+data_cur = table(re$redList_category)
+data_cur_powo = table(re$POWO_redlist_category)
+category = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+number = as.numeric(data_cur[match(c('VU', 'EN','CR','EW', 'EX'), names(data_cur))])
+number_powo = as.numeric(data_cur_powo[match(c('VU', 'EN','CR','EW', 'EX'), names(data_cur_powo))])
+
+d = data.frame(category = category, total_plants = number, total_plants_powo = number_powo)
+fig <- plot_ly(d,x = ~category, y = ~total_plants, type = "bar", name = 'Direct'
+)
+fig = fig %>%  add_trace(y = ~total_plants_powo, name = 'POWO')
+fig = fig %>% layout(xaxis = list(categoryorder = "array",
+                    categoryarray = category))
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Category"),
+         yaxis = list (title = "Total Number of Plants")) 
+
+fig
+```
+
+Only considering unique taxa in the collection.
+
+```{r, echo=F, fig.dim = c(10, 4)}
+unique_plants = unique(re$TaxonNameFull)
+re_cur = re[match(unique_plants, re$TaxonNameFull),]
+
+
+data_cur = table(re_cur$redList_category)
+data_cur_powo = table(re_cur$POWO_redlist_category)
+
+category = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+number = as.numeric(data_cur[match(c('VU', 'EN','CR','EW', 'EX'), names(data_cur))])
+number_powo = as.numeric(data_cur_powo[match(c('VU', 'EN','CR','EW', 'EX'), names(data_cur_powo))])
+
+d = data.frame(category = category, total_plants = number, total_plants_powo = number_powo)
+
+
+fig <- plot_ly(d, x = ~category, y = ~total_plants, type = "bar", name = 'Direct')
+fig = fig %>%  add_trace(y = ~total_plants_powo, name = 'POWO')
+
+fig = fig %>% layout(xaxis = list(categoryorder = "array",
+                    categoryarray = category))
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Category"),
+         yaxis = list (title = "Total Number of Unique Plants")) 
+
+fig
+```
+
+
+***
+
+
+### Retrospective overview of red-listed species in the collection
+
+```{r, echo = F}
+# Get the earliest year for retrospective overview.
+min_year = min(enriched_report$AccYear[enriched_report$AccYear>1750],na.rm = T) + 1
+date = paste0(min_year:2023, '-01-01')
+
+# Use the whole dataset.
+# Do we want to restrict to only those with geographic information.
+dataset = report
+
+result = BGSmartR::exist_at_date(date, acc = dataset$AccYear,
+                       ItemStatusDate = dataset$ItemStatusDate,
+                       ItemStatusType = dataset$ItemStatusType)
+
+time_series_info = lapply(result, function(x){
+  garden_current = dataset[x,]
+  
+  # Breakdown of red-list
+  redList_category = table(garden_current$redList_category)
+  
+    # Breakdown of red-list
+  redList_category_powo = table(garden_current$POWO_redlist_category)
+  
+  # Total number of plants in the collection
+  collection_size = nrow(garden_current)
+  return(list(redList_category = redList_category, redList_category_powo =redList_category_powo, collection_size = collection_size))
+})
+names(time_series_info) = names(result)
+```
+
+This section reviews the garden's collection over time. The first record in the garden comes from `r min_year -1` therefore we will take snapshots (existing plants) of the garden's collection on the 1st of January every year from `r min_year` to 2023.
+
+Note that here we consider all the plants in the collection in a given year. Records that could not be matched to IUCN's red list are assumed to not be threatened. 
+
+Furthermore, we use the red-list status of taxa from the current day, thus we cannot account for the variability of plants that are deemed to be threatened over time. For example it is possible for the collection to have plants that are currently extinct in their collection in the past (prior to the taxa going extinct).  
+
+Taxa are defined as `threatened` if they are either Vulnerable, Endangered, Critically Endangered, Extinct in the wild or Extinct. 
+
+```{r, echo = F}
+no_items = data.frame(t(data.frame(lapply(time_series_info, function(x){
+  details = x$redList_category
+  
+  EX = sum(as.numeric(details[grepl('EX',names(details))]))
+  EW = sum(as.numeric(details[grepl('EW',names(details))]))
+  CR = sum(as.numeric(details[grepl('CR',names(details))]))
+  EN = sum(as.numeric(details[grepl('EN',names(details))]))
+  VU = sum(as.numeric(details[grepl('VU',names(details))]))
+
+  return(c(EX,EW,CR,EN,VU))
+  }))))
+
+no_items_powo = data.frame(t(data.frame(lapply(time_series_info, function(x){
+  details = x$redList_category_powo
+  
+  EX = sum(as.numeric(details[grepl('EX',names(details))]))
+  EW = sum(as.numeric(details[grepl('EW',names(details))]))
+  CR = sum(as.numeric(details[grepl('CR',names(details))]))
+  EN = sum(as.numeric(details[grepl('EN',names(details))]))
+  VU = sum(as.numeric(details[grepl('VU',names(details))]))
+
+  return(c(EX,EW,CR,EN,VU))
+  }))))
+
+collection_size = as.numeric(unlist(lapply(time_series_info, function(x){ x$collection_size})))
+
+names(no_items) = c('EX','EW','CR','EN','VU')
+names(no_items_powo) = c('EX','EW','CR','EN','VU')
+
+no_items$total = rowSums(no_items)
+no_items_powo$total = rowSums(no_items_powo)
+
+prop = round(no_items/collection_size*100,digits=2)
+names(prop) =paste0(names(prop),'_prop')
+
+prop_powo = round(no_items_powo/collection_size*100,digits=2)
+names(prop_powo) =paste0(names(prop_powo),'_prop')
+
+data = data.frame(year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}')), no_items, prop, prop_powo)
+
+data_powo = data.frame(year = as.numeric(stringr::str_extract(rownames(no_items),'[0-9]{4}')), no_items_powo, prop_powo)
+```
+
+#### Number of threatened taxa over time
+
+```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+#plot_ly line plot (raw)
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~total, name = 'Direct', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = data_powo$total, name = 'Powo', mode = 'lines',type = 'scatter') 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+#### Proportion of collection that is threatened over time
+
+```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+#plot_ly line plot (raw)
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~total_prop, name = 'Direct', mode = 'lines',type = 'scatter') 
+fig <- fig %>% add_trace(y = data_powo$total_prop, name = 'Powo', mode = 'lines',type = 'scatter') 
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Proporotion of Collection")) 
+fig <- fig %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+fig
+```
+
+#### Number of red-list status taxa over time
+
+```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+#plot_ly line plot (raw)
+colours = viridis::viridis(5,alpha = 0.7)
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~EX, name = 'Extinct', mode = 'lines',type = 'scatter', line = list(color = colours[1])) 
+fig <- fig %>% add_trace(y = ~EW, name = 'Extinct in the Wild', mode = 'lines',type = 'scatter', line = list(color = colours[2])) 
+fig <- fig %>% add_trace(y = ~CR, name = 'Critically Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[3])) 
+fig <- fig %>% add_trace(y = ~EN, name = 'Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[4])) 
+fig <- fig %>% add_trace(y = ~VU, name = 'Vulnerable', mode = 'lines',type = 'scatter', line = list(color = colours[5])) 
+
+fig <- fig %>% add_trace(y = data_powo$EX, name = 'Extinct', mode = 'lines',type = 'scatter', line = list(color = colours[1],dash = 'dot') )
+fig <- fig %>% add_trace(y = data_powo$EW, name = 'Extinct in the Wild', mode = 'lines',type = 'scatter',  line = list(color = colours[2],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$CR, name = 'Critically Endangered', mode = 'lines',type = 'scatter',  line = list(color = colours[3],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$EN, name = 'Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[4],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$VU, name = 'Vulnerable', mode = 'lines',type = 'scatter',  line = list(color = colours[5],dash = 'dot')) 
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Number of Plants")) 
+fig <- fig %>% layout(hovermode = 'x unified')
+fig
+```
+
+
+#### Proportion of red-list status taxa (of collection) over time
+
+```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+colours = viridis::viridis(5,alpha = 0.7)
+fig <- plot_ly(data, x = ~year) 
+fig <- fig %>% add_trace(y = ~EX_prop, name = 'Extinct', mode = 'lines',type = 'scatter', line = list(color = colours[1])) 
+fig <- fig %>% add_trace(y = ~EW_prop, name = 'Extinct in the Wild', mode = 'lines',type = 'scatter', line = list(color = colours[2])) 
+fig <- fig %>% add_trace(y = ~CR_prop, name = 'Critically Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[3])) 
+fig <- fig %>% add_trace(y = ~EN_prop, name = 'Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[4])) 
+fig <- fig %>% add_trace(y = ~VU_prop, name = 'Vulnerable', mode = 'lines',type = 'scatter', line = list(color = colours[5])) 
+
+fig <- fig %>% add_trace(y = data_powo$EX_prop, name = 'Extinct', mode = 'lines',type = 'scatter', line = list(color = colours[1],dash = 'dot') )
+fig <- fig %>% add_trace(y = data_powo$EW_prop, name = 'Extinct in the Wild', mode = 'lines',type = 'scatter',  line = list(color = colours[2],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$CR_prop, name = 'Critically Endangered', mode = 'lines',type = 'scatter',  line = list(color = colours[3],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$EN_prop, name = 'Endangered', mode = 'lines',type = 'scatter', line = list(color = colours[4],dash = 'dot')) 
+fig <- fig %>% add_trace(y = data_powo$VU_prop, name = 'Vulnerable', mode = 'lines',type = 'scatter',  line = list(color = colours[5],dash = 'dot')) 
+
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "Proportion of Collection")) 
+fig <- fig %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+fig
+```
+
+***
+
+
+Which entries have different red list category?
+
+Below contains all records where the red list category obtained via IUCN directly or using POWO first differ. 
+
+You can filter the results by the column reason which contains three options:
+
+- `IUCN no match original`
+- `IUCN no match POWO`
+- `Different category`
+
+```{r, echo = F}
+with_red_cat = which(!is.na(report$POWO_redlist_category) | !is.na(report$redList_category))
+data = report[with_red_cat,match(c('ItemAccNoFull', 'sanitised_taxon', 'redList_category', 'POWO_redlist_category'), names(report))]
+
+diff_index = which(data$redList_category != data$POWO_redlist_category | is.na(data$redList_category) | is.na(data$POWO_redlist_category))
+
+data = data[diff_index,]
+
+reason = rep('Different category', nrow(data))
+reason[which(is.na(data$redList_category))] = 'IUCN no match original'
+reason[which(is.na(data$POWO_redlist_category))] = 'IUCN no match POWO'
+data$reason = reason
+
+DT::datatable(data, options = list(dom = 'tp'), filter = list(position = "top") )
+```
+***

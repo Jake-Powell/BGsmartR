@@ -39,3 +39,19 @@ exist_at_date <- function(date, acc, ItemStatusDate, ItemStatusType){
 
   return(out)
 }
+
+
+#' add_alpha
+#'
+#' @param col a vector of colours
+#' @param alpha transparancy wanted
+#'
+#' @return a vector of colours with added transparancy
+#' @export
+add_alpha <- function(col, alpha=1){
+  if(missing(col))
+    stop("Please provide a vector of colours.")
+  apply(sapply(col, grDevices::col2rgb)/255, 2,
+        function(x)
+          rgb(x[1], x[2], x[3], alpha=alpha))
+}
