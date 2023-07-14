@@ -26,16 +26,21 @@ add_alpha <- function(col, alpha=1){
 # - min_year for retrospective reports.
 # - collection the name to be printed in the report.
 
-report = enriched_report
-
-# load('/Users/jakepowell/Cambridge/Enriched reports/CUBG_enriched_report.rda')
 # report = enriched_report
-# collection = 'CUBG'
-# min_year = NULL
 
+load('/Users/jakepowell/Cambridge/Enriched reports/Cooktown_enriched_report.rda')
+report = enriched_report
+collection = 'Cooktown'
+min_year = NULL
+
+
+min_year_report = min(enriched_report$AccYear[enriched_report$AccYear>1750],na.rm = T)
 
 if(is.null(min_year)){
-  min_year = min(enriched_report$AccYear[enriched_report$AccYear>1750],na.rm = T) + 1
+  min_year =  min_year_report 
+}
+if(min_year < min_year_report){
+   min_year =  min_year_report 
 }
 
 #Extract endemic information from report
@@ -60,8 +65,10 @@ years = min_year:current_year
 #################
 ### New Accessions
 #################
-
+# Remove entries without an AccYear.
+report = report[!is.na(report$AccYear),]
 ### Reduce report to only the earliest year of accession.
+
 report = report[order(report$AccYear),]
 unique_accessions = unique(report$AccNoFull)
 accessions = report[match(unique_accessions, report$AccNoFull),]  
@@ -124,25 +131,27 @@ new_accessions_df$year = years
 # accessions_data = pbapply::pblapply(unique_accessions,function(accession){
 #   #Accession records.
 #   current = report[report$AccNoFull == accession,]
-#   
+# 
 #   AccNoFull = accession
 #   AccYear = min(current$AccYear)
 #   ProvenanceCode = current$ProvenanceCode[1]
 #   POWO_redlist_category = current$POWO_redlist_category[1]
 #   endemic = current$endemic[1]
+#   infrageneric_level = current$infrageneric_level[1]
+#   taxa = paste0(current$sanitised_taxon[1], ' ', current$extracted_author[1])
 #   no_items = nrow(current)
 #   no_existing = sum(current$ItemStatusType == 'Existing')
 #   DeathDate = NA
 #   if(all(current$ItemStatusType == 'NotExisting')){
 #     DeathDate = max(current$ItemStatusDate) # This might need checking that max works for dates.
 #   }
-#   return(c(AccNoFull, AccYear, no_items, no_existing, DeathDate,
-#            ProvenanceCode, POWO_redlist_category, endemic))
+#   return(c(AccNoFull, taxa, AccYear, no_items, no_existing, DeathDate,
+#            ProvenanceCode, POWO_redlist_category, endemic, infrageneric_level))
 # })
 # 
 # accessions = data.frame(t(data.frame(accessions_data)))
-# names(accessions) = c('AccNoFull', 'AccYear', 'no_items', 'no_existing', 'DeathDate',
-#            'ProvenanceCode', 'POWO_redlist_category', 'endemic')
+# names(accessions) = c('AccNoFull', 'Taxa', 'AccYear', 'no_items', 'no_existing', 'DeathDate',
+#            'ProvenanceCode', 'POWO_redlist_category', 'endemic', 'infrageneric_level')
 # rownames(accessions) = 1:nrow(accessions)
 # write.csv(accessions, file = paste0(collection,'_accessions.csv'))
 ```
@@ -174,7 +183,8 @@ fig <- plot_ly(new_accessions_df, x = ~year, y = ~Total, type = "bar", hoverinfo
 
 fig <- fig %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions")) 
+         yaxis = list (title = "Number of Accessions"),
+         hovermode = 'x unified') 
 
 fig
 ```
@@ -229,7 +239,7 @@ fig3 <- plot_ly(new_accessions_df, x = ~year)
 for(i in 1:length(prov_columns)){
   fig3 <- fig3 %>% add_trace(y = new_accessions_df[,prov_columns[i]],
                              name = prov_labels[i],
-                             marker = list(color = colours[i],line = list(color = 'rgb(8,48,107)', width = 1.5)),
+                             marker = list(color = colours[i],line = list(color = 'rgb(8,48,107)', width = 0)),
                              type = 'bar')
 }
 fig3 <- fig3 %>% layout(title = "",
@@ -244,13 +254,13 @@ for(i in 1:length(prov_columns)){
   fig4 <- fig4 %>% add_trace(y = new_accessions_df[,prov_columns[i]],
                              type='bar',
                              name = prov_labels[i],
-                             marker = list(color = colours[i], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+                             marker = list(color = colours[i], line = list(color = colours[i], width = 0)))
 }
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified')
+fig4 <- fig4 %>% layout(hovermode = 'x unified', bargap =0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
@@ -264,6 +274,7 @@ We provide similar plots for the proportion of accessions by provenance.
 
 ```{r, echo = F,  fig.dim = c(10, 7), message=FALSE}
 data_percent = round(new_accessions_df[,prov_columns]/new_accessions_df$Total *100,digits=2)
+data_percent[is.nan(as.matrix(data_percent))] = 0 #Set percent to 0 for years with no accessions.
 
 fig1 <- plot_ly(new_accessions_df, x = ~year) 
 for(i in 1:length(prov_columns)){
@@ -271,7 +282,7 @@ for(i in 1:length(prov_columns)){
 }
 fig1 <- fig1 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions")) 
+         yaxis = list (title = "Proportion of Accessions")) 
 fig1 <- fig1 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 
@@ -282,7 +293,7 @@ for(i in 1:length(prov_columns)){
 }
 fig2 <- fig2 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions")) 
+         yaxis = list (title = "Proportion of Accessions")) 
 fig2 <- fig2 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 # Bar graph
@@ -290,12 +301,12 @@ fig3 <- plot_ly(new_accessions_df, x = ~year)
 for(i in 1:length(prov_columns)){
   fig3 <- fig3 %>% add_trace(y = data_percent[,i],
                              name = prov_labels[i],
-                             marker = list(color = colours[i],line = list(color = 'rgb(8,48,107)', width = 1.5)),
+                             marker = list(color = colours[i],line = list(color = 'rgb(8,48,107)', width = 0)),
                              type = 'bar')
 }
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions"),
+         yaxis = list (title = "Proportion of Accessions"),
           barmode = 'group')
 fig3 <- fig3 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
@@ -305,13 +316,13 @@ for(i in 1:length(prov_columns)){
   fig4 <- fig4 %>% add_trace(y = data_percent[,i],
                              type='bar',
                              name = prov_labels[i],
-                             marker = list(color = colours[i], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+                             marker = list(color = colours[i], line = list(color = 'rgb(8,48,107)', width = 0)))
 }
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions"),
+         yaxis = list (title = "Proportion of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'), bargap=0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
@@ -363,9 +374,9 @@ fig2 <- fig2 %>% layout(hovermode = 'x unified')
 
 # Bar graph
 fig3 <- plot_ly(new_accessions_df, x = ~year, y = ~Endemic, name = 'Endemic', type = 'bar',  marker = list(color = colours[1],
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)))
+                          line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% add_trace(y = ~Not_endemic, name = 'Widespread', marker = list(color = colours[2],
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)))
+                          line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
@@ -374,13 +385,13 @@ fig3 <- fig3 %>% layout(hovermode = 'x unified')
 
 # Stacked bar graph
 fig4 <- plot_ly(new_accessions_df, x = ~year)
-fig4 <- fig4 %>% add_trace(y = ~Endemic, type='bar', name = 'Endemic',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig4 <- fig4 %>% add_trace(y = ~Not_endemic, type='bar',name = 'Widespread',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig4 <- fig4 %>% add_trace(y = ~Endemic, type='bar', name = 'Endemic',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 0)))
+fig4 <- fig4 %>% add_trace(y = ~Not_endemic, type='bar',name = 'Widespread',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified')
+fig4 <- fig4 %>% layout(hovermode = 'x unified', bargap=0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
@@ -394,7 +405,9 @@ We provide similar plots for the proportion of accessions by provenance.
 
 ```{r, echo = F,  fig.dim = c(10, 7), message=FALSE}
 new_accessions_df$endemic_prop = round(new_accessions_df$Endemic/new_accessions_df$Total*100, digits=2)
+new_accessions_df$endemic_prop[is.nan(new_accessions_df$endemic_prop)] = 0
 new_accessions_df$not_endemic_prop = round(new_accessions_df$Not_endemic/new_accessions_df$Total*100, digits=2)
+new_accessions_df$not_endemic_prop[is.nan(new_accessions_df$not_endemic_prop)] = 0
 
 fig1 <- plot_ly(new_accessions_df, x = ~year) 
 fig1 <- fig1 %>% add_trace(y = ~endemic_prop, name = 'Widespread', mode = 'lines',type = 'scatter', line = list(color = colours[2])) 
@@ -412,21 +425,21 @@ fig2 <- fig2 %>% layout(title = "",
          yaxis = list (title = "Proportion of Accessions")) 
 fig2 <- fig2 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
-fig3 <- plot_ly(new_accessions_df, x = ~year, y = ~endemic_prop, name = 'Endemic', type = 'bar', marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig3 <- fig3 %>% add_trace(y = ~not_endemic_prop, name = 'Widespread', marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig3 <- plot_ly(new_accessions_df, x = ~year, y = ~endemic_prop, name = 'Endemic', type = 'bar', marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 0)))
+fig3 <- fig3 %>% add_trace(y = ~not_endemic_prop, name = 'Widespread', marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Proportion of Accessions"),
           barmode = 'group')
 fig3 <- fig3 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
-fig4 <- plot_ly(new_accessions_df, x = ~year, y = ~endemic_prop, name = 'Endemic', type = 'bar', marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig4 <- fig4 %>% add_trace(y = ~not_endemic_prop, name = 'Widespread', marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig4 <- plot_ly(new_accessions_df, x = ~year, y = ~endemic_prop, name = 'Endemic', type = 'bar', marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 0)))
+fig4 <- fig4 %>% add_trace(y = ~not_endemic_prop, name = 'Widespread', marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Proportion of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'), bargap = 0)
 
 manipulateWidget::combineWidgets(list = list(fig1= fig1, fig2= fig2, fig3= fig3, fig4= fig4), nrow = 2)
 ```
@@ -483,8 +496,8 @@ fig2 <- fig2 %>% layout(hovermode = 'x unified')
 
 # Bar graph
 fig3 <- plot_ly(new_accessions_df, x = ~year)
-fig3 <- fig3 %>% add_trace(y = threatened, type = 'bar', name = 'Threatened', marker = list(color = colours[1],line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig3 <- fig3 %>% add_trace(y = not_threatened, type = 'bar', name = 'Not Threatened', marker = list(color = colours[2],line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig3 <- fig3 %>% add_trace(y = threatened, type = 'bar', name = 'Threatened', marker = list(color = colours[1],line = list(color = 'rgb(8,48,107)', width = 0)))
+fig3 <- fig3 %>% add_trace(y = not_threatened, type = 'bar', name = 'Not Threatened', marker = list(color = colours[2],line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
@@ -493,8 +506,8 @@ fig3 <- fig3 %>% layout(hovermode = 'x unified')
 
 # Stacked bar graph
 fig4 <- plot_ly(new_accessions_df, x = ~year)
-fig4 <- fig4 %>% add_trace(y = threatened, type='bar', name = 'Threatened',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig4 <- fig4 %>% add_trace(y = not_threatened, type='bar',name = 'Not Threatened',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig4 <- fig4 %>% add_trace(y = threatened, type='bar', name = 'Threatened',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 0)))
+fig4 <- fig4 %>% add_trace(y = not_threatened, type='bar',name = 'Not Threatened',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
@@ -514,15 +527,17 @@ We provide similar plots for the proportion of accessions by threatened.
 ```{r, echo = F,  fig.dim = c(10, 7), message=FALSE}
 
 threatened_prop = round(threatened/new_accessions_df$Total*100,digits=2)
+threatened_prop[is.nan(threatened_prop)] = 0
 not_threatened_prop = round(not_threatened/new_accessions_df$Total*100,digits=2)
+not_threatened_prop[is.nan(not_threatened_prop)] = 0
 
 fig1 <- plot_ly(new_accessions_df, x = ~year) 
 fig1 <- fig1 %>% add_trace(y = threatened_prop, name = 'Threatened', mode = 'lines',type = 'scatter', line = list(color = colours[1])) 
 fig1 <- fig1 %>% add_trace(y = not_threatened_prop, name = 'Not Threatened', mode = 'lines',type = 'scatter', line = list(color = colours[2])) 
 fig1 <- fig1 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions")) 
-fig1 <- fig1 %>% layout(hovermode = 'x unified')
+         yaxis = list (title = "Proportion of Accessions")) 
+fig1 <- fig1 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 
 #Stacked Line graph
@@ -531,28 +546,28 @@ fig2 <- fig2 %>% add_trace(y = threatened_prop, name = 'Threatened',type = 'scat
 fig2 <- fig2 %>% add_trace(y = ~not_threatened_prop, name ='Not Threatened', type = 'scatter', fillcolor = colours_trans[2]) 
 fig2 <- fig2 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions")) 
-fig2 <- fig2 %>% layout(hovermode = 'x unified')
+         yaxis = list (title = "Proportion of Accessions")) 
+fig2 <- fig2 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 # Bar graph
 fig3 <- plot_ly(new_accessions_df, x = ~year)
-fig3 <- fig3 %>% add_trace(y = threatened_prop, type = 'bar', name = 'Threatened', marker = list(color = colours[1],line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig3 <- fig3 %>% add_trace(y = not_threatened_prop, type = 'bar', name = 'Not Threatened', marker = list(color = colours[2],line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig3 <- fig3 %>% add_trace(y = threatened_prop, type = 'bar', name = 'Threatened', marker = list(color = colours[1],line = list(color = 'rgb(8,48,107)', width = 0)))
+fig3 <- fig3 %>% add_trace(y = not_threatened_prop, type = 'bar', name = 'Not Threatened', marker = list(color = colours[2],line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions"),
+         yaxis = list (title = "Proportion of Accessions"),
           barmode = 'group')
-fig3 <- fig3 %>% layout(hovermode = 'x unified')
+fig3 <- fig3 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 # Stacked bar graph
 fig4 <- plot_ly(new_accessions_df, x = ~year)
-fig4 <- fig4 %>% add_trace(y = threatened_prop, type='bar', name = 'Threatened',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 1.5)))
-fig4 <- fig4 %>% add_trace(y = not_threatened_prop, type='bar',name = 'Not Threatened',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 1.5)))
+fig4 <- fig4 %>% add_trace(y = threatened_prop, type='bar', name = 'Threatened',  marker = list(color = colours[1], line = list(color = 'rgb(8,48,107)', width = 0)))
+fig4 <- fig4 %>% add_trace(y = not_threatened_prop, type='bar',name = 'Not Threatened',  marker = list(color = colours[2], line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "Number of Accessions"),
+         yaxis = list (title = "Proportion of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified')
+fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'), bargap = 0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
@@ -618,12 +633,12 @@ fig3 <- fig3 %>% layout(hovermode = 'x unified')
 
 # Stacked bar graph
 fig4 <- plot_ly(threat_data, x = ~year, y=~value, type = 'bar', color = ~variable, 
-              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 1)))
+              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Number of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified')
+fig4 <- fig4 %>% layout(hovermode = 'x unified', bargap = 0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
@@ -674,7 +689,7 @@ fig2 <- fig2 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 # Bar graph
 fig3 <- plot_ly(threat_data, x = ~year, y=~value, type = 'bar', color = ~variable, 
-              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 1)))
+              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 0)))
 fig3 <- fig3 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Proportion of Accessions"),
@@ -683,12 +698,12 @@ fig3 <- fig3 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
 
 # Stacked bar graph
 fig4 <- plot_ly(threat_data, x = ~year, y=~value, type = 'bar', color = ~variable, 
-              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 1)))
+              marker = list(color = ~colours, line = list(color = 'rgb(8,48,107)', width = 0)))
 fig4 <- fig4 %>% layout(title = "",
          xaxis = list(title = "Year"),
          yaxis = list (title = "Proportion of Accessions"),
           barmode = 'stack')
-fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+fig4 <- fig4 %>% layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'), bargap = 0)
 
 manipulateWidget::combineWidgets(fig1, fig2, fig3, fig4, nrow = 2)
 ```
