@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(plotly)
 library(manipulateWidget)
+library(sf)
+library(here)
 ```
 
 ```{r, imported parameters, echo = F}
@@ -22,7 +24,9 @@ report = enriched_report
 # collection = 'CUBG'
 # create_excel = TRUE
 # save_widgets = TRUE
+# collection_coords = c(0.128305,52.193403)
 
+do_coord = !is.na(collection_coords[1])
 
 #Extract endemic information from report
 report$endemic = rep('Not endemic', nrow(report))
@@ -38,13 +42,39 @@ report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
 report_original = report
 
 if(save_widgets){
-  dir.create('Widgets',showWarnings = FALSE)
+  widget_dir = paste0(output_dir,'/',collection,'_Widgets')
+  dir.create(widget_dir,showWarnings = FALSE)
 }
+
+# Extract the location of the collection.
+wgsrpd3 = BGSmartR::wgsrpd3
+pnts <- data.frame( x = collection_coords[1], y = collection_coords[2])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+level3_name = collection_geog_details$LEVEL3_NAM
+level3_code = collection_geog_details$LEVEL3_COD
+level2_name = collection_geog_details$LEVEL2_NAM
+level2_code = collection_geog_details$LEVEL2_COD
+level1_name = collection_geog_details$LEVEL1_NAM
+level1_code = collection_geog_details$LEVEL1_COD
+
+text = paste0(level3_name, ', ', level2_name, ', ', level1_name,'.')
 ```
 
-This report uses data from `r collection`.
+This report uses data from **`r collection`**.
 
-***
+```{asis, eval=(do_coord == TRUE)}
+Using [World Geographical Scheme for Recording Plant Distributions](https://www.tdwg.org/standards/wgsrpd/) (wgsrpd), the collection is found in 
+```
+`r if(do_coord){text}`
 
 ```{r, Anaylsis, echo = F}
 # Restrict to existing plants.
@@ -96,7 +126,7 @@ species_notpowo = species_notpowo[!species_notpowo %in% species_powo]
 ```
 
 
-This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing` giving `r no_items` items. 
+This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing` giving **`r no_items`** items. 
 
 #### How many elements? (accessions, items, taxa, species)
 
@@ -124,12 +154,11 @@ fig <- fig %>% layout(title = "",
          yaxis = list (title = "Number")) 
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Bar_how_many_elements.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Bar_how_many_elements.html'))
 }
 
 fig
 ```
-
 
 In the above:
 
@@ -168,7 +197,7 @@ fig <- fig %>% layout(title = "",
          yaxis = list (title = "Number")) 
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Bar:how_many_each_taxonomic_unit.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Bar:how_many_each_taxonomic_unit.html'))
 }
 
 fig
@@ -193,32 +222,47 @@ In the above:
 taxon_names = report$POWO_taxon_name
 taxon_names[is.na(taxon_names)] = report$sanitised_taxon[is.na(taxon_names)]
 
-
+indet = taxon_names[grepl('0',report$infrageneric_level)]
+no_indet = length(indet)
+no_unique_indet = length(unique(indet))
+  
 hort = taxon_names[grepl('5|6',report$infrageneric_level)]
-no_hort = length(unique(hort))
+no_hort = length(hort)
+no_unique_hort = length(unique(hort))
 
 taxon_rank = taxon_names[grepl('2|3|4',report$infrageneric_level)]
-no_taxon_rank = length(unique(taxon_rank))
+no_taxon_rank = length(taxon_rank)
+no_unique_taxon_rank = length(unique(taxon_rank))
 
 species = taxon_names[grepl('1',report$infrageneric_level)]
-no_species = length(unique(species))
+no_species = length(species)
+no_unique_species = length(unique(species))
+
+taxa_infra_unique = data.frame(number = c(no_unique_species, no_unique_taxon_rank, no_unique_hort),
+                        InfragenericLevel = c('Species','Infra sp', 'Horticultral'))
 
 taxa_infra = data.frame(number = c(no_species, no_taxon_rank, no_hort),
                         InfragenericLevel = c('Species','Infra sp', 'Horticultral'))
-taxa_infra$lab.ypos = cumsum(taxa_infra$number) - 0.5*taxa_infra$number
 
-fig <- plot_ly(taxa_infra, labels = ~InfragenericLevel, values = ~number, type = 'pie')
+fig1 <- plot_ly(taxa_infra, labels = ~InfragenericLevel, values = ~number, type = 'pie') %>% layout(title = 'All records')
+fig2 <- plot_ly(taxa_infra_unique, labels = ~InfragenericLevel, values = ~number, type = 'pie') %>% layout(title = 'Unique taxa')
+
+fig = manipulateWidget::combineWidgets(fig1, fig2, nrow = 1)
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Pie_how_many_species_hort_infra.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_how_many_species_hort_infra.html'))
 }
 fig
+
+
 ```
 where:
 
 - Horticultural: consists of hybrids and cultivars.
 - Infra sp: includes subspecies (subsp.), varieties (var.) and forma (f.).
 - Species: consists of species, where subspecies, varieties and forma have not been included.
+
+The collection also contains `r no_indet` indeterminant taxa which were removed from the above pie chart. 
 
 ***
 
@@ -235,7 +279,7 @@ provenance = data.frame(Provenance = names(prov_table), number = as.numeric(prov
 fig <- plot_ly(provenance, labels = ~Provenance, values = ~number, type = 'pie')
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Pie_provenance.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_provenance.html'))
 }
 
 fig
@@ -305,17 +349,21 @@ fig <- plot_ly()
 fig <- fig %>% add_trace(
   type="choropleth",
   geojson=data,
-  locations=details$code,
-  text = details$hover,
+  locations=details$code[!is.na(details$no_unique_plants)],
+  text = details$hover[!is.na(details$no_unique_plants)],
   hoverinfo = 'text',
-  z=details$no_unique_plants,
+  z=details$no_unique_plants[!is.na(details$no_unique_plants)],
   colorscale="Viridis",
   zmin=0,
-  zmax=max(details$no_unique_plants),
+  zmax=max(details$no_unique_plants, na.rm = T),
   marker=list(line=list(
     width=0)
   )
 )
+# fig <- fig %>% add_markers(x = collection_coords[1],  y = collection_coords[2],
+#     text = collection,
+#     color = 'red', symbol = I("square"), size = I(8), hoverinfo = "text"
+#   )
 fig <- fig %>% colorbar(title = "Number of Unique Plants")
 # fig <- fig %>% layout(
 #   title = "Geographic Distribution of Garden's collection"
@@ -328,11 +376,11 @@ fig <- fig %>% layout(
 fig <- fig   %>% config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Geography.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Geography.html'))
 }
 ```
 
-For plants that we successfully matched to POWO (`r nrow(re)` records corresponding to `r length(unique(re$good_name))` unique plants) we have geographic distribution data. 
+For plants that we successfully matched to POWO (**`r nrow(re)`** records corresponding to **`r length(unique(re$good_name))`** unique plants) we have geographic distribution data. 
 
 
 ```{r, echo =F, fig.dim = c(10, 8), eval = T}
@@ -363,15 +411,36 @@ endemic = data.frame(Endemic = names(endemic_table), number = as.numeric(endemic
 fig <- plot_ly(endemic, labels = ~Endemic, values = ~number, type = 'pie')
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Pie_endemic.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_endemic.html'))
 }
 
 fig
 ```
 
+```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+########################################
+### Endemic "local"
+########################################
+if(!is.na(do_coord)){
+endemic_report = report[report$endemic == 'Endemic',]
+level3_local = sum(endemic_report$POWO_Dist_area_code_l3 == level3_code)
+
+level2_level3_codes = wgsrpd3$LEVEL3_COD[wgsrpd3$LEVEL2_COD == level2_code]
+level2_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level2_level3_codes)
+
+level1_level3_codes = wgsrpd3$LEVEL3_COD[wgsrpd3$LEVEL1_COD == level1_code]
+level1_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level1_level3_codes)
+
+text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round(level3_local/nrow(endemic_report)*100,digits=2),'%) are endemic to ', level3_name, ' (The level 3 region of the collection)')
+}
+```
+
+`r if(!is.na(do_coord)){text}`
+
 ***
 
-#### Number and/or proportion of threatened species?
+#### Number and/or proportion of threatened species? + Number and/or proportion of different threatened species types?
+
 
 ```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
@@ -382,36 +451,23 @@ red_table = table(report$redList_category)
 threat_total = sum(red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')])
 threat = data.frame(threat = c('Threatened', 'Not Threatened'), number = c(threat_total, nrow(report) - threat_total))
 
-fig <- plot_ly(threat, labels = ~threat, values = ~number, type = 'pie')
-
-if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Pie_threatened.html'))
-}
-
-fig
-```
-
-***
-
-#### Number and/or proportion of different threatened species types?
-
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
-########################################
-### threatened category pie chart.
-########################################
 # First get POWO taxon name if it exists, if not use sanitised name.
 red_table = table(report$redList_category)
 red_table = red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')]
 threat_type = data.frame(threat = names(red_table), number = as.numeric(red_table))
 threat_type$threat = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(threat_type$threat, c('VU','EN','CR','EW','EX'))]
 
-fig <- plot_ly(threat_type, labels = ~threat, values = ~number, type = 'pie')
+
+figure1 <- plot_ly(threat, labels = ~threat, values = ~number, type = 'pie')  %>% layout(title = 'All records')
+figure2 <- plot_ly(threat_type, labels = ~threat, values = ~number, type = 'pie')  %>% layout(title = "'Threatened' Breakdown")
+
+figg = manipulateWidget::combineWidgets(list = list(figure1= figure1, figure2= figure2), ncol = 2)
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Pie_threatened_categories.html'))
+  htmlwidgets::saveWidget(figg, file = paste0(widget_dir, '/','Pie_threatened.html'))
 }
 
-fig
+figg
 ```
 
 ***
@@ -436,12 +492,12 @@ no_gardens_table = table(report_unique$no_gardens)
 extant_gardens = data.frame(in_collection = as.numeric(no_gardens_table) , extant = as.numeric(names(no_gardens_table)))
 
 # Scatter plot of species in collection against collections holding a species worldwide.
-fig <- plot_ly(extant_gardens, x = ~extant, y = ~in_collection, 
+fig1 <- plot_ly(extant_gardens, x = ~extant, y = ~in_collection, 
          type = 'scatter',  mode = 'markers')
-fig <- fig %>% layout(title = "",
+fig1 <- fig1 %>% layout(title = "",
   xaxis = list(title = "Number of Collections Holding a Species Worldwide"),
   yaxis = list (title = "Number of Species Grown at the Collection")) 
-fig <- layout(fig,
+fig1 <- layout(fig1,
              shapes = list(
                list(type = "rect",
                     fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
@@ -469,10 +525,10 @@ grouped_extant = data.frame(group = names(grouped), number = as.numeric(grouped)
 
 fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number, type = 'pie')
 
-fig = manipulateWidget::combineWidgets(list = list(fig= fig, fig2= fig2), ncol = 2)
+fig = manipulateWidget::combineWidgets(list = list(fig1= fig1, fig2= fig2), ncol = 2)
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0('Widgets/','Rareity_extant.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Rareity_extant.html'))
 }
 
 fig
@@ -677,11 +733,11 @@ The proportion of the collection that is threatened has **`r threat_text`**, and
 library(xlsx)
 wb = xlsx::createWorkbook()
 sh1 = xlsx::createSheet(wb, 'How many elements')
-xlsx::addDataFrame(basics, sh1, startRow = 1,row.names = F)
+xlsx::addDataFrame(basics[,rev(1:ncol(basics))], sh1, startRow = 1,row.names = F)
 sh2 = xlsx::createSheet(wb, 'How many of each taxonomic units')
-xlsx::addDataFrame(taxa, sh2, startRow = 1,row.names = F)
+xlsx::addDataFrame(taxa[,rev(1:ncol(taxa))], sh2, startRow = 1,row.names = F)
 sh3 = xlsx::createSheet(wb, 'Species, Horticultral, infraspecific')
-xlsx::addDataFrame(taxa_infra, sh3, startRow = 1,row.names = F)
+xlsx::addDataFrame(taxa_infra[,rev(1:ncol(taxa_infra))], sh3, startRow = 1,row.names = F)
 sh4 = xlsx::createSheet(wb, 'Provenance')
 xlsx::addDataFrame(provenance, sh4, startRow = 1,row.names = F)
 sh5 = xlsx::createSheet(wb, 'Geography')
@@ -696,5 +752,5 @@ sh9 = xlsx::createSheet(wb, 'Global collections')
 xlsx::addDataFrame(extant_gardens, sh9, startRow = 1,row.names = F)
 sh10 = xlsx::createSheet(wb, 'Compare to 5 year ago')
 xlsx::addDataFrame(summary_numbers, sh10, startRow = 1)
-xlsx::saveWorkbook(wb, file = paste0(collection,'_data_for_figures.xlsx'))
+xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_data_for_figures.xlsx'))
 ```
