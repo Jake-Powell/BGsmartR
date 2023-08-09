@@ -49,7 +49,7 @@ infrageneric_level <- function(taxonName){
   # C) Go through each infrageneric level and add to groups if the correct pattern matches.
 
   # 0) "0.Indet"
-  if(no_words == 1 | grepl(" sp\\.|indet\\.|unkn| cf\\.|aff\\.|spec\\.",taxonName)){
+  if(no_words == 1 | grepl(" sp\\.|indet\\.|unkn| cf\\.|aff\\.|spec\\.|Indet\\.|^Indet ",taxonName)){
     groups = c(groups, '0.indet')
   }
 
