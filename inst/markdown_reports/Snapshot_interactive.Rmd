@@ -6,7 +6,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(plotly)
-library(manipulateWidget)
+library(htmltools)
 library(sf)
 library(here)
 ```
@@ -16,15 +16,16 @@ library(here)
 # As an input we get 
 # - Enriched report
 # - collection the name to be printed in the report.
-
+load('/Users/jakepowell/Cambridge/Enriched reports/CUBG_enriched_report.rda')
 report = enriched_report
+collection = 'CUBG'
+create_excel = TRUE
+save_widgets = FALSE
+collection_coords = c(0.128305,52.193403)
+output_dir = getwd()
 
-# load('/Users/jakepowell/Cambridge/Enriched reports/CUBG_enriched_report.rda')
-# report = enriched_report
-# collection = 'CUBG'
-# create_excel = TRUE
-# save_widgets = TRUE
-# collection_coords = c(0.128305,52.193403)
+
+ report = enriched_report
 
 do_coord = !is.na(collection_coords[1])
 
@@ -36,7 +37,12 @@ report$endemic[endemic_index] = 'Endemic'
 report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
 report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
 report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
+report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
 
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
 report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
 
 report_original = report
@@ -66,7 +72,7 @@ level2_code = collection_geog_details$LEVEL2_COD
 level1_name = collection_geog_details$LEVEL1_NAM
 level1_code = collection_geog_details$LEVEL1_COD
 
-text = paste0(level3_name, ', ', level2_name, ', ', level1_name,'.')
+text = paste0(level3_name, ' (L3), ', level2_name, ' (L2), ', level1_name,' (L1).')
 ```
 
 This report uses data from **`r collection`**.
@@ -125,34 +131,54 @@ species_notpowo = unique(species_only$original[is.na(species_only$POWO)])
 species_notpowo = species_notpowo[!species_notpowo %in% species_powo]
 ```
 
-
-This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing` giving **`r no_items`** items. 
+```{r, onRender text, echo = F}
+render_barplot ="
+    function(el) { 
+    console.log(el)
+      el.on('plotly_hover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '#31a354';
+    
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+      el.on('plotly_unhover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '#addd8e';
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+    }
+  "
+```
+This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing`.
 
 #### How many elements? (accessions, items, taxa, species)
 
-```{r,echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, Creating How many elements, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 basics = data.frame(count = c(no_items,no_accessions, no_taxa, species_later), objects = factor(x = c("Items", "Accessions", "Taxa", "Species"), levels = c("Items", "Accessions", "Taxa","Species")) )
-# basics$objects = as.factor(basics$objects)
-# levels(basics$objects) = c("Items", "Accessions", "Species")
-
-# general_numbers<-ggplot(data=basics, aes(x=objects, y=count)) +
-#   geom_bar(stat="identity", fill="#78c679")+
-#   # add values to the bars
-#   geom_text(aes(label=count), vjust=-0.3, color="black",
-#             position = position_dodge(0.9), size=3)+
-#   theme_minimal()+
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-#   theme(axis.line = element_line())+
-#   ylim(0,max(basics$count)+max(basics$count*0.05))+
-#   labs(title="\n",subtitle = "" ,x=NULL, y = "Number")
-# general_numbers
-
-
-fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar')
+basics$colors = rep('#addd8e', nrow(basics))
+basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
+fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text')
 fig <- fig %>% layout(title = "",
          xaxis = list(title = ""),
          yaxis = list (title = "Number")) 
 
+fig = fig %>% htmlwidgets::onRender(render_barplot)
 if(save_widgets){
   htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Bar_how_many_elements.html'))
 }
@@ -163,38 +189,24 @@ fig
 In the above:
 
 - Items: The number of records in the report.
-- Accessions: The number of accessions in the report. Calculated by counting the number of unique values in `AccNoFull`. 
-- Taxa: The number of taxa in the report. Calculated by counting the number of unique combined taxonomic name and taxonomic author (after sanitation, by which we mean standisation of capital letters, hybrid markers, etc).
-- Species: Ignore records that are indeterminants, cultivars and hybrids. We then use the GenusSpecies from matched POWO where available, otherwise we use GenusSpecies from the original report. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
+- Accessions: The number of accessions in the report.
+- Taxa: The number of taxa in the report. 
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
 
 ***
 
-#### How many of each taxonomic units (family, genera, species)
+#### How many of each taxonomic units? (family, genera, species)
 
-```{r, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
- taxa = data.frame(count = c(no_species,no_genus,no_families), TaxonomicCategory = c(c("Species", "Genera", "Families")))
+```{r, Creating How many of each taxonomic units?,  echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+taxa = data.frame(count = c(no_species,no_genus,no_families), TaxonomicCategory = c(c("Species", "Genera", "Families")))
+taxa$colors = rep('#addd8e', nrow(taxa))
 
-# Static
-# ## general_taxonomic_div plot.
-# general_taxonomic_div<-ggplot(data=taxa, aes(x=TaxonomicCategory, y=count)) +
-#   geom_bar(stat="identity", fill="#78c679")+
-#   # add values to the bars
-#   geom_text(aes(label=count), vjust=-0.3, color="black",
-#             position = position_dodge(0.9), size=3)+
-#   theme_minimal()+
-#   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-#   theme(axis.line = element_line())+
-#   ylim(0,max(taxa$count)+max(taxa$count*0.05))+
-#   labs(title = "",x=NULL, y = "Number"
-#        )+
-#   theme(plot.title = element_text(color = "#78c679", face = "bold"))
-# 
-# general_taxonomic_div
-
-fig <- plot_ly(taxa, x = ~TaxonomicCategory, y = ~count, type = 'bar')
+fig <- plot_ly(taxa, x = ~TaxonomicCategory, y = ~count, type = 'bar', marker = list(color = ~colors))
 fig <- fig %>% layout(title = "",
          xaxis = list(title = "Taxonomic Category"),
          yaxis = list (title = "Number")) 
+
+fig = fig %>% htmlwidgets::onRender(render_barplot)
 
 if(save_widgets){
   htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Bar:how_many_each_taxonomic_unit.html'))
@@ -214,7 +226,7 @@ In the above:
 
 #### How many species, infraspecific, and cultivars?
 
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, Creating How many species, infraspecific, and cultivars?, echo=F, fig.show="hold", out.width="40%"}
 ########################################
 ### Infraspecific diversity pie chart.
 ########################################
@@ -239,52 +251,172 @@ no_species = length(species)
 no_unique_species = length(unique(species))
 
 taxa_infra_unique = data.frame(number = c(no_unique_species, no_unique_taxon_rank, no_unique_hort),
-                        InfragenericLevel = c('Species','Infra sp', 'Horticultral'))
+                        InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
 
 taxa_infra = data.frame(number = c(no_species, no_taxon_rank, no_hort),
-                        InfragenericLevel = c('Species','Infra sp', 'Horticultral'))
+                        InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
 
-fig1 <- plot_ly(taxa_infra, labels = ~InfragenericLevel, values = ~number, type = 'pie') %>% layout(title = 'All records')
-fig2 <- plot_ly(taxa_infra_unique, labels = ~InfragenericLevel, values = ~number, type = 'pie') %>% layout(title = 'Unique taxa')
+colors = viridis::viridis(nrow(taxa_infra))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(taxa_infra))
 
-fig = manipulateWidget::combineWidgets(fig1, fig2, nrow = 1)
+fig1 <- plot_ly(taxa_infra, labels = ~InfragenericLevel, values = ~number,
+                type = 'pie',
+                marker = list(colors = colors_alpha),
+                pull = rep(0,nrow(taxa_infra)),
+                hole =.4) %>% layout(title = 'All Items')
+
+
+fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+fig2 <- plot_ly(taxa_infra_unique, labels = ~InfragenericLevel, values = ~number,
+                type = 'pie',
+                marker = list(colors = colors_alpha),
+                pull = rep(0,nrow(taxa_infra)),
+                hole =.4) %>% layout(title = 'Taxa in Collection')
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_how_many_species_hort_infra.html'))
+  htmlwidgets::saveWidget(fig1, file = paste0(widget_dir, '/','Pie_how_many_species_hort_infra_all_items.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(widget_dir, '/','Pie_how_many_species_hort_infra_taxa_in_collection.html'))  
 }
-fig
 
+
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
 
 ```
 where:
 
-- Horticultural: consists of hybrids and cultivars.
-- Infra sp: includes subspecies (subsp.), varieties (var.) and forma (f.).
-- Species: consists of species, where subspecies, varieties and forma have not been included.
+- Horticultural taxa: consists of hybrids and cultivars.
+- Infraspecific taxa: includes subspecies (subsp.), varieties (var.) and forma (f.).
+- Species: consists of species names that are not further divided into infraspecific categories
 
-The collection also contains `r no_indet` indeterminant taxa which were removed from the above pie chart. 
+The collection also contains `r no_indet` indeterminate taxa which were removed prior to creating chart. Indeterminate taxa include those such as `Solanum sp.`, `Solanaceae Indet` and `Octomeria aff. serrana`. 
 
 ***
 
 #### What are the ratios of provenance types in the collection?
 
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, Creating What are the ratios of provenance types in the collection?, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
 ### provenance pie chart.
 ########################################
 # First get POWO taxon name if it exists, if not use sanitised name.
-prov_table = table(report$ProvenanceCode)
-provenance = data.frame(Provenance = names(prov_table), number = as.numeric(prov_table))
+ accessions = unlist(lapply(stringr::str_split(report$ItemAccNoFull,pattern = '\\*'),function(x){x[1]} ))
+      unique_accessions = unique(accessions)
+      wanted_index = match(unique(accessions), accessions)
+      report_cur = report[wanted_index,]
+      word='Accessions'
 
-fig <- plot_ly(provenance, labels = ~Provenance, values = ~number, type = 'pie')
+prov_table = table(report_cur$ProvenanceCode)
+provenance = data.frame(Provenance = names(prov_table), number = as.numeric(prov_table))
+provenance$text = paste0(provenance$Provenance, '<br>', provenance$number, ' Accessions<br>',
+                         round(provenance$number/sum(provenance$number)*100,digits=2), '%')
+########################################
+
+colors = viridis::viridis(nrow(provenance))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(provenance))
+fig <- plot_ly(provenance, labels = ~Provenance, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(provenance)),
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text)
+
+fig =  fig %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_provenance.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','pie:provenance.html'))
 }
 
 fig
 ```
 
+Above we show the proportion of provenance over the number of accessions in the collection.
 ***
 
 #### What is the geographical origin of the collection?
@@ -296,11 +428,11 @@ fig
 # reduce to only those records with POWO match.
 re = report[!is.na(report$POWO_Dist_area_code_l3),]
 ```
-```{r, echo = F, eval = T, echo =F, fig.dim = c(10, 8)}
+```{r, Formatting geography data, echo = F, eval = T, echo =F, fig.dim = c(10, 5)}
 # load all geo areas
-wgsrpd3 = BGSmartR::wgsrpd3
+wgsrpd3 = BGSmartR::wgsrpd3_level3_simp
 
-details = data.frame(name = wgsrpd3$LEVEL3_NAM, code = wgsrpd3$LEVEL3_COD)
+details = data.frame(name = wgsrpd3$name, code = wgsrpd3$code)
 plants = rep('', nrow(details))
 no_plants = rep(NA,nrow(details))
 no_unique_plants = rep(NA,nrow(details))
@@ -316,11 +448,12 @@ for(i in 1:length(details$code)){
 }
 
 details = data.frame(details, plants = plants, plant_ex = plant_ex,  no_plants = no_plants, no_unique_plants = no_unique_plants)
+details$no_unique_plants[is.na(details$no_unique_plants)] = 0
+details$no_plants[is.na(details$no_plants)] = 0
 
 text = paste0('Region: ', details$name, '<br />', 
-              'Number of plants: ', details$no_plants,  '<br />',
-              'Unique plants: ', details$no_unique_plants,  '<br />',
-              'Plant: ', details$plant_ex)
+              'Number of Items: ', details$no_plants,  '<br />',
+              'Number of Taxa: ', details$no_unique_plants,  '<br />')
 details$hover = text
 
 
@@ -330,48 +463,52 @@ geo_sf = geojsonsf::sf_geojson(mapp)
 data = rjson::fromJSON(geo_sf)
 feat = data$features
 for(i in 1:length(feat)){
-  feat[[i]]$id = feat[[i]]$properties$LEVEL3_COD
+  feat[[i]]$id = feat[[i]]$properties$code
 }
 data$features = feat
 
-# geo styling
-g <- list(
-  scope = 'world',
-  showland = TRUE,
-  landcolor = toRGB("White"),
-  showocean = TRUE,
-  oceancolor = toRGB("LightBlue"),
-  showcountries = F,
-  lonaxis = list(showgrid = T),
-  lataxis = list(showgrid = T)
-)
-fig <- plot_ly()
-fig <- fig %>% add_trace(
-  type="choropleth",
-  geojson=data,
-  locations=details$code[!is.na(details$no_unique_plants)],
-  text = details$hover[!is.na(details$no_unique_plants)],
-  hoverinfo = 'text',
-  z=details$no_unique_plants[!is.na(details$no_unique_plants)],
-  colorscale="Viridis",
-  zmin=0,
-  zmax=max(details$no_unique_plants, na.rm = T),
-  marker=list(line=list(
-    width=0)
-  )
-)
-# fig <- fig %>% add_markers(x = collection_coords[1],  y = collection_coords[2],
-#     text = collection,
-#     color = 'red', symbol = I("square"), size = I(8), hoverinfo = "text"
-#   )
-fig <- fig %>% colorbar(title = "Number of Unique Plants")
-# fig <- fig %>% layout(
-#   title = "Geographic Distribution of Garden's collection"
-# )
+index = seq(0,1,0.01)
+colours = c("#FFFFFF",rev(viridis::plasma(100)))
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours[i]))})
 
-fig <- fig %>% layout(
-  geo = g
-)
+if(do_coord){
+  coords = collection_coords
+}else{
+  coords = c(0,0)
+}
+fig = plot_ly(details,  text = details$hover, hoverinfo = 'text') %>% add_trace(type="choroplethmapbox",
+   geojson=data,
+   locations=wgsrpd3$code,
+   z=details$no_unique_plants,
+   colorscale=col_scale,
+   reversescale = FALSE,
+   marker=list(line=list(
+   width=0.01,color ='black'),
+   text = details$hover,
+   hoverinfo = 'text',
+   zmin=0,
+   zmax=max(details$no_unique_plants, na.rm = T)
+  )
+)%>% layout(
+  mapbox=list(
+    style="white-bg",
+    center = list(lon = 0 ,lat= 60),
+    zoom =0.46, 
+    lataxis = list(range = c(-59, 90)))
+) %>% colorbar(title = "Number<br> of Taxa")
+if(do_coord){
+  fig <- fig %>% add_trace(type='scattermapbox',
+                         mode = 'markers',
+                         lon = coords[1],
+                         lat = coords[2],
+                        text = 'Collection',
+                        color = I('red'),
+                         size = I(30),
+   hoverinfo = 'text')
+}
+
+
 
 fig <- fig   %>% config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
 
@@ -380,10 +517,10 @@ if(save_widgets){
 }
 ```
 
-For plants that we successfully matched to POWO (**`r nrow(re)`** records corresponding to **`r length(unique(re$good_name))`** unique plants) we have geographic distribution data. 
+For plants that we successfully matched to POWO (**`r format(nrow(re),big.mark=',')`** items corresponding to **`r format(length(unique(re$good_name)),big.mark=',')`** taxa) we have geographic distribution data. 
 
 
-```{r, echo =F, fig.dim = c(10, 8), eval = T}
+```{r, Creating geography figure, echo =F, fig.dim = c(10, 6), eval = T}
 ########################################
 ## Geography plot.
 ########################################
@@ -392,23 +529,63 @@ fig
 Hover over regions for:
 
 - Name of the `Region`.
-- `Number of plants` in the collection that are native to the region.
-- Number of `unique plants` in the collection that are native to the region.
-- A single plant from the collection that is native to the region. 
+- `Number of items` in the collection that are native to the region.
+- `Number of Taxa` in the collection that are native to the region.
+
+```{asis, eval=(do_coord == TRUE)}
+Moreover, the location of the collection is shown by the red circle on the map.
+```
+
 
 ***
 
-#### Number and/or proportion of endemic species?
+#### How many endemic species are in the collection?
 
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, Creating Number and/or proportion of endemic species?, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
 ### Endemic pie chart.
 ########################################
 # First get POWO taxon name if it exists, if not use sanitised name.
+species = report$good_name[which(!grepl('0|5|6',report$infrageneric_level))]
+      wanted_index = match(unique(species), species)
+      report_cur = report_cur[which(!grepl('0|5|6',report_cur$infrageneric_level))[wanted_index],]
+      
 endemic_table = table(report$endemic)
 endemic = data.frame(Endemic = names(endemic_table), number = as.numeric(endemic_table))
 
-fig <- plot_ly(endemic, labels = ~Endemic, values = ~number, type = 'pie')
+colors = viridis::viridis(nrow(endemic))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(endemic))
+fig <- plot_ly(endemic, labels = ~Endemic, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(endemic)),
+               hole =.4)
+
+fig =  fig %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
 
 if(save_widgets){
   htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Pie_endemic.html'))
@@ -431,7 +608,7 @@ level2_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level2_level3_code
 level1_level3_codes = wgsrpd3$LEVEL3_COD[wgsrpd3$LEVEL1_COD == level1_code]
 level1_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level1_level3_codes)
 
-text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round(level3_local/nrow(endemic_report)*100,digits=2),'%) are endemic to ', level3_name, ' (The level 3 region of the collection)')
+text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round(level3_local/nrow(endemic_report)*100,digits=2),'%) are endemic to ', level3_name)
 }
 ```
 
@@ -439,10 +616,9 @@ text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round
 
 ***
 
-#### Number and/or proportion of threatened species? + Number and/or proportion of different threatened species types?
+#### How many threatened species are in the collection?
 
-
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, creating threatened figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
 ### threatened pie chart.
 ########################################
@@ -457,25 +633,112 @@ red_table = red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')]
 threat_type = data.frame(threat = names(red_table), number = as.numeric(red_table))
 threat_type$threat = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(threat_type$threat, c('VU','EN','CR','EW','EX'))]
 
+colors = viridis::viridis(nrow(threat))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(threat))
+fig1 <- plot_ly(threat, labels = ~threat, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(threat)),
+               hole =.4) %>% layout(title = 'All records')
 
-figure1 <- plot_ly(threat, labels = ~threat, values = ~number, type = 'pie')  %>% layout(title = 'All records')
+fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+
 figure2 <- plot_ly(threat_type, labels = ~threat, values = ~number, type = 'pie')  %>% layout(title = "'Threatened' Breakdown")
 
-figg = manipulateWidget::combineWidgets(list = list(figure1= figure1, figure2= figure2), ncol = 2)
+# colours taken from 'https://royalsocietypublishing.org/doi/10.1098/rstb.2014.0003'.
+colors = c('#fdf851', '#f4a540', '#ed3833', '#808080', '#000000')
+colors = colors[match(threat_type$threat, c('Vulnerable', 'Endangered', 'Critically Endangered',
+                                            'Extinct in the Wild', 'Extinct'))]
+
+# colors = viridis::viridis(nrow(threat_type))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(threat_type))
+fig2 <- plot_ly(threat_type, labels = ~threat, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors),
+               pull = rep(0,nrow(threat_type)),
+               hole =.4) %>% layout(title = "'Threatened' Breakdown")
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
 
 if(save_widgets){
-  htmlwidgets::saveWidget(figg, file = paste0(widget_dir, '/','Pie_threatened.html'))
+  htmlwidgets::saveWidget(fig1, file = paste0(widget_dir, '/','Pie_threatened.html'))
+    htmlwidgets::saveWidget(fig2, file = paste0(widget_dir, '/','Pie_threatened_category.html'))
+
 }
 
-figg
+
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
 ```
+ 
+Where threatened species are taken to be those that are either: Vulnerable, Endangered, Critically Endangered, Extinct in the Wild or Extinct. 
 
 ***
+
 #### What is the rarity of the extant collection?
 
 We reduce to only unique species/subspecies/varieties and forma found in the collection. 
 
-```{r, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+```{r, creating rarity figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
 ### rareity pie chart.
 ########################################
@@ -491,9 +754,24 @@ those_without_no_gardens = nrow(report_unique) - those_with_no_gardens
 no_gardens_table = table(report_unique$no_gardens)
 extant_gardens = data.frame(in_collection = as.numeric(no_gardens_table) , extant = as.numeric(names(no_gardens_table)))
 
+# For those with less than 5 species in the collection retrieve them. 
+extant_numbers = extant_gardens$extant[extant_gardens$in_collection <= 5]
+plants = unlist(lapply(extant_numbers, function(x){
+  return(paste0(report_unique$good_name[which(report_unique$no_gardens == x)], collapse = '<br />'))
+}))
+
+text = paste0('Taxa In Collection: ', extant_gardens$in_collection, '<br />', 
+              'Global Collections Holding Taxa: ', extant_gardens$extant,  '<br />')
+index = match(extant_numbers, extant_gardens$extant) 
+text[index] = paste0(text[index], 'Taxa: ', plants, '<br />')
+extant_gardens$hover = text
+
 # Scatter plot of species in collection against collections holding a species worldwide.
 fig1 <- plot_ly(extant_gardens, x = ~extant, y = ~in_collection, 
-         type = 'scatter',  mode = 'markers')
+         type = 'scatter',
+         mode = 'markers',
+         text = extant_gardens$hover,
+         hoverinfo = 'text')
 fig1 <- fig1 %>% layout(title = "",
   xaxis = list(title = "Number of Collections Holding a Species Worldwide"),
   yaxis = list (title = "Number of Species Grown at the Collection")) 
@@ -525,19 +803,820 @@ grouped_extant = data.frame(group = names(grouped), number = as.numeric(grouped)
 
 fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number, type = 'pie')
 
-fig = manipulateWidget::combineWidgets(list = list(fig1= fig1, fig2= fig2), ncol = 2)
+colors = c('#41ab5d', '#78c679', '#addd8e', '#d9f0a3')
+# colors = viridis::viridis(nrow(threat_type))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(grouped_extant))
+fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors),
+               pull = rep(0,nrow(grouped_extant)),
+               hole =.4)
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+
 
 if(save_widgets){
-  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','Rareity_extant.html'))
+  htmlwidgets::saveWidget(fig1, file = paste0(widget_dir, '/','Scatter_rareity.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(widget_dir, '/','Pie_rareity.html'))
+  
 }
 
-fig
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
+```
+
+In the scatter plot above we show the taxa in the case there are 5 or fewer grown at the collection.
+
+***
+
+
+#### What is the taxonomic diversity of the collection?
+
+Of the records we were able to match to POWO the sunburst chart below represents the taxonomic diversity of your collection. 
+
+```{r, Create taxonomic diversity, echo = F}
+# Sunburst chart of taxonomic hierarchy.
+# taxonomic hierarchy. =
+# - Class
+# - Order
+# - Family
+# - Genus
+# - Species
+#
+# POWO only gives information up to family. Moreover POWO only deals with vascular plants, which corresponds to 460/620 plant families.
+
+# Using the plant list the families are grouped into 4 major groups.
+# - The Angiosperms (Flowering plants)
+# - The Gymnosperms (Conifers, cycads and allies)
+# - The Pteridophytes (Ferns and fern allies)
+# - The Bryophytes (Mosses and liverworts)
+
+Angiosperms = 'Acanthaceae
+Achariaceae
+Achatocarpaceae
+Acoraceae
+Actinidiaceae
+Adoxaceae
+Aextoxicaceae
+Aizoaceae
+Akaniaceae
+Alismataceae
+Alseuosmiaceae
+Alstroemeriaceae
+Altingiaceae
+Amaranthaceae
+Amaryllidaceae
+Amborellaceae
+Anacampserotaceae
+Anacardiaceae
+Anarthriaceae
+Ancistrocladaceae
+Anisophylleaceae
+Annonaceae
+Aphanopetalaceae
+Aphloiaceae
+Apiaceae
+Apocynaceae
+Apodanthaceae
+Aponogetonaceae
+Aquifoliaceae
+Araceae
+Araliaceae
+Arecaceae
+Argophyllaceae
+Aristolochiaceae
+Asparagaceae
+Asteliaceae
+Asteropeiaceae
+Atherospermataceae
+Austrobaileyaceae
+Balanopaceae
+Balanophoraceae
+Balsaminaceae
+Barbeuiaceae
+Barbeyaceae
+Basellaceae
+Bataceae
+Begoniaceae
+Berberidaceae
+Berberidopsidaceae
+Betulaceae
+Biebersteiniaceae
+Bignoniaceae
+Bixaceae
+Blandfordiaceae
+Bonnetiaceae
+Boraginaceae
+Boryaceae
+Brassicaceae
+Bromeliaceae
+Brunelliaceae
+Bruniaceae
+Burmanniaceae
+Burseraceae
+Butomaceae
+Buxaceae
+Byblidaceae
+Cabombaceae
+Cactaceae
+Calceolariaceae
+Calophyllaceae
+Calycanthaceae
+Calyceraceae
+Campanulaceae
+Campynemataceae
+Canellaceae
+Cannabaceae
+Cannaceae
+Capparaceae
+Caprifoliaceae
+Cardiopteridaceae
+Caricaceae
+Carlemanniaceae
+Caryocaraceae
+Caryophyllaceae
+Casuarinaceae
+Celastraceae
+Centrolepidaceae
+Centroplacaceae
+Cephalotaceae
+Ceratophyllaceae
+Cercidiphyllaceae
+Chloranthaceae
+Chrysobalanaceae
+Circaeasteraceae
+Cistaceae
+Cleomaceae
+Clethraceae
+Clusiaceae
+Colchicaceae
+Columelliaceae
+Combretaceae
+Commelinaceae
+Compositae
+Connaraceae
+Convolvulaceae
+Coriariaceae
+Cornaceae
+Corsiaceae
+Corynocarpaceae
+Costaceae
+Crassulaceae
+Crossosomataceae
+Ctenolophonaceae
+Cucurbitaceae
+Cunoniaceae
+Curtisiaceae
+Cyclanthaceae
+Cymodoceaceae
+Cynomoriaceae
+Cyperaceae
+Cyrillaceae
+Cytinaceae
+Daphniphyllaceae
+Dasypogonaceae
+Datiscaceae
+Degeneriaceae
+Diapensiaceae
+Dichapetalaceae
+Didiereaceae
+Dilleniaceae
+Dioncophyllaceae
+Dioscoreaceae
+Dipentodontaceae
+Dipterocarpaceae
+Dirachmaceae
+Doryanthaceae
+Droseraceae
+Drosophyllaceae
+Ebenaceae
+Ecdeiocoleaceae
+Elaeagnaceae
+Elaeocarpaceae
+Elatinaceae
+Emblingiaceae
+Ericaceae
+Eriocaulaceae
+Erythroxylaceae
+Escalloniaceae
+Eucommiaceae
+Euphorbiaceae
+Euphroniaceae
+Eupomatiaceae
+Eupteleaceae
+Fagaceae
+Flacourtiaceae
+Flagellariaceae
+Fouquieriaceae
+Frankeniaceae
+Garryaceae
+Geissolomataceae
+Gelsemiaceae
+Gentianaceae
+Geraniaceae
+Gerrardinaceae
+Gesneriaceae
+Gisekiaceae
+Gomortegaceae
+Goodeniaceae
+Goupiaceae
+Grossulariaceae
+Grubbiaceae
+Guamatelaceae
+Gunneraceae
+Gyrostemonaceae
+Haemodoraceae
+Halophytaceae
+Haloragaceae
+Hamamelidaceae
+Hanguanaceae
+Haptanthaceae
+Heliconiaceae
+Helwingiaceae
+Hernandiaceae
+Himantandraceae
+Huaceae
+Humiriaceae
+Hydatellaceae
+Hydnoraceae
+Hydrangeaceae
+Hydrocharitaceae
+Hydroleaceae
+Hydrostachyaceae
+Hypericaceae
+Hypoxidaceae
+Icacinaceae
+Iridaceae
+Irvingiaceae
+Iteaceae
+Ixioliriaceae
+Ixonanthaceae
+Joinvilleaceae
+Juglandaceae
+Juncaceae
+Juncaginaceae
+Kirkiaceae
+Koeberliniaceae
+Krameriaceae
+Lacistemataceae
+Lactoridaceae
+Lamiaceae
+Lanariaceae
+Lardizabalaceae
+Lauraceae
+Lecythidaceae
+Leguminosae
+Lentibulariaceae
+Lepidobotryaceae
+Liliaceae
+Limeaceae
+Limnanthaceae
+Linaceae
+Linderniaceae
+Loasaceae
+Loganiaceae
+Lophiocarpaceae
+Lophopyxidaceae
+Loranthaceae
+Lowiaceae
+Lythraceae
+Magnoliaceae
+Malpighiaceae
+Malvaceae
+Marantaceae
+Marcgraviaceae
+Martyniaceae
+Mayacaceae
+Melanthiaceae
+Melastomataceae
+Meliaceae
+Melianthaceae
+Menispermaceae
+Menyanthaceae
+Metteniusaceae
+Misodendraceae
+Mitrastemonaceae
+Molluginaceae
+Monimiaceae
+Montiaceae
+Montiniaceae
+Moraceae
+Moringaceae
+Muntingiaceae
+Musaceae
+Myodocarpaceae
+Myricaceae
+Myristicaceae
+Myrothamnaceae
+Myrtaceae
+Nartheciaceae
+Nelumbonaceae
+Nepenthaceae
+Neuradaceae
+Nitrariaceae
+Nothofagaceae
+Nyctaginaceae
+Nymphaeaceae
+Ochnaceae
+Olacaceae
+Oleaceae
+Onagraceae
+Oncothecaceae
+Opiliaceae
+Orchidaceae
+Orobanchaceae
+Oxalidaceae
+Paeoniaceae
+Pandaceae
+Pandanaceae
+Papaveraceae
+Paracryphiaceae
+Passifloraceae
+Paulowniaceae
+Pedaliaceae
+Penaeaceae
+Pennantiaceae
+Pentadiplandraceae
+Pentaphragmataceae
+Pentaphylacaceae
+Penthoraceae
+Peraceae
+Peridiscaceae
+Petenaeaceae
+Petermanniaceae
+Petrosaviaceae
+Phellinaceae
+Philesiaceae
+Philydraceae
+Phrymaceae
+Phyllanthaceae
+Phyllonomaceae
+Physenaceae
+Phytolaccaceae
+Picramniaceae
+Picrodendraceae
+Piperaceae
+Pittosporaceae
+Plantaginaceae
+Platanaceae
+Plocospermataceae
+Plumbaginaceae
+Poaceae
+Podostemaceae
+Polemoniaceae
+Polygalaceae
+Polygonaceae
+Pontederiaceae
+Portulacaceae
+Posidoniaceae
+Potamogetonaceae
+Primulaceae
+Proteaceae
+Putranjivaceae
+Quillajaceae
+Rafflesiaceae
+Ranunculaceae
+Rapateaceae
+Resedaceae
+Restionaceae
+Rhabdodendraceae
+Rhamnaceae
+Rhipogonaceae
+Rhizophoraceae
+Roridulaceae
+Rosaceae
+Rousseaceae
+Rubiaceae
+Ruppiaceae
+Rutaceae
+Sabiaceae
+Salicaceae
+Salvadoraceae
+Santalaceae
+Sapindaceae
+Sapotaceae
+Sarcobataceae
+Sarcolaenaceae
+Sarraceniaceae
+Saururaceae
+Saxifragaceae
+Scheuchzeriaceae
+Schisandraceae
+Schlegeliaceae
+Schoepfiaceae
+Scrophulariaceae
+Setchellanthaceae
+Simaroubaceae
+Simmondsiaceae
+Siparunaceae
+Sladeniaceae
+Smilacaceae
+Solanaceae
+Sphaerosepalaceae
+Sphenocleaceae
+Stachyuraceae
+Staphyleaceae
+Stegnospermataceae
+Stemonaceae
+Stemonuraceae
+Stilbaceae
+Strasburgeriaceae
+Strelitziaceae
+Stylidiaceae
+Styracaceae
+Surianaceae
+Symplocaceae
+Talinaceae
+Tamaricaceae
+Tapisciaceae
+Tecophilaeaceae
+Tetrachondraceae
+Tetramelaceae
+Tetrameristaceae
+Theaceae
+Thomandersiaceae
+Thurniaceae
+Thymelaeaceae
+Ticodendraceae
+Tofieldiaceae
+Torricelliaceae
+Tovariaceae
+Trigoniaceae
+Trimeniaceae
+Triuridaceae
+Trochodendraceae
+Tropaeolaceae
+Typhaceae
+Ulmaceae
+Urticaceae
+Vahliaceae
+Velloziaceae
+Verbenaceae
+Violaceae
+Vitaceae
+Vivianiaceae
+Vochysiaceae
+Winteraceae
+Xanthorrhoeaceae
+Xeronemataceae
+Xyridaceae
+Zingiberaceae
+Zosteraceae
+Zygophyllaceae'
+Angiosperms = unlist(stringr::str_split(Angiosperms, pattern = '\n'))
+Angiosperms = data.frame(major = rep('Angiosperms', length(Angiosperms)), family = Angiosperms)
+
+Gymnosperms = 'Araucariaceae
+Cupressaceae
+Cycadaceae
+Ephedraceae
+Ginkgoaceae
+Gnetaceae
+Pinaceae
+Podocarpaceae
+Sciadopityaceae
+Taxaceae
+Welwitschiaceae
+Zamiaceae'
+Gymnosperms = unlist(stringr::str_split(Gymnosperms, pattern = '\n'))
+Gymnosperms = data.frame(major = rep('Gymnosperms', length(Gymnosperms)), family = Gymnosperms)
+
+Pteridophytes = 'Anemiaceae
+Apleniaceae
+Aspleniaceae
+Athyriaceae
+Blechnaceae
+Cibotiaceae
+Culcitaceae
+Cyatheaceae
+Cystodiaceae
+Cystopteridaceae
+Davalliaceae
+Dennstaedtiaceae
+Dicksoniaceae
+Diplaziopsidaceae
+Dipteridaceae
+Dryopteridacae
+Dryopteridaceae
+Equisetaceae
+Gleicheniaceae
+Hymenophyllaceae
+Hypodematiaceae
+Isoëtaceae
+Lindsaeaceae
+Lomariopsidaceae
+Lonchitidaceae
+Loxsomataceae
+Lycopodiaceae
+Lygodiaceae
+Marattiaceae
+Marsileaceae
+Matoniaceae
+Metaxyaceae
+Nephrolepidaceae
+Oleandraceae
+Onocleaceae
+Ophioglossaceae
+Osmundaceae
+Plagiogyriaceae
+Polypodiaceae
+Psilotaceae
+Pteridaceae
+Rhachidosoraceae
+Saccolomataceae
+Salviniaceae
+Schizaeaceae
+Selaginellaceae
+Tectariaceae
+Thelypteridaceae
+Thyrsopteridaceae
+Woodsiaceae'
+Pteridophytes = unlist(stringr::str_split(Pteridophytes, pattern = '\n'))
+Pteridophytes = data.frame(major = rep('Pteridophytes', length(Pteridophytes)), family = Pteridophytes)
+
+
+Bryophytes = 'Acrobolbaceae
+Adelanthaceae
+Allisoniaceae
+Amblystegiaceae
+Anastrophyllaceae
+Andreaeaceae
+Andreaeobryaceae
+Aneuraceae
+Antheliaceae
+Anthocerotaceae
+Archidiaceae
+Arnelliaceae
+Aulacomniaceae
+Aytoniaceae
+Balantiopsaceae
+Bartramiaceae
+Blasiaceae
+Brachytheciaceae
+Brevianthaceae
+Bruchiaceae
+Bryaceae
+Bryobartramiaceae
+Bryoxiphiaceae
+Buxbaumiaceae
+Calomniaceae
+Calymperaceae
+Calypogeiaceae
+Catagoniaceae
+Catoscopiaceae
+Cephaloziaceae
+Cephaloziellaceae
+Chaetophyllopsaceae
+Chonecoleaceae
+Cinclidotaceae
+Cleveaceae
+Climaciaceae
+Conocephalaceae
+Corsiniaceae
+Cryphaeaceae
+Cyrtopodaceae
+Daltoniaceae
+Dendrocerotaceae
+Dicnemonaceae
+Dicranaceae
+Diphysciaceae
+Disceliaceae
+Ditrichaceae
+Echinodiaceae
+Encalyptaceae
+Entodontaceae
+Ephemeraceae
+Erpodiaceae
+Eustichiaceae
+Exormothecaceae
+Fabroniaceae
+Fissidentaceae
+Fontinalaceae
+Fossombroniaceae
+Funariaceae
+Geocalycaceae
+Gigaspermaceae
+Goebeliellaceae
+Grimmiaceae
+Gymnomitriaceae
+Gyrothyraceae
+Haplomitriaceae
+Hedwigiaceae
+Helicophyllaceae
+Herbertaceae
+Hookeriaceae
+Hylocomiaceae
+Hymenophytaceae
+Hypnaceae
+Hypnodendraceae
+Hypopterygiaceae
+Jackiellaceae
+Jubulaceae
+Jubulopsaceae
+Jungermanniaceae
+Lejeuneaceae
+Lembophyllaceae
+Lepicoleaceae
+Lepidolaenaceae
+Lepidoziaceae
+Leptodontaceae
+Lepyrodontaceae
+Leskeaceae
+Leucodontaceae
+Leucomiaceae
+Lophocoleaceae
+Lophoziaceae
+Lunulariaceae
+Makinoaceae
+Marchantiaceae
+Mastigophoraceae
+Meesiaceae
+Mesoptychiaceae
+Meteoriaceae
+Metzgeriaceae
+Microtheciellaceae
+Mitteniaceae
+Mizutaniaceae
+Mniaceae
+Monocarpaceae
+Monocleaceae
+Monosoleniaceae
+Myriniaceae
+Myuriaceae
+Neckeraceae
+Neotrichocoleaceae
+Notothyladaceae
+Octoblepharaceae
+Oedipodiaceae
+Orthorrhynchiaceae
+Orthotrichaceae
+Oxymitraceae
+Pallaviciniaceae
+Pelliaceae
+Phyllodrepaniaceae
+Phyllogoniaceae
+Pilotrichaceae
+Plagiochilaceae
+Plagiotheciaceae
+Pleurophascaceae
+Pleuroziaceae
+Pleuroziopsaceae
+Polytrichaceae
+Porellaceae
+Pottiaceae
+Prionodontaceae
+Pseudoditrichaceae
+Pseudolepicoleaceae
+Pterigynandraceae
+Pterobryaceae
+Ptilidiaceae
+Ptychomitriaceae
+Ptychomniaceae
+Racopilaceae
+Radulaceae
+Regmatodontaceae
+Rhabdoweisiaceae
+Rhachitheciaceae
+Rhacocarpaceae
+Rhizogoniaceae
+Ricciaceae
+Riellaceae
+Rigodiaceae
+Rutenbergiaceae
+Scapaniaceae
+Schistochilaceae
+Schistostegaceae
+Scorpidiaceae
+Seligeriaceae
+Sematophyllaceae
+Serpotortellaceae
+Sorapillaceae
+Sphaerocarpaceae
+Sphagnaceae
+Spiridentaceae
+Splachnaceae
+Splachnobryaceae
+Stereophyllaceae
+Takakiaceae
+Targioniaceae
+Tetraphidaceae
+Thamnobryaceae
+Theliaceae
+Thuidiaceae
+Timmiaceae
+Trachypodaceae
+Treubiaceae
+Trichocoleaceae
+Trichotemnomataceae
+Vandiemeniaceae
+Vetaformaceae
+Viridivelleraceae
+Wardiaceae
+Wiesnerellaceae'
+Bryophytes = unlist(stringr::str_split(Bryophytes, pattern = '\n'))
+Bryophytes = data.frame(major = rep('Bryophytes', length(Bryophytes)), family = Bryophytes)
+
+higher_level = rbind(Angiosperms,Gymnosperms,Pteridophytes,Bryophytes)
+
+report  =enriched_report
+#restrict to only matched to POWO.
+report = report[!is.na(report$POWO_plant_name_id),]
+report = report[report$ItemStatusType == 'Existing',]
+
+genus = report$POWO_genus
+genus[is.na(genus)] = report$Genus[is.na(genus)]
+
+table_genus = table(genus)
+data = data.frame(genus = names(table_genus), count = as.numeric(table_genus))
+
+family = report$POWO_family
+family[is.na(family)] = report$Family[is.na(family)]
+family[is.na(family)] = 'NA'
+
+data$family = family[match(data$genus, genus)]
+
+data$major = higher_level$major[match(data$family, higher_level$family)]
+
+data = data[,c(4,3,1,2)]
+data$major[is.na(data$major)] = 'Unknown Major'
+
+
+labels = c(unique(data$major), unique(data$family), unique(data$genus))
+major_index = 1:length(unique(data$major))
+family_index = (max(major_index)+1):(max(major_index)+length(unique(data$family)))
+genus_index = (max(family_index)+1):(max(family_index)+length(unique(data$genus)))
+
+parents = rep('', length(labels))
+parents[family_index] = data$major[match(labels[family_index], data$family)]
+parents[genus_index] = data$family[match(data$genus, labels[genus_index])]
+
+values = rep(NA, length(labels))
+values[genus_index] = data$count[match(data$genus, labels[genus_index])]
+total_for_families <-  aggregate(. ~family, data[,c(2,4)], sum, na.rm = TRUE)
+
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_major <-  aggregate(. ~major, data[,c(1,4)], sum, na.rm = TRUE)
+values[major_index] = total_for_major$count[match(labels[major_index], total_for_major$major)]
+
+
+data_formatted = data.frame(labels=  labels, parents = parents, values = values)
+
+fig <- plotly::plot_ly(
+  labels = data_formatted$labels,
+  parents =data_formatted$parents,
+  values = data_formatted$values,
+  type = 'sunburst',
+  insidetextorientation='radial',
+  branchvalues = 'total'
+)
+
+if(save_widgets){
+  htmlwidgets::saveWidget(fig, file = paste0(widget_dir, '/','sunburst:taxonomic_diversity.html'))
+}
+
+ fig
+
 ```
 
 #### Verbal Summary including average statistics (previous 5 years)
 
 
-```{r, echo = F}
+```{r, formatting data for 5 years ago, echo = F}
 ###
 # Data from 5 years ago.
 ###
@@ -627,9 +1706,9 @@ names(historic_details) = c('Current',paste0('Year: ', years))
 
 In this section we will compare the composition of the collection to 5 years ago (**`r  as.numeric(format(Sys.Date(),'%Y'))-5`**). To make this possible we use a combination of the accession year and item status date to calculate which plants are existing at each time point. This approach assumes that plants only die when their record is updated to reflect this. 
 
-Your collection contains **`r bad_accession`** items that have either a missing/incorrect accession year, since we cannot accurately describe if these plants existed 5 years ago we remove the records prior to the comparison between **`r  as.numeric(format(Sys.Date(),'%Y'))-5`** and **`r year_cur`**. 
+Your collection contains **`r bad_accession`** items that have either a missing/incorrect accession year such as `0000`, `1000` or `9999`.  As we cannot accurately describe if these plants existed 5 years ago we remove the records prior to the comparison between **`r  as.numeric(format(Sys.Date(),'%Y'))-5`** and **`r year_cur`**. 
 
-```{r, echo = FALSE}
+```{r, Creating compare now to 5 years ago, echo = FALSE}
 summary_numbers = data.frame(lapply(historic_details, function(x){
   endemic =  as.numeric(x$endemic_info[match('Endemic', names(x$endemic_info))])
   threatened = sum(x$redList_info[grepl('CR|EN|EW|EX|VU', names(x$redList_info))])
@@ -651,6 +1730,15 @@ sum_names = c('no_items',
            'no_species','endemic','threatened')
 
 rownames(summary_numbers) = sum_names
+
+nice_names = c('Number of Items', 
+           'Number of Accessions',
+           'Number of Taxa',
+           'Number of Families',
+           'Number of Genus',
+           'Number of Species',
+           'Number of Endemic',
+           'Number of Threatened')
 # Decide text to say whether the garden size are shrunk or grown over the last 5 years.
 if(summary_numbers[1,1] - summary_numbers[1,2] > 0){
   grow_shrink = paste0('grown by ',  round((summary_numbers[1,1]/summary_numbers[1,2]-1)*100,digits=1),
@@ -669,14 +1757,14 @@ not_grown = NULL
 same = NULL
 for(i in 3:nrow(summary_numbers)){
   if(summary_numbers[i,1] - summary_numbers[i,2] > 0){
-  grown = paste0(grown, '- ',sum_names[i],' has grown by ',  round((summary_numbers[i,1]/summary_numbers[i,2]-1)*100,digits=1),
+  grown = paste0(grown, '- ',nice_names[i],' has grown by ',  round((summary_numbers[i,1]/summary_numbers[i,2]-1)*100,digits=1),
                        '%. <br>')
 }else if(summary_numbers[i,1] - summary_numbers[i,2] < 0) {
-   not_grown = paste0(not_grown, '- ',sum_names[i], ' has shrunk by ',
+   not_grown = paste0(not_grown, '- ',nice_names[i], ' has shrunk by ',
                         round((1-summary_numbers[i,1]/summary_numbers[i,2])*100,digits=1),
                          '%. <br>')
 }else{
-   same = paste0(same, ', ', sum_names[i] )
+   same = paste0(same, ', ', nice_names[i] )
 }
 }
 if(!is.null(grown)){
@@ -716,21 +1804,25 @@ if(abs(threat_diff) >0.01){
   threat_text = 'remained the same'
 }
   
-  
+
+rownames(summary_numbers) = nice_names
+
+colnames(summary_numbers) = c('Current', as.character(years))
+summary_numbers = summary_numbers[,c(2,1)]
 DT::datatable(summary_numbers)
 ```
 
-We see that the collection has **`r grow_shrink`**
+From the table above, we see that the collection has **`r grow_shrink`**
 
 **`r grown` `r not_grown` `r same`**
 
 The proportion of the collection that is threatened has **`r threat_text`**, and the proportion that is endemic has **`r endemic_text`**.
 
 
-```{r,echo=F}
+```{r, creating excel output, echo=F}
 # Return excel workbook with data for each figure and table
-
-library(xlsx)
+if(create_excel){
+  library(xlsx)
 wb = xlsx::createWorkbook()
 sh1 = xlsx::createSheet(wb, 'How many elements')
 xlsx::addDataFrame(basics[,rev(1:ncol(basics))], sh1, startRow = 1,row.names = F)
@@ -753,4 +1845,6 @@ xlsx::addDataFrame(extant_gardens, sh9, startRow = 1,row.names = F)
 sh10 = xlsx::createSheet(wb, 'Compare to 5 year ago')
 xlsx::addDataFrame(summary_numbers, sh10, startRow = 1)
 xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_data_for_figures.xlsx'))
+}
+
 ```

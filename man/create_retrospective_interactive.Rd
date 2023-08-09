@@ -9,7 +9,6 @@ create_retrospective_interactive(
   collection = NULL,
   min_year = NULL,
   collection_coords = NA,
-  output_file = NULL,
   save_widgets = FALSE,
   create_excel = FALSE,
   output_dir = NULL
@@ -23,8 +22,6 @@ create_retrospective_interactive(
 \item{min_year}{The earliest year we want to review}
 
 \item{collection_coords}{The coordinates of the collection (long, lat)}
-
-\item{output_file}{The file path of the output}
 
 \item{save_widgets}{Logical for whether we want to create the folder 'Widgets' containing the widgets from the report.}
 
