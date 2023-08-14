@@ -419,9 +419,9 @@ generate_labels <- function(data){
 #'
 add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
 
-  ###
+  ######################################################
   # 1) Load wcvp_distributions (using method as described in the download)
-  ###
+  ######################################################
   print('(1/4) Loading wvcp_distribution...')
   if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
@@ -449,52 +449,58 @@ add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
 
   }
   if(!exists('wcvp_distributions')){
-    stop('Have not successfully loaded wcvp_distributions, please make sure you provide either: filepath, filepath or set use_rWCVPdata = TRUE')
+    stop('Have not successfully loaded wcvp_distributions, please make sure you provide either: filepath or set use_rWCVPdata = TRUE')
   }
-
+  ######################################################
   # 2) Get ONLY native locations.
+  ######################################################
   # Select only non-extinct, native, with no location doubt.
-  print('(2/4) Selecting only native locations...')
-  wcvp_distributions = wcvp_distributions[wcvp_distributions$location_doubtful == 0 &
-                                          wcvp_distributions$introduced == 0,]
+  wcvp_distributions$locationcombined = paste0(wcvp_distributions$introduced,wcvp_distributions$extinct, wcvp_distributions$location_doubtful)
 
-  # 3) reformat wcvp_distributions to be by plant_name_id.
-  print('(3/4) Reformatting for plant_id...')
-  wcvp_distributions_plant_id <- wcvp_distributions |>
-    dplyr::group_by(.data$plant_name_id) |>
-    dplyr::summarise(area = toString(.data$area),
-                     region = toString(.data$region),
-                     continent = toString(.data$continent),
-                     area_code_l3 = toString(.data$area_code_l3),
-                     continent_code_l1 = toString(.data$continent_code_l1),
-                     region_code_l2 = toString(.data$region_code_l2)
+  locationOptions = unique(wcvp_distributions$locationcombined)
+  plant_ids = sort(unique(wcvp_distributions$plant_name_id),decreasing = FALSE)
 
-    ) |>
-    dplyr::ungroup()
+  print('Extracting plant geography for native/introduced, extinct and location doubtful...')
+  locations = pbapply::pblapply(locationOptions, function(locationOption){
+    wcvp_distributions_cur = wcvp_distributions[wcvp_distributions$locationcombined == locationOption,]
 
-  # remove wcvp_distributions as it takes up memory and is not needed anymore
-  rm(wcvp_distributions)
+    wcvp_distributions_plant_id <- wcvp_distributions_cur |>
+      dplyr::group_by(.data$plant_name_id) |>
+      dplyr::summarise(area = toString(.data$area),
+                       region = toString(.data$region),
+                       continent = toString(.data$continent),
+                       area_code_l3 = toString(.data$area_code_l3)
+                       # continent_code_l1 = toString(unique(.data$continent_code_l1)),
+                       # region_code_l2 = toString(unique(.data$region_code_l2))
+      ) |>
+      dplyr::ungroup()
 
-  # Generate the labels using the distribution information
-  print('(4/4) Generate labels and adding to data frame...')
-  labels = generate_labels(wcvp_distributions_plant_id)
+    #Get labels for naive extant with no location doubt.
+    if(locationOption == '000'){
+      labels = generate_labels(wcvp_distributions_plant_id)
+      wcvp_distributions_plant_id = data.frame(wcvp_distributions_plant_id, labels = labels)
+    }
+    wcvp_distributions_plant_id = wcvp_distributions_plant_id[,-c(2,3,4)]
+    # Now perform matching to wcvp using plant_name_id.
+    match_across = match(plant_ids, wcvp_distributions_plant_id$plant_name_id)
 
-  # Join the labels to wcvp_distributions_plant_id.
-  wcvp_distributions_plant_id = data.frame(wcvp_distributions_plant_id, labels = labels)
+    dist_info = data.frame(matrix(NA, nrow = length(plant_ids), ncol = ncol(wcvp_distributions_plant_id)))
 
-  # Now perform matching to wcvp using plant_name_id.
-  match_across = match(wcvp$wcvp_names$plant_name_id, wcvp_distributions_plant_id$plant_name_id)
+    names(dist_info) = paste0('Dist_', locationOption, '_',names(wcvp_distributions_plant_id))
+    indices = which(!is.na(match_across))
+    dist_info[indices,] = wcvp_distributions_plant_id[match_across[!is.na(match_across)],]
+    return(dist_info)
+  })
+  names(locations) = locationOptions
 
-  # Reformat wcvp_distributions_plant_id to match the wcvp
-  # (i.e add in NA rows if we don't have the plant in distribution but we do in names (i.e symonyms))
-  dist_info = data.frame(matrix(NA, nrow = nrow(wcvp$wcvp_names), ncol = ncol(wcvp_distributions_plant_id)))
+  dist_info = do.call(cbind, locations)
 
-  names(dist_info) = paste0('Dist_',names(wcvp_distributions_plant_id))
-  indices = which(!is.na(match_across))
-  dist_info[indices,] = wcvp_distributions_plant_id[match_across[!is.na(match_across)],]
+  dist_info = dist_info[-c(4,6,8,10,12)] #Remove excell plant name ids
+  names(dist_info) = stringr::str_sub(names(dist_info),5,-1 )
+  names(dist_info)[1] = 'plant_name_id'
 
   #Add dist_info to wcvp$wcvp_names
-  wcvp$wcvp_names = data.frame(wcvp$wcvp_names, dist_info)
+  wcvp$geography = data.frame(dist_info)
   return(wcvp)
 }
 

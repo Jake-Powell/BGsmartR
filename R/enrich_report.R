@@ -80,15 +80,33 @@ enrich_report <- function(original_report,
                                       taxon_author_col = 'extracted_author',
                                       typo_method = typo_method)
 
-  # B) Extract the info from wcvp.
-  wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area", "Dist_area_code_l3", "Dist_labels", "redlist_category")
+  # B) Extract the info from wcvp_names.
+  wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area")
   wcvp_wanted_columns = wcvp_wanted_columns[wcvp_wanted_columns %in% names(wcvp$wcvp_names)]
   POWO_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wcvp_wanted_columns)))
   names(POWO_info) = paste0('POWO_',wcvp_wanted_columns)
   indices = which(!(is.na(match_info$match) | match_info$match < 0))
   POWO_info[indices,] = wcvp$wcvp_names[match_info$match[indices],match(wcvp_wanted_columns,names(wcvp$wcvp_names))]
 
-  # D) Create POWO web address.
+  # C) Add info from wcvp_distributions.
+  Geog_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(names(wcvp$geography))))
+  havePOWO_index = which(!is.na(POWO_info$POWO_plant_name_id))
+  plant_id_match = match(POWO_info$POWO_plant_name_id[havePOWO_index], wcvp$geography$plant_name_id)
+
+  Geog_info[havePOWO_index,] = wcvp$geography[plant_id_match,]
+  names(Geog_info) = paste0('POWO_', names(wcvp$geography))
+
+  # D) Add info from WCVP matched to Redlist.
+  wanted_columns = c("plant_name_id", "main_common_name", "assessment_date", "category",           "criteria", "population_trend")
+  red_data = wcvp$redList[,match(wanted_columns, names(wcvp$redList))]
+  Red_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wanted_columns)))
+  havePOWO_index = which(!is.na(POWO_info$POWO_plant_name_id))
+  plant_id_match = match(POWO_info$POWO_plant_name_id[havePOWO_index], red_data$plant_name_id)
+
+  Red_info[havePOWO_index,] = red_data[plant_id_match,]
+  names(Red_info) = paste0('POWO_Red_',wanted_columns)
+
+  # E) Create POWO web address.
   POWO_web_address = rep(NA, nrow(POWO_info))
   indices = !is.na(POWO_info$POWO_powo_id)
   POWO_web_address[indices] = paste0('https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:',POWO_info$POWO_powo_id[indices])
@@ -102,7 +120,7 @@ enrich_report <- function(original_report,
                                author_check = match_info$author_check,
                                match_detail = match_info$details,
                                match_detail_short =match_info$details_short,
-                               POWO_web_address = POWO_web_address, POWO_info)
+                               POWO_web_address = POWO_web_address, POWO_info, Geog_info[,-1], Red_info[,-1])
   }
 
   ############################################
