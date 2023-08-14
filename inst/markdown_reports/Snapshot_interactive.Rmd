@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 library(plotly)
 library(htmltools)
 library(sf)
@@ -16,7 +16,7 @@ library(here)
 # As an input we get 
 # - Enriched report
 # - collection the name to be printed in the report.
-load('/Users/jakepowell/Cambridge/Enriched reports/CUBG_enriched_report.rda')
+load('/Users/jakepowell/Cambridge/Enriched reports/WCVP_Version10/CUBG_enriched_report.rda')
 report = enriched_report
 collection = 'CUBG'
 create_excel = TRUE
@@ -25,7 +25,7 @@ collection_coords = c(0.128305,52.193403)
 output_dir = getwd()
 
 
- report = enriched_report
+report = enriched_report
 
 do_coord = !is.na(collection_coords[1])
 
@@ -167,6 +167,8 @@ render_barplot ="
 ```
 This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing`.
 
+From Provence onwards we only consider 'non-horticultral' taxa. Therefore, from that point onwards the number of taxa is defined to be to the total taxa in the report in the species and infraspecific categories excluding cultivars and hybrids.
+
 #### How many elements? (accessions, items, taxa, species)
 
 ```{r, Creating How many elements, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
@@ -200,8 +202,9 @@ In the above:
 ```{r, Creating How many of each taxonomic units?,  echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 taxa = data.frame(count = c(no_species,no_genus,no_families), TaxonomicCategory = c(c("Species", "Genera", "Families")))
 taxa$colors = rep('#addd8e', nrow(taxa))
+taxa$text = paste0(format(taxa$count,big.mark=','), ' ', taxa$TaxonomicCategory)
 
-fig <- plot_ly(taxa, x = ~TaxonomicCategory, y = ~count, type = 'bar', marker = list(color = ~colors))
+fig <- plot_ly(taxa, x = ~TaxonomicCategory, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text')
 fig <- fig %>% layout(title = "",
          xaxis = list(title = "Taxonomic Category"),
          yaxis = list (title = "Number")) 
@@ -217,9 +220,9 @@ fig
 
 In the above:
 
-- Families: The family taken from matched POWO where available, otherwise the family from the original report.
-- Genera: The genus taken from matched POWO where available, otherwise the family from the original report. 
-- Species: Ignore records that are indeterminants, cultivars and hybrids. We then use the GenusSpecies from matched POWO where available, otherwise we use GenusSpecies from the original report. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
+- Families: The number of families found in the report.
+- Genera: The number of genera found in the report.
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
 
 
 ***
@@ -356,6 +359,10 @@ The collection also contains `r no_indet` indeterminate taxa which were removed 
 
 #### What are the ratios of provenance types in the collection?
 
+```{r, remove hort from report, echo = FALSE}
+report = report[!grepl('5|6',report$infrageneric_level),]
+```
+
 ```{r, Creating What are the ratios of provenance types in the collection?, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
 ### provenance pie chart.
@@ -417,6 +424,7 @@ fig
 ```
 
 Above we show the proportion of provenance over the number of accessions in the collection.
+
 ***
 
 #### What is the geographical origin of the collection?
@@ -468,7 +476,7 @@ for(i in 1:length(feat)){
 data$features = feat
 
 index = seq(0,1,0.01)
-colours = c("#FFFFFF",rev(viridis::plasma(100)))
+colours = c("#FFFFFF",rev(viridis::viridis(100)))
 counter = 1:length(index)
 col_scale = lapply(counter, function(i){return(c(index[i], colours[i]))})
 
@@ -517,8 +525,7 @@ if(save_widgets){
 }
 ```
 
-For plants that we successfully matched to POWO (**`r format(nrow(re),big.mark=',')`** items corresponding to **`r format(length(unique(re$good_name)),big.mark=',')`** taxa) we have geographic distribution data. 
-
+For plants that we successfully matched to POWO (**`r format(nrow(re),big.mark=',')`** items corresponding to **`r format(length(unique(re$good_name)),big.mark=',')`** taxa) we have geographic distribution data, which is visualised below
 
 ```{r, Creating geography figure, echo =F, fig.dim = c(10, 6), eval = T}
 ########################################
@@ -526,11 +533,13 @@ For plants that we successfully matched to POWO (**`r format(nrow(re),big.mark='
 ########################################
 fig
 ```
+where the number of taxa only includes records that are matched to POWO. 
+
 Hover over regions for:
 
 - Name of the `Region`.
-- `Number of items` in the collection that are native to the region.
-- `Number of Taxa` in the collection that are native to the region.
+- `Number of items` in the report that are native to the region.
+- `Number of Taxa` in the report that are native to the region.
 
 ```{asis, eval=(do_coord == TRUE)}
 Moreover, the location of the collection is shown by the red circle on the map.
@@ -548,11 +557,12 @@ Moreover, the location of the collection is shown by the red circle on the map.
 # First get POWO taxon name if it exists, if not use sanitised name.
 species = report$good_name[which(!grepl('0|5|6',report$infrageneric_level))]
       wanted_index = match(unique(species), species)
-      report_cur = report_cur[which(!grepl('0|5|6',report_cur$infrageneric_level))[wanted_index],]
-      
-endemic_table = table(report$endemic)
-endemic = data.frame(Endemic = names(endemic_table), number = as.numeric(endemic_table))
+report_cur = report[wanted_index,]
 
+endemic_table = table(report_cur$endemic)
+endemic = data.frame(Endemic = names(endemic_table), number = as.numeric(endemic_table))
+endemic$text = paste0(endemic$Endemic, '<br>', endemic$number, ' Species<br>',
+                         round(endemic$number/sum(endemic$number)*100,digits=2), '%')
 colors = viridis::viridis(nrow(endemic))
 colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
 zeros = rep(0,nrow(endemic))
@@ -560,7 +570,9 @@ fig <- plot_ly(endemic, labels = ~Endemic, values = ~number,
                type = 'pie',
                marker = list(colors = colors_alpha),
                pull = rep(0,nrow(endemic)),
-               hole =.4)
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text)
 
 fig =  fig %>% htmlwidgets::onRender(paste0("function(el, x) {
             el.on('plotly_hover', function(d){
@@ -599,7 +611,7 @@ fig
 ### Endemic "local"
 ########################################
 if(!is.na(do_coord)){
-endemic_report = report[report$endemic == 'Endemic',]
+endemic_report = report_cur[report_cur$endemic == 'Endemic',]
 level3_local = sum(endemic_report$POWO_Dist_area_code_l3 == level3_code)
 
 level2_level3_codes = wgsrpd3$LEVEL3_COD[wgsrpd3$LEVEL2_COD == level2_code]
@@ -608,11 +620,20 @@ level2_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level2_level3_code
 level1_level3_codes = wgsrpd3$LEVEL3_COD[wgsrpd3$LEVEL1_COD == level1_code]
 level1_local = sum(endemic_report$POWO_Dist_area_code_l3 %in% level1_level3_codes)
 
-text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round(level3_local/nrow(endemic_report)*100,digits=2),'%) are endemic to ', level3_name)
+text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round(level3_local/nrow(endemic_report)*100,digits=2),'%) are endemic to ', level3_name,'.')
+
 }
+if(level3_local <= 20 && level3_local > 1){
+  text = paste0(text, '. <br> These include (showing up to 20 species): <br> <div>
+    <ul class="columns" data-columns="2">
+        <li>',paste0(endemic_report$good_name[endemic_report$POWO_Dist_area_code_l3 == level3_code],collapse ='</li> <li>'), '</li>
+    </ul>
+</div>', collapse='')
+}
+
 ```
 
-`r if(!is.na(do_coord)){text}`
+`r if(!is.na(do_coord)){HTML(text)}`
 
 ***
 
@@ -623,15 +644,28 @@ text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round
 ### threatened pie chart.
 ########################################
 # First get POWO taxon name if it exists, if not use sanitised name.
-red_table = table(report$redList_category)
+species = report$good_name[which(!grepl('0|5|6',report$infrageneric_level))]
+      wanted_index = match(unique(species), species)
+report_cur = report[wanted_index,]
+
+red_table = table(report_cur$redList_category)
 threat_total = sum(red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')])
-threat = data.frame(threat = c('Threatened', 'Not Threatened'), number = c(threat_total, nrow(report) - threat_total))
+threat = data.frame(threat = c('Threatened', 'Not Threatened'), number = c(threat_total, nrow(report_cur) - threat_total))
+threat$text = paste0(threat$threat, '<br>', threat$number, ' Species<br>',
+                         round(threat$number/sum(threat$number)*100,digits=2), '%')
 
 # First get POWO taxon name if it exists, if not use sanitised name.
-red_table = table(report$redList_category)
+red_table = table(report_cur$redList_category)
 red_table = red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')]
 threat_type = data.frame(threat = names(red_table), number = as.numeric(red_table))
+order_threat = match(c('VU','EN','CR','EW','EX'),threat_type$threat)
+order_threat = order_threat[!is.na(order_threat)]
+threat_type = threat_type[order_threat,]
 threat_type$threat = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(threat_type$threat, c('VU','EN','CR','EW','EX'))]
+
+threat_type$text = paste0(threat_type$threat, '<br>', threat_type$number, ' Species<br>',
+                         round(threat_type$number/sum(threat_type$number)*100,digits=2), '%')
+
 
 colors = viridis::viridis(nrow(threat))
 colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
@@ -640,7 +674,9 @@ fig1 <- plot_ly(threat, labels = ~threat, values = ~number,
                type = 'pie',
                marker = list(colors = colors_alpha),
                pull = rep(0,nrow(threat)),
-               hole =.4) %>% layout(title = 'All records')
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text) %>% layout(title = 'All records')
 
 fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
             el.on('plotly_hover', function(d){
@@ -668,8 +704,6 @@ fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
             });}", collapse =''))
 
 
-figure2 <- plot_ly(threat_type, labels = ~threat, values = ~number, type = 'pie')  %>% layout(title = "'Threatened' Breakdown")
-
 # colours taken from 'https://royalsocietypublishing.org/doi/10.1098/rstb.2014.0003'.
 colors = c('#fdf851', '#f4a540', '#ed3833', '#808080', '#000000')
 colors = colors[match(threat_type$threat, c('Vulnerable', 'Endangered', 'Critically Endangered',
@@ -678,11 +712,13 @@ colors = colors[match(threat_type$threat, c('Vulnerable', 'Endangered', 'Critica
 # colors = viridis::viridis(nrow(threat_type))
 colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
 zeros = rep(0,nrow(threat_type))
-fig2 <- plot_ly(threat_type, labels = ~threat, values = ~number,
+fig2 <- plot_ly(threat_type, labels = ~threat, values = ~number,sort = FALSE,
                type = 'pie',
                marker = list(colors = colors),
                pull = rep(0,nrow(threat_type)),
-               hole =.4) %>% layout(title = "'Threatened' Breakdown")
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text) %>% layout(title = "Breakdown by risk categories")
 
 fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
             el.on('plotly_hover', function(d){
@@ -729,14 +765,12 @@ htmltools::browsable(
   ))
 )
 ```
- 
-Where threatened species are taken to be those that are either: Vulnerable, Endangered, Critically Endangered, Extinct in the Wild or Extinct. 
+
+We match records to IUCN red list to extract which records are threatened.
 
 ***
 
 #### What is the rarity of the extant collection?
-
-We reduce to only unique species/subspecies/varieties and forma found in the collection. 
 
 ```{r, creating rarity figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 ########################################
@@ -757,7 +791,7 @@ extant_gardens = data.frame(in_collection = as.numeric(no_gardens_table) , extan
 # For those with less than 5 species in the collection retrieve them. 
 extant_numbers = extant_gardens$extant[extant_gardens$in_collection <= 5]
 plants = unlist(lapply(extant_numbers, function(x){
-  return(paste0(report_unique$good_name[which(report_unique$no_gardens == x)], collapse = '<br />'))
+  return(paste0(report_unique$sanitised_taxon[which(report_unique$no_gardens == x)], collapse = '<br />'))
 }))
 
 text = paste0('Taxa In Collection: ', extant_gardens$in_collection, '<br />', 
@@ -773,8 +807,8 @@ fig1 <- plot_ly(extant_gardens, x = ~extant, y = ~in_collection,
          text = extant_gardens$hover,
          hoverinfo = 'text')
 fig1 <- fig1 %>% layout(title = "",
-  xaxis = list(title = "Number of Collections Holding a Species Worldwide"),
-  yaxis = list (title = "Number of Species Grown at the Collection")) 
+  xaxis = list(title = "Number of Collections Holding a Taxon Worldwide"),
+  yaxis = list (title = "Number of Taxa Grown at the Collection")) 
 fig1 <- layout(fig1,
              shapes = list(
                list(type = "rect",
@@ -807,7 +841,7 @@ colors = c('#41ab5d', '#78c679', '#addd8e', '#d9f0a3')
 # colors = viridis::viridis(nrow(threat_type))
 colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
 zeros = rep(0,nrow(grouped_extant))
-fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number,
+fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number, sort = FALSE,
                type = 'pie',
                marker = list(colors = colors),
                pull = rep(0,nrow(grouped_extant)),
@@ -867,7 +901,7 @@ In the scatter plot above we show the taxa in the case there are 5 or fewer grow
 
 #### What is the taxonomic diversity of the collection?
 
-Of the records we were able to match to POWO the sunburst chart below represents the taxonomic diversity of your collection. 
+Below we produce a sunburst chart showing the taxonomic diversity of the collection. Hovering over any segment shows the number of the taxa in the collection within the group (family, genera, etc).
 
 ```{r, Create taxonomic diversity, echo = F}
 # Sunburst chart of taxonomic hierarchy.
@@ -1558,6 +1592,13 @@ report  =enriched_report
 report = report[!is.na(report$POWO_plant_name_id),]
 report = report[report$ItemStatusType == 'Existing',]
 
+# only taxa.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+unique_taxa = unique(report$good_name)
+wanted_index = match(unique_taxa, report$good_name)
+report = report[wanted_index,]
+word='Taxa'
+      
 genus = report$POWO_genus
 genus[is.na(genus)] = report$Genus[is.na(genus)]
 
@@ -1595,14 +1636,17 @@ values[major_index] = total_for_major$count[match(labels[major_index], total_for
 
 
 data_formatted = data.frame(labels=  labels, parents = parents, values = values)
-
+data_formatted$text = paste0(data_formatted$labels, '<br>', data_formatted$values, ' Taxa<br>')
+ 
 fig <- plotly::plot_ly(
   labels = data_formatted$labels,
   parents =data_formatted$parents,
   values = data_formatted$values,
   type = 'sunburst',
   insidetextorientation='radial',
-  branchvalues = 'total'
+  branchvalues = 'total',
+  hoverinfo = 'text',
+  hovertext = data_formatted$text
 )
 
 if(save_widgets){
@@ -1612,6 +1656,9 @@ if(save_widgets){
  fig
 
 ```
+
+
+***
 
 #### Verbal Summary including average statistics (previous 5 years)
 
@@ -1812,12 +1859,16 @@ summary_numbers = summary_numbers[,c(2,1)]
 DT::datatable(summary_numbers)
 ```
 
-From the table above, we see that the collection has **`r grow_shrink`**
+From the table above, we see that the number of items in the collection has **`r grow_shrink`**
+
 
 **`r grown` `r not_grown` `r same`**
 
 The proportion of the collection that is threatened has **`r threat_text`**, and the proportion that is endemic has **`r endemic_text`**.
 
+The growth rate of the collection in the last five years is **`r round((summary_numbers[2,2]/summary_numbers[2,1])^(0.2) -1,digits=2)`**.
+
+***
 
 ```{r, creating excel output, echo=F}
 # Return excel workbook with data for each figure and table
@@ -1825,25 +1876,27 @@ if(create_excel){
   library(xlsx)
 wb = xlsx::createWorkbook()
 sh1 = xlsx::createSheet(wb, 'How many elements')
-xlsx::addDataFrame(basics[,rev(1:ncol(basics))], sh1, startRow = 1,row.names = F)
+xlsx::addDataFrame(basics[,rev(1:2)], sh1, startRow = 1,row.names = F)
 sh2 = xlsx::createSheet(wb, 'How many of each taxonomic units')
-xlsx::addDataFrame(taxa[,rev(1:ncol(taxa))], sh2, startRow = 1,row.names = F)
+xlsx::addDataFrame(taxa[,rev(1:2)], sh2, startRow = 1,row.names = F)
 sh3 = xlsx::createSheet(wb, 'Species, Horticultral, infraspecific')
 xlsx::addDataFrame(taxa_infra[,rev(1:ncol(taxa_infra))], sh3, startRow = 1,row.names = F)
 sh4 = xlsx::createSheet(wb, 'Provenance')
-xlsx::addDataFrame(provenance, sh4, startRow = 1,row.names = F)
+xlsx::addDataFrame(provenance[,1:2], sh4, startRow = 1,row.names = F)
 sh5 = xlsx::createSheet(wb, 'Geography')
-xlsx::addDataFrame(details[,c(1:2,4:6)], sh5, startRow = 1,row.names = F)
+xlsx::addDataFrame(details[,c(1:2,5:6)], sh5, startRow = 1,row.names = F)
 sh6 = xlsx::createSheet(wb, 'Endemic')
-xlsx::addDataFrame(endemic, sh6, startRow = 1,row.names = F)
+xlsx::addDataFrame(endemic[,1:2], sh6, startRow = 1,row.names = F)
 sh7 = xlsx::createSheet(wb, 'Threatened')
-xlsx::addDataFrame(threat, sh7, startRow = 1,row.names = F)
+xlsx::addDataFrame(threat[,1:2], sh7, startRow = 1,row.names = F)
 sh8 = xlsx::createSheet(wb, 'Red list category')
-xlsx::addDataFrame(threat_type, sh8, startRow = 1,row.names = F)
+xlsx::addDataFrame(threat_type[,1:2], sh8, startRow = 1,row.names = F)
 sh9 = xlsx::createSheet(wb, 'Global collections')
-xlsx::addDataFrame(extant_gardens, sh9, startRow = 1,row.names = F)
+xlsx::addDataFrame(extant_gardens[,1:2], sh9, startRow = 1,row.names = F)
+sh10 = xlsx::createSheet(wb, 'Taxonomic diversity')
+xlsx::addDataFrame(data_formatted[,c(1,3)], sh10, startRow = 1)
 sh10 = xlsx::createSheet(wb, 'Compare to 5 year ago')
-xlsx::addDataFrame(summary_numbers, sh10, startRow = 1)
+xlsx::addDataFrame(summary_numbers, sh11, startRow = 1)
 xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_data_for_figures.xlsx'))
 }
 
