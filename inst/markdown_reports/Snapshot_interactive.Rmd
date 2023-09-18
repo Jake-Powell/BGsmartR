@@ -16,13 +16,13 @@ library(here)
 # As an input we get 
 # - Enriched report
 # - collection the name to be printed in the report.
-load('/Users/jakepowell/Cambridge/Enriched reports/WCVP_Version10/CUBG_enriched_report.rda')
-report = enriched_report
-collection = 'CUBG'
-create_excel = TRUE
-save_widgets = FALSE
-collection_coords = c(0.128305,52.193403)
-output_dir = getwd()
+# load('/Users/jakepowell/Cambridge/Enriched reports/WCVP_Version10/CUBG_enriched_report.rda')
+# report = enriched_report
+# collection = 'CUBG'
+# create_excel = TRUE
+# save_widgets = FALSE
+# collection_coords = c(0.128305,52.193403)
+# output_dir = getwd()
 
 
 report = enriched_report
@@ -167,7 +167,7 @@ render_barplot ="
 ```
 This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing`.
 
-From Provence onwards we only consider 'non-horticultral' taxa. Therefore, from that point onwards the number of taxa is defined to be to the total taxa in the report in the species and infraspecific categories excluding cultivars and hybrids.
+From Provenance onwards we only consider 'non-horticultural' taxa. Therefore, from that point onwards the number of taxa is defined to be to the total taxa in the report in the species and infraspecific categories excluding cultivars and hybrids.
 
 #### How many elements? (accessions, items, taxa, species)
 
@@ -624,7 +624,7 @@ text = paste0('Of the endemic taxa in the collection ', level3_local,' (', round
 
 }
 if(level3_local <= 20 && level3_local > 1){
-  text = paste0(text, '. <br> These include (showing up to 20 species): <br> <div>
+  text = paste0(text, ' <br> These include (showing up to 20 species): <br> <div>
     <ul class="columns" data-columns="2">
         <li>',paste0(endemic_report$good_name[endemic_report$POWO_Dist_area_code_l3 == level3_code],collapse ='</li> <li>'), '</li>
     </ul>
@@ -1895,7 +1895,7 @@ sh9 = xlsx::createSheet(wb, 'Global collections')
 xlsx::addDataFrame(extant_gardens[,1:2], sh9, startRow = 1,row.names = F)
 sh10 = xlsx::createSheet(wb, 'Taxonomic diversity')
 xlsx::addDataFrame(data_formatted[,c(1,3)], sh10, startRow = 1)
-sh10 = xlsx::createSheet(wb, 'Compare to 5 year ago')
+sh11 = xlsx::createSheet(wb, 'Compare to 5 year ago')
 xlsx::addDataFrame(summary_numbers, sh11, startRow = 1)
 xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_data_for_figures.xlsx'))
 }

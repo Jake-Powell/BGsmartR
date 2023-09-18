@@ -71,12 +71,13 @@ get_accepted_plant <- function(powo_id) {
 #' Moreover, the code performs fixes to the data provided namely:
 #' - Checks for '[*]' and '[**]' in taxon_name and taxon_rank, which should be 'var.' and 'f.' instead.
 #' - There are potentially plants that are synonyms without an accepted form in wcvp_names. However, in some cases the accepted form can be found on POWO online. Therefore, in this case we scrap POWO online for an accepted form and add to the loaded information in wcvp_names.
+#' - No author is provided for autonyms, so we extract the corresponding author from matching GenusSpecies record.
 #'
 #' @param filepath path to wcvp_names.csv file.
 #' @param use_rWCVPdata Flag for whether we use rWCVPdata to get wcvp_names
 #' @param wanted_columns specify extra columns to extract from `wcvp_names.csv`.
 #'
-#' @return Desired information from wcvp_names.csv
+#' @return Data frame of ddesired information from wcvp_names
 #' @export
 #'
 import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_columns = c("plant_name_id", "taxon_rank", "taxon_status", "family", "genus", "species", "lifeform_description", "climate_description", "taxon_name", "taxon_authors", "accepted_plant_name_id", "powo_id")){

@@ -20,7 +20,7 @@ import_wcvp_names(
 \item{wanted_columns}{specify extra columns to extract from \code{wcvp_names.csv}.}
 }
 \value{
-Desired information from wcvp_names.csv
+Data frame of ddesired information from wcvp_names
 }
 \description{
 We allow three methods for uploading the information from wcvp_names:
@@ -43,5 +43,6 @@ Moreover, the code performs fixes to the data provided namely:
 \itemize{
 \item Checks for '\link{*}' and '\link{**}' in taxon_name and taxon_rank, which should be 'var.' and 'f.' instead.
 \item There are potentially plants that are synonyms without an accepted form in wcvp_names. However, in some cases the accepted form can be found on POWO online. Therefore, in this case we scrap POWO online for an accepted form and add to the loaded information in wcvp_names.
+\item No author is provided for autonyms, so we extract the corresponding author from matching GenusSpecies record.
 }
 }

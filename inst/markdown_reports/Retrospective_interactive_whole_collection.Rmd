@@ -546,7 +546,7 @@ no_items = data.frame(t(data.frame(lapply(time_series_info, function(x){
   
   return(c(indet, species, infra, hort))
   }))))
-names(no_items) = c('Indeterminat', 'Species', 'Infraspecific', 'Horticultral')
+names(no_items) = c('Indeterminate', 'Species', 'Infraspecific', 'Horticultral')
 prop = round(no_items/rowSums(no_items)*100,digits=2)
 names(prop) =paste0(names(prop),'_prop')
 infra_data = data.frame(year = years, no_items, prop)
