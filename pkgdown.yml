@@ -1,0 +1,10 @@
+pandoc: 2.19.2
+pkgdown: 2.0.7
+pkgdown_sha: ~
+articles:
+  Matching: Matching.html
+last_built: 2023-09-18T10:25Z
+urls:
+  reference: https://jakepowellcubg.github.io/BGR/reference
+  article: https://jakepowellcubg.github.io/BGR/articles
+
