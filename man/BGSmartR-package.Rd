@@ -8,6 +8,13 @@
 \description{
 What the package does (one paragraph).
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://jakepowellcubg.github.io/BGR/}
+}
+
+}
 \author{
 \strong{Maintainer}: Jake Powell \email{jjp68@cam.ac.uk} (\href{https://orcid.org/YOUR-ORCID-ID}{ORCID})
 

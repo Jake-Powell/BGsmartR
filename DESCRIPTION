@@ -28,3 +28,4 @@ Imports:
     stringi,
     grDevices
 VignetteBuilder: knitr
+URL: https://jakepowellcubg.github.io/BGR/
