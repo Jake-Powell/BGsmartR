@@ -34,7 +34,8 @@
 #' sanitise_name('Aruncus dioicus var acuminatus')
 #' sanitise_authors('Stehlé')
 #'
-#' taxon_names = c('TRIGONELLA afghanica', 'Halimium X pauanum', 'Aruncus dioicus var acuminatus', 'Eupatorium magdalenae')
+#' taxon_names = c('TRIGONELLA afghanica', 'Halimium X pauanum',
+#'  'Aruncus dioicus var acuminatus', 'Eupatorium magdalenae')
 #' taxon_authors = c('Vassilcz', 'Font Quer', '(Douglas ex Hook.) H.Hara', 'Stehlé')
 #'
 #' sanitise_names_authors(taxon_names, taxon_authors)
