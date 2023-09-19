@@ -16,7 +16,7 @@
 #' @param taxon_author_col Column name in the original report for taxon author/s
 #' @param do_is_autonym Flag for whether to add the column is_autonym
 #' @param do_status_year Flag for whether to add the column status_year
-#' @param do_infrageneric_level Flag for whether to add the column infrageneric_level
+#' @param do_taxon_types Flag for whether to add the column infrageneric_level
 #' @param typo_method Flag for whether we search for typos
 #'
 #' @return a list of length two:
@@ -30,16 +30,16 @@ enrich_report <- function(original_report,
                           taxon_name_col = 'TaxonName',
                           taxon_name_full_col = NA,
                           taxon_author_col = NA,
-                          do_is_autonym = FALSE, do_status_year = FALSE, do_infrageneric_level = FALSE, typo_method = 'fast'){
+                          do_is_autonym = FALSE, do_status_year = FALSE, do_taxon_types = FALSE, typo_method = 'fast'){
 
   ############################################
   # 1) Clean/extract taxon name + taxon author
   ############################################
   cli::cli_h2("Sanitise taxon name and extract author")
   taxon_name_and_author = sanitise_names_authors_report(original_report,
-                             taxon_name_col = taxon_name_col,
-                             taxon_name_full_col = taxon_name_full_col,
-                             taxon_author_col = taxon_author_col)
+                             taxon_name_column = taxon_name_col,
+                             taxon_name_full_column = taxon_name_full_col,
+                             taxon_author_column = taxon_author_col)
 
 
   original_report = data.frame(original_report,
@@ -124,12 +124,12 @@ enrich_report <- function(original_report,
   }
 
   ############################################
-  # 4) Add infrageneric_level.
+  # 4) Add taxon type
   ############################################
   # We run infrageneric_level on the taxonName from POWO unless we didn't find a match then we use the original taxon name.
-  if(do_infrageneric_level){
-    cli::cli_h2("Adding infrageneric level")
-    enriched_report = add_infrageneric_level(enriched_report, POWO_TaxonNameColumn = 'POWO_taxon_name')
+  if(do_taxon_types){
+    cli::cli_h2("Adding taxon types")
+    enriched_report = add_taxon_type(enriched_report, POWO_taxon_name_column = 'POWO_taxon_name')
   }
 
   ############################################

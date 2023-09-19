@@ -12,19 +12,19 @@
 #' -  `$sanitised` is a logical vector of whether the taxon_name was sanitised.
 #'
 #' `clean_names_authors_report()` applies `clean_names_authors()` to a collection where the inputs are:
-#' -  a data frame of the collection (`original_report`),
-#' - column name for the taxonomic names (`taxon_name_col`, required),
-#' - column name of the authors of the taxonomic names  (`taxon_author_col`, optional),
-#' - column name of the combined taxonomic name and author  (`taxon_name_full_col`, optional).
+#' -  a data frame of the collection (`collection`),
+#' - column name for the taxonomic names (`taxon_name_column`, required),
+#' - column name of the authors of the taxonomic names  (`taxon_author_column`, optional),
+#' - column name of the combined taxonomic name and author  (`taxon_name_full_column`, optional).
 #'
-#' @param original_report a dataframe of a collection
-#' @param taxon_name_col the name of the column in the `original_report` corresponding to taxonomic names.
-#' @param taxon_name_full_col the name of the column in the `original_report` corresponding to joined taxonomic names and authors.
-#' @param taxon_author_col the name of the column in the `original_report` corresponding to the authors of the taxonomic names.
-#' @param taxon_name taxonomic name of a plant.
-#' @param taxon_names vector of taxonomic names.
-#' @param taxon_names_full vector of joined taxonomic name and author.
-#' @param taxon_authors vector of taxonomic authors.
+#' @param collection A data frame of a collection.
+#' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
+#' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
+#' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
+#' @param taxon_name The taxonomic name of a plant.
+#' @param taxon_names Vector of taxonomic names.
+#' @param taxon_names_full Vector of joined taxonomic name and author.
+#' @param taxon_authors Vector of taxonomic authors.
 #'
 #' @export
 #'
@@ -41,7 +41,8 @@
 #' sanitise_names_authors(taxon_names, taxon_authors)
 #'
 #' collection = data.frame(names = taxon_names, full = paste0(taxon_names, ' ', taxon_authors))
-#' sanitise_names_authors_report(collection, taxon_name_col = 'names', taxon_name_full_col = 'full')
+#' sanitise_names_authors_report(collection, taxon_name_column = 'names',
+#'  taxon_name_full_column = 'full')
 sanitise_name <- function(taxon_name){
   ###########
   ## 1) fix x/X/h/H to \u00D7.
@@ -125,22 +126,22 @@ sanitise_names_authors <- function(taxon_names,
 
 #' @rdname sanitise_name
 #' @export
-sanitise_names_authors_report <- function(original_report,
-                                       taxon_name_col = 'TaxonName',
-                                       taxon_name_full_col = NA,
-                                       taxon_author_col = NA){
+sanitise_names_authors_report <- function(collection,
+                                       taxon_name_column = 'TaxonName',
+                                       taxon_name_full_column = NA,
+                                       taxon_author_column = NA){
   # Get the values out of original report.
-  taxon_names = original_report[,match(taxon_name_col, names(original_report))]
-  if(is.na(taxon_name_full_col)){
+  taxon_names = collection[,match(taxon_name_column, names(collection))]
+  if(is.na(taxon_name_full_column)){
     taxon_name_full = NA
   }else{
-    taxon_name_full = original_report[,match(taxon_name_full_col,names(original_report))]
+    taxon_name_full = collection[,match(taxon_name_full_column,names(collection))]
   }
 
-  if(is.na(taxon_author_col)){
+  if(is.na(taxon_author_column)){
     taxon_authors = NA
   }else{
-    taxon_authors = original_report[,match(taxon_author_col,names(original_report))]
+    taxon_authors = collection[,match(taxon_author_column,names(collection))]
   }
 
   return(sanitise_names_authors(taxon_names = taxon_names, taxon_names_full = taxon_name_full, taxon_authors = taxon_authors))

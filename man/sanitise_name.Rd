@@ -14,28 +14,28 @@ sanitise_authors(taxon_authors)
 sanitise_names_authors(taxon_names, taxon_authors = NA, taxon_names_full = NA)
 
 sanitise_names_authors_report(
-  original_report,
-  taxon_name_col = "TaxonName",
-  taxon_name_full_col = NA,
-  taxon_author_col = NA
+  collection,
+  taxon_name_column = "TaxonName",
+  taxon_name_full_column = NA,
+  taxon_author_column = NA
 )
 }
 \arguments{
-\item{taxon_name}{taxonomic name of a plant.}
+\item{taxon_name}{The taxonomic name of a plant.}
 
-\item{taxon_authors}{vector of taxonomic authors.}
+\item{taxon_authors}{Vector of taxonomic authors.}
 
-\item{taxon_names}{vector of taxonomic names.}
+\item{taxon_names}{Vector of taxonomic names.}
 
-\item{taxon_names_full}{vector of joined taxonomic name and author.}
+\item{taxon_names_full}{Vector of joined taxonomic name and author.}
 
-\item{original_report}{a dataframe of a collection}
+\item{collection}{A data frame of a collection.}
 
-\item{taxon_name_col}{the name of the column in the \code{original_report} corresponding to taxonomic names.}
+\item{taxon_name_column}{The name of the column in the \code{collection} corresponding to taxonomic names.}
 
-\item{taxon_name_full_col}{the name of the column in the \code{original_report} corresponding to joined taxonomic names and authors.}
+\item{taxon_name_full_column}{The name of the column in the \code{collection} corresponding to joined taxonomic names and authors.}
 
-\item{taxon_author_col}{the name of the column in the \code{original_report} corresponding to the authors of the taxonomic names.}
+\item{taxon_author_column}{The name of the column in the \code{collection} corresponding to the authors of the taxonomic names.}
 }
 \description{
 Functions to clean and standardise taxonomic names and authors.
@@ -54,10 +54,10 @@ Functions to clean and standardise taxonomic names and authors.
 
 \code{clean_names_authors_report()} applies \code{clean_names_authors()} to a collection where the inputs are:
 \itemize{
-\item a data frame of the collection (\code{original_report}),
-\item column name for the taxonomic names (\code{taxon_name_col}, required),
-\item column name of the authors of the taxonomic names  (\code{taxon_author_col}, optional),
-\item column name of the combined taxonomic name and author  (\code{taxon_name_full_col}, optional).
+\item a data frame of the collection (\code{collection}),
+\item column name for the taxonomic names (\code{taxon_name_column}, required),
+\item column name of the authors of the taxonomic names  (\code{taxon_author_column}, optional),
+\item column name of the combined taxonomic name and author  (\code{taxon_name_full_column}, optional).
 }
 }
 \examples{
@@ -73,5 +73,6 @@ taxon_authors = c('Vassilcz', 'Font Quer', '(Douglas ex Hook.) H.Hara', 'Stehlé
 sanitise_names_authors(taxon_names, taxon_authors)
 
 collection = data.frame(names = taxon_names, full = paste0(taxon_names, ' ', taxon_authors))
-sanitise_names_authors_report(collection, taxon_name_col = 'names', taxon_name_full_col = 'full')
+sanitise_names_authors_report(collection, taxon_name_column = 'names',
+ taxon_name_full_column = 'full')
 }
