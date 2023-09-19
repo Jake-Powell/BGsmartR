@@ -2,7 +2,7 @@
 % Please edit documentation in R/utilities.R
 \name{author_from_taxon_name_full}
 \alias{author_from_taxon_name_full}
-\title{author_from_taxon_name_full()}
+\title{author_from_taxon_names_full()}
 \usage{
 author_from_taxon_name_full(taxon_names, taxon_names_full)
 }
@@ -15,5 +15,5 @@ author_from_taxon_name_full(taxon_names, taxon_names_full)
 only author
 }
 \description{
-author_from_taxon_name_full()
+author_from_taxon_names_full()
 }

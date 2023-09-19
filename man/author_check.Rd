@@ -12,7 +12,7 @@ author_check(original_author, proposed_author)
 \item{proposed_author}{proposed_author}
 }
 \value{
-message of author comparision
+message of author comparison
 }
 \description{
 author_check()

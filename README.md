@@ -1,4 +1,4 @@
-# BGR <img src='man/figures/BGSmartR.png' align="right" height="140px" />
+# BGR
 ----
 <!-- badges: start 
    [![R-CMD-check](https://github.com/JakePowellCUBG/BGSmartR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/JakePowellCUBG/BGSmartR/actions/workflows/R-CMD-check.yaml)

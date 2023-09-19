@@ -36,7 +36,7 @@ enrich_report <- function(original_report,
   # 1) Clean/extract taxon name + taxon author
   ############################################
   cli::cli_h2("Sanitise taxon name and extract author")
-  taxon_name_and_author = clean_names_authors_report(original_report,
+  taxon_name_and_author = sanitise_names_authors_report(original_report,
                              taxon_name_col = taxon_name_col,
                              taxon_name_full_col = taxon_name_full_col,
                              taxon_author_col = taxon_author_col)

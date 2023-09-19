@@ -2,18 +2,18 @@
 % Please edit documentation in R/modules-utilities.R
 \name{add_alpha}
 \alias{add_alpha}
-\title{add_alpha}
+\title{Add transparency to colours}
 \usage{
 add_alpha(col, alpha = 1)
 }
 \arguments{
 \item{col}{a vector of colours}
 
-\item{alpha}{transparancy wanted}
+\item{alpha}{transparency wanted}
 }
 \value{
-a vector of colours with added transparancy
+a vector of colours with added transparency
 }
 \description{
-add_alpha
+Add transparency to colours
 }
