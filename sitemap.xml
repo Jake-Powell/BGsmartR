@@ -25,9 +25,6 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_alpha.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/add_infrageneric_level.html</loc>
-  </url>
-  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_is_autonym.html</loc>
   </url>
   <url>
@@ -109,9 +106,6 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/index.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/infrageneric_level.html</loc>
-  </url>
-  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/is_autonym.html</loc>
   </url>
   <url>
@@ -152,6 +146,9 @@
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/shorten_message.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/taxon_type.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/typo_list.html</loc>

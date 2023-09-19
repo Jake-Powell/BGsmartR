@@ -55,45 +55,45 @@
 <span><span class="fu">sanitise_names_authors</span><span class="op">(</span><span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="cn">NA</span>, taxon_names_full <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">sanitise_names_authors_report</span><span class="op">(</span></span>
-<span>  <span class="va">original_report</span>,</span>
-<span>  taxon_name_col <span class="op">=</span> <span class="st">"TaxonName"</span>,</span>
-<span>  taxon_name_full_col <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  taxon_author_col <span class="op">=</span> <span class="cn">NA</span></span>
+<span>  <span class="va">collection</span>,</span>
+<span>  taxon_name_column <span class="op">=</span> <span class="st">"TaxonName"</span>,</span>
+<span>  taxon_name_full_column <span class="op">=</span> <span class="cn">NA</span>,</span>
+<span>  taxon_author_column <span class="op">=</span> <span class="cn">NA</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
     <dl><dt>taxon_name</dt>
-<dd><p>taxonomic name of a plant.</p></dd>
+<dd><p>The taxonomic name of a plant.</p></dd>
 
 
 <dt>taxon_authors</dt>
-<dd><p>vector of taxonomic authors.</p></dd>
+<dd><p>Vector of taxonomic authors.</p></dd>
 
 
 <dt>taxon_names</dt>
-<dd><p>vector of taxonomic names.</p></dd>
+<dd><p>Vector of taxonomic names.</p></dd>
 
 
 <dt>taxon_names_full</dt>
-<dd><p>vector of joined taxonomic name and author.</p></dd>
+<dd><p>Vector of joined taxonomic name and author.</p></dd>
 
 
-<dt>original_report</dt>
-<dd><p>a dataframe of a collection</p></dd>
+<dt>collection</dt>
+<dd><p>A data frame of a collection.</p></dd>
 
 
-<dt>taxon_name_col</dt>
-<dd><p>the name of the column in the <code>original_report</code> corresponding to taxonomic names.</p></dd>
+<dt>taxon_name_column</dt>
+<dd><p>The name of the column in the <code>collection</code> corresponding to taxonomic names.</p></dd>
 
 
-<dt>taxon_name_full_col</dt>
-<dd><p>the name of the column in the <code>original_report</code> corresponding to joined taxonomic names and authors.</p></dd>
+<dt>taxon_name_full_column</dt>
+<dd><p>The name of the column in the <code>collection</code> corresponding to joined taxonomic names and authors.</p></dd>
 
 
-<dt>taxon_author_col</dt>
-<dd><p>the name of the column in the <code>original_report</code> corresponding to the authors of the taxonomic names.</p></dd>
+<dt>taxon_author_column</dt>
+<dd><p>The name of the column in the <code>collection</code> corresponding to the authors of the taxonomic names.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -103,10 +103,10 @@
 <p><code>clean_names_authors()</code> sanitises multiple taxonomic names with or without the corresponding authors, by applying <code>sanitise_name()</code> and <code>sanitise_authors()</code>. As input a vector of taxonomic names is required (<code>taxon_names</code>), in addition a vector of the authors (<code>taxon_authors</code>) or joined taxonomic name and authors (<code>taxon_names_full</code>) can be provided. If neither <code>taxon_authors</code> or <code>taxon_names_full</code> are provided the author names are set to <code>''</code>. A list is returned where:</p><ul><li><p><code>$taxon_name</code> a vector of the sanitised taxonomic names,</p></li>
 <li><p><code>$author</code>a vector of the sanitised authors,</p></li>
 <li><p><code>$sanitised</code> is a logical vector of whether the taxon_name was sanitised.</p></li>
-</ul><p><code>clean_names_authors_report()</code> applies <code>clean_names_authors()</code> to a collection where the inputs are:</p><ul><li><p>a data frame of the collection (<code>original_report</code>),</p></li>
-<li><p>column name for the taxonomic names (<code>taxon_name_col</code>, required),</p></li>
-<li><p>column name of the authors of the taxonomic names  (<code>taxon_author_col</code>, optional),</p></li>
-<li><p>column name of the combined taxonomic name and author  (<code>taxon_name_full_col</code>, optional).</p></li>
+</ul><p><code>clean_names_authors_report()</code> applies <code>clean_names_authors()</code> to a collection where the inputs are:</p><ul><li><p>a data frame of the collection (<code>collection</code>),</p></li>
+<li><p>column name for the taxonomic names (<code>taxon_name_column</code>, required),</p></li>
+<li><p>column name of the authors of the taxonomic names  (<code>taxon_author_column</code>, optional),</p></li>
+<li><p>column name of the combined taxonomic name and author  (<code>taxon_name_full_column</code>, optional).</p></li>
 </ul></div>
 
     <div class="section level2">
@@ -138,7 +138,8 @@
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="va">collection</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>names <span class="op">=</span> <span class="va">taxon_names</span>, full <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">taxon_names</span>, <span class="st">' '</span>, <span class="va">taxon_authors</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">sanitise_names_authors_report</span><span class="op">(</span><span class="va">collection</span>, taxon_name_col <span class="op">=</span> <span class="st">'names'</span>, taxon_name_full_col <span class="op">=</span> <span class="st">'full'</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">sanitise_names_authors_report</span><span class="op">(</span><span class="va">collection</span>, taxon_name_column <span class="op">=</span> <span class="st">'names'</span>,</span></span>
+<span class="r-in"><span> taxon_name_full_column <span class="op">=</span> <span class="st">'full'</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $taxon_name</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Trigonella afghanica"            "Halimium × pauanum"             </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [3] "Aruncus dioicus var. acuminatus" "Eupatorium magdalenae"          </span>
