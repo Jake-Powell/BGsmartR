@@ -2,23 +2,40 @@
 % Please edit documentation in R/autonym.R
 \name{is_autonym}
 \alias{is_autonym}
-\title{Find if a Taxon name is an autonym}
+\alias{add_is_autonym}
+\title{Find if a taxonomic name is an autonym}
 \usage{
-is_autonym(name)
+is_autonym(taxon_name)
+
+add_is_autonym(
+  collection,
+  taxon_name_column = "TaxonName",
+  progress_bar = FALSE
+)
 }
 \arguments{
-\item{name}{Taxon name of a plant}
+\item{taxon_name}{The taxonomic name of a plant.}
+
+\item{collection}{A data frame containing a collection.}
+
+\item{taxon_name_column}{The name of the column containing the (original) Taxon name.}
+
+\item{progress_bar}{Logical flag, if TRUE show progress bar.}
 }
 \value{
-TRUE if the Taxon name is an autonym, otherwise FALSE.
+TRUE if the taxonomic name is an autonym, otherwise FALSE.
 }
 \description{
-This function calculates whether a Taxon Name is an autonym.
+These function find when a  taxonomic name is an autonym.
+}
+\details{
+To obtain whether or not taxonomic names are autonyms we compare the words either side of a 'splitter'. The splitters are defined to be any of \code{subsp.}, \code{var.}, \code{f.}, \code{ssp.} or \code{nothosubsp.}. If the words either side are identical we return \code{TRUE} otherwise we return \code{FALSE.}
 }
 \examples{
-# An autonym.
 is_autonym("Codiaeum variegatum var. variegatum")
-# Not an autonym.
 is_autonym("Crinum pedunculatum f. purple")
 
+taxon_names = c("Saintpaulia diplotricha", "Codiaeum variegatum var. variegatum")
+collection = data.frame(ID = 1:2, name = taxon_names)
+add_is_autonym(collection, taxon_name_column = 'name')
 }

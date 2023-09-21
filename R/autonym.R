@@ -1,26 +1,33 @@
-#' Find if a Taxon name is an autonym
+#' Find if a taxonomic name is an autonym
 #'
-#' This function calculates whether a Taxon Name is an autonym.
+#' These function find when a  taxonomic name is an autonym.
 #'
-#' @param name  Taxon name of a plant
-#' @return TRUE if the Taxon name is an autonym, otherwise FALSE.
+#'To obtain whether or not taxonomic names are autonyms we compare the words either side of a 'splitter'. The splitters are defined to be any of `subsp.`, `var.`, `f.`, `ssp.` or `nothosubsp.`. If the words either side are identical we return `TRUE` otherwise we return `FALSE.`
+#'
+#' @param taxon_name The taxonomic name of a plant.
+#' @param collection A data frame containing a collection.
+#' @param taxon_name_column The name of the column containing the (original) Taxon name.
+#' @param progress_bar Logical flag, if TRUE show progress bar.
+
+#' @return TRUE if the taxonomic name is an autonym, otherwise FALSE.
 #'
 #' @examples
-#' # An autonym.
 #' is_autonym("Codiaeum variegatum var. variegatum")
-#' # Not an autonym.
 #' is_autonym("Crinum pedunculatum f. purple")
 #'
+#' taxon_names = c("Saintpaulia diplotricha", "Codiaeum variegatum var. variegatum")
+#' collection = data.frame(ID = 1:2, name = taxon_names)
+#' add_is_autonym(collection, taxon_name_column = 'name')
 #' @export
-is_autonym <- function(name){
+is_autonym <- function(taxon_name){
   # 1) Is the plant a hybrid, i.e contains '×' (unicode \u00D7)
-  if(grepl('\u00D7',name)){
+  if(grepl('\u00D7',taxon_name)){
     return(FALSE)
   }
 
   # 2) Split word by level i.e var. f., etc.
   # And 'squish' the two resultant parts (i.e remove excess whitespace)
-  split_name = stringr::str_split(name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
+  split_name = stringr::str_split(taxon_name,' var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. ')[[1]]
   split_name = unlist(lapply(split_name, stringr::str_squish))
 
   # 3) If there is only one chunk return no (i.e no var., f., etc)
@@ -50,21 +57,15 @@ is_autonym <- function(name){
 
 }
 
-#' Add is_autonym column to Botanic garden database.
-#'
-#' @param data BG database
-#' @param progress_bar Logical flag, if TRUE show progress bar, else no progress bar
-#' @param TaxonName_column The name of the column containing the Taxon name.
-#'
-#' @return The BG database with a new column called is_autonym which flags where the Taxon name is an autonym
+#' @rdname is_autonym
 #' @export
-add_is_autonym <- function(data, TaxonName_column = 'TaxonName', progress_bar = FALSE){
+add_is_autonym <- function(collection, taxon_name_column = 'TaxonName', progress_bar = FALSE){
   if(progress_bar){
-    autonyms = unlist(pbapply::pblapply(data[,TaxonName_column], is_autonym))
+    autonyms = unlist(pbapply::pblapply(collection[,taxon_name_column], is_autonym))
   }
   else{
-    autonyms = unlist(lapply(data[,TaxonName_column], is_autonym))
+    autonyms = unlist(lapply(collection[,taxon_name_column], is_autonym))
   }
-  data_new = data.frame(data, is_autonym = autonyms)
+  data_new = data.frame(collection, is_autonym = autonyms)
   return(data_new)
 }

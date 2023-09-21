@@ -1,12 +1,11 @@
 # Functions used to match to POWO (wcvp_names)
 
-#' shorten_message
+#' Shorten message detailing match
+#'
 #'
 #' @param messages messages about matching
 #'
 #' @return shorted form of messages
-#' @export
-#'
 shorten_message <- function(messages){
   match_short = rep('', length(messages))
   match_options = c("(matches POWO record with single entry)", 'EXACT',

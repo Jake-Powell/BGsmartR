@@ -1,52 +1,46 @@
-#' enrich_original()
+#' Enrich a collection's database
 #'
-#' This function enriches an original report by adding columns:
+#' This function enriches plat records in a collection using information from POWO (WCVP), IUCN redlist and BGCI.
 #'
-#' - `is_autonym` (Logical (TRUE/FALSE)) detailing whether the taxon name is an autonym.
-#' - `status_year` (numeric) the year extracted from `ItemStatusDate.`
-#' - `infrageneric_level` (character) the infrageneric level of the taxon name. Uses taxon names retrieved from POWO if available.
-#' - Information from POWO.
 #'
-#' @param original_report A gardens original report
-#' @param wcvp POWO database
+#' @param collection A data frame containing a collection.
+#' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()].
 #' @param redList RedList database
-#' @param BGCI BGCI database
-#' @param taxon_name_col Column name in the original report for taxon name
-#' @param taxon_name_full_col Column name in the original report for taxon name and author/s (combined)
-#' @param taxon_author_col Column name in the original report for taxon author/s
-#' @param do_is_autonym Flag for whether to add the column is_autonym
-#' @param do_status_year Flag for whether to add the column status_year
-#' @param do_taxon_types Flag for whether to add the column infrageneric_level
-#' @param typo_method Flag for whether we search for typos
+#' @param BGCI Requires a cleaned BGCI plant search database to obtain how many collections globally a taxon is contained (Not freely available).
+#' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
+#' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
+#' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
+#' @param do_is_autonym Flag (TRUE/FALSE) for whether to add the column is_autonym, see [add_is_autonym()] for details.
+#' @param do_status_year Flag (TRUE/FALSE) for whether to add the column status_year, see [add_status_year()] for details.
+#' @param do_taxon_types Flag (TRUE/FALSE) for whether to add the column taxon_type, see [add_taxon_type()] for details.
+#' @param typo_method Defines the method used to find typos in the taxonomic name. Allowed values are `"full"`,  `"fast"`, or `"no"`. These correspond to full search (see [match_typos()]), search only using [typo_list] and no typo searching.
 #'
-#' @return a list of length two:
-#' `$enriched_report` the enriched report, and
-#' `match_details` the details of how taxon names have being used to match to POWO.
+#' @return The `collection` data frame enriched with information dependent on function inputs (new columns).
 #' @export
-enrich_report <- function(original_report,
+enrich_collection <- function(collection,
                           wcvp = NA,
                           redList = NA,
                           BGCI = NA,
-                          taxon_name_col = 'TaxonName',
-                          taxon_name_full_col = NA,
-                          taxon_author_col = NA,
+                          taxon_name_column = 'TaxonName',
+                          taxon_name_full_column = NA,
+                          taxon_author_column = NA,
                           do_is_autonym = FALSE, do_status_year = FALSE, do_taxon_types = FALSE, typo_method = 'fast'){
 
   ############################################
   # 1) Clean/extract taxon name + taxon author
   ############################################
   cli::cli_h2("Sanitise taxon name and extract author")
-  taxon_name_and_author = sanitise_names_authors_report(original_report,
-                             taxon_name_column = taxon_name_col,
-                             taxon_name_full_column = taxon_name_full_col,
-                             taxon_author_column = taxon_author_col)
+  taxon_name_and_author = sanitise_names_authors_report(collection,
+                             taxon_name_column = taxon_name_column,
+                             taxon_name_full_column = taxon_name_full_column,
+                             taxon_author_column = taxon_author_column)
 
 
-  original_report = data.frame(original_report,
+  collection = data.frame(collection,
                                sanitised_taxon = taxon_name_and_author$taxon_name,
                                need_sanitise = taxon_name_and_author$sanitised,
                                extracted_author = taxon_name_and_author$author)
-  enriched_report = original_report
+  enriched_report = collection
 
 
   ############################################
@@ -73,7 +67,7 @@ enrich_report <- function(original_report,
   cli::cli_h2("Adding POWO information")
 
   # A) find the match between original report and wcvp.
-  match_info = match_original_to_wcvp(original_report,
+  match_info = match_original_to_wcvp(collection,
                                       wcvp,
                                       taxon_name_col = 'sanitised_taxon',
                                       taxon_name_full_col = NA,
@@ -83,13 +77,13 @@ enrich_report <- function(original_report,
   # B) Extract the info from wcvp_names.
   wcvp_wanted_columns = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area")
   wcvp_wanted_columns = wcvp_wanted_columns[wcvp_wanted_columns %in% names(wcvp$wcvp_names)]
-  POWO_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wcvp_wanted_columns)))
+  POWO_info = data.frame(matrix(NA, nrow = nrow(collection), ncol = length(wcvp_wanted_columns)))
   names(POWO_info) = paste0('POWO_',wcvp_wanted_columns)
   indices = which(!(is.na(match_info$match) | match_info$match < 0))
   POWO_info[indices,] = wcvp$wcvp_names[match_info$match[indices],match(wcvp_wanted_columns,names(wcvp$wcvp_names))]
 
   # C) Add info from wcvp_distributions.
-  Geog_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(names(wcvp$geography))))
+  Geog_info = data.frame(matrix(NA, nrow = nrow(collection), ncol = length(names(wcvp$geography))))
   havePOWO_index = which(!is.na(POWO_info$POWO_plant_name_id))
   plant_id_match = match(POWO_info$POWO_plant_name_id[havePOWO_index], wcvp$geography$plant_name_id)
 
@@ -99,7 +93,7 @@ enrich_report <- function(original_report,
   # D) Add info from WCVP matched to Redlist.
   wanted_columns = c("plant_name_id", "main_common_name", "assessment_date", "category",           "criteria", "population_trend")
   red_data = wcvp$redList[,match(wanted_columns, names(wcvp$redList))]
-  Red_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(wanted_columns)))
+  Red_info = data.frame(matrix(NA, nrow = nrow(collection), ncol = length(wanted_columns)))
   havePOWO_index = which(!is.na(POWO_info$POWO_plant_name_id))
   plant_id_match = match(POWO_info$POWO_plant_name_id[havePOWO_index], red_data$plant_name_id)
 
@@ -142,7 +136,7 @@ enrich_report <- function(original_report,
     redList$accepted_plant_name_id = 1:nrow(redList)
     redList$plant_name_id = 1:nrow(redList)
 
-    match_info = match_original_to_wcvp(original_report,
+    match_info = match_original_to_wcvp(collection,
                                         wcvp = list(wcvp_names = redList, exceptions = NULL, changes = NULL),
                                         taxon_name_col = 'sanitised_taxon',
                                         taxon_name_full_col = NA,
@@ -155,7 +149,7 @@ enrich_report <- function(original_report,
                                'aoo_km2', 'eoo_km2',
                                'elevation_upper', 'elevation_lower')
     redList_wanted_columns = redList_wanted_columns[redList_wanted_columns %in% names(redList)]
-    redList_info = data.frame(matrix(NA, nrow = nrow(original_report), ncol = length(redList_wanted_columns)))
+    redList_info = data.frame(matrix(NA, nrow = nrow(collection), ncol = length(redList_wanted_columns)))
     names(redList_info) = paste0('redList_',redList_wanted_columns)
     indices = which(!(is.na(match_info$match) | match_info$match < 0))
     redList_info[indices,] = redList[match_info$match[indices],match(redList_wanted_columns,names(redList))]
@@ -176,7 +170,7 @@ enrich_report <- function(original_report,
   if(!is.na(BGCI)[1]){
     cli::cli_h2("Adding Number of gardens")
 
-    no_gardens = match_original_to_BGCI(original_report,
+    no_gardens = match_original_to_BGCI(collection,
                                         BGCI,
                                         taxon_name_col = 'sanitised_taxon')
 

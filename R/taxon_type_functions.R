@@ -22,7 +22,7 @@
 #'
 #' @param taxon_name The taxonomic name of a plant.
 #' @param collection A data frame containing a collection.
-#' @param taxon_name_column The name of the column containing the (original) Taxon name.
+#' @param taxon_name_column The name of the column containing the (original) taxon name.
 #' @param POWO_taxon_name_column The name of the column containing the POWO (WCVP) Taxon name.
 #' @param progress_bar Logical flag, if TRUE show progress bar.
 #' @export

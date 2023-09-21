@@ -2,7 +2,7 @@
 % Please edit documentation in R/matching_functions.R
 \name{shorten_message}
 \alias{shorten_message}
-\title{shorten_message}
+\title{Shorten message detailing match}
 \usage{
 shorten_message(messages)
 }
@@ -13,5 +13,5 @@ shorten_message(messages)
 shorted form of messages
 }
 \description{
-shorten_message
+Shorten message detailing match
 }

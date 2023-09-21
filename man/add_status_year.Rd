@@ -2,18 +2,24 @@
 % Please edit documentation in R/extract_year.R
 \name{add_status_year}
 \alias{add_status_year}
-\title{Add status_year column to Botanic garden database.}
+\title{Add status year column to collection}
 \usage{
-add_status_year(data, ItemStatusDate_column = "ItemStatusDate")
+add_status_year(collection, item_status_date_column = "ItemStatusDate")
 }
 \arguments{
-\item{data}{BG database}
+\item{collection}{A data frame containing a collection.}
 
-\item{ItemStatusDate_column}{The name of the column containing the Taxon name.}
+\item{item_status_date_column}{The name of the column containing the item status date.}
 }
 \value{
-The BG database with a new column called status_year.
+The \code{collection} data frame with \code{status_year} adjoined.
 }
 \description{
-Add status_year column to Botanic garden database.
+A function to adjoin the year from the item status date to the collection database.
+}
+\examples{
+taxon_names = c('Trigonella afghanica', 'Eupatorium magdalenae')
+item_status = c('2021-04-12', '12th August 1991')
+collection = data.frame(name = taxon_names, item_status = item_status)
+add_status_year(collection, item_status_date_column ='item_status')
 }
