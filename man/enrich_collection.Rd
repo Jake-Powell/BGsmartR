@@ -15,17 +15,26 @@ enrich_collection(
   do_is_autonym = FALSE,
   do_status_year = FALSE,
   do_taxon_types = FALSE,
-  typo_method = "fast"
+  ...,
+  wcvp_wanted_info = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank",
+    "taxon_status", "powo_id", "family", "genus", "species", "lifeform_description",
+    "climate_description", "geographic_area", "Dist_000_area_code_l3", "Dist_000_labels",
+    "Dist_100_area_code_l3", "Dist_010_area_code_l3", "Dist_001_area_code_l3",
+    "Dist_101_area_code_l3", "Dist_110_area_code_l3", "Dist_011_plant_name_id",
+    "Dist_011_area_code_l3", "main_common_name", "assessment_date", "category",
+    "criteria", "population_trend"),
+  redlist_wanted_info = c("plant_name_id", "main_common_name", "assessment_date",
+    "category", "criteria", "population_trend")
 )
 }
 \arguments{
 \item{collection}{A data frame containing a collection.}
 
-\item{wcvp}{World Checklist of Vascular Plants (WCVP) database, obtained using the function \code{\link[=import_wcvp_names]{import_wcvp_names()}}.}
+\item{wcvp}{World Checklist of Vascular Plants (WCVP) database, obtained using the function \code{\link[=import_wcvp_names]{import_wcvp_names()}}. If \code{NA} WCVP enrichment is not performed.}
 
-\item{redList}{RedList database}
+\item{redList}{RedList database. If \code{NA} IUCN red list enrichment is not performed.}
 
-\item{BGCI}{Requires a cleaned BGCI plant search database to obtain how many collections globally a taxon is contained (Not freely available).}
+\item{BGCI}{Requires a cleaned BGCI plant search database to obtain how many collections globally a taxon is contained (Not freely available). If \code{NA} BGCI plant search enrichment is not performed.}
 
 \item{taxon_name_column}{The name of the column in the \code{collection} corresponding to taxonomic names.}
 
@@ -39,11 +48,15 @@ enrich_collection(
 
 \item{do_taxon_types}{Flag (TRUE/FALSE) for whether to add the column taxon_type, see \code{\link[=add_taxon_type]{add_taxon_type()}} for details.}
 
-\item{typo_method}{Defines the method used to find typos in the taxonomic name. Allowed values are \code{"full"},  \code{"fast"}, or \code{"no"}. These correspond to full search (see \code{\link[=match_typos]{match_typos()}}), search only using \link{typo_list} and no typo searching.}
+\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to \code{\link[=match_original_to_wcvp]{match_original_to_wcvp()}}). Examples include \code{typo_method}, \code{do_convert_accepted} and \code{try_fix_hybrid}.}
+
+\item{wcvp_wanted_info}{A character vector containing the information we want to extract from WCVP. These are matched to column names in \code{wcvp$wcvp_names}, \code{wcvp$geography} and \code{wcvp$redlist} (if the later two exist).}
+
+\item{redlist_wanted_info}{A character vector containing the information we want to extract from IUCN red list, corresponding to column names in \code{redList}}
 }
 \value{
 The \code{collection} data frame enriched with information dependent on function inputs (new columns).
 }
 \description{
-This function enriches plat records in a collection using information from POWO (WCVP), IUCN redlist and BGCI.
+This function enriches plant records in a collection using information from POWO (WCVP), IUCN redlist and BGCI.
 }
