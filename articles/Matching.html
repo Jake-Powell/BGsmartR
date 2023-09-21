@@ -116,7 +116,7 @@ states correspond to obtaining a match (or no match), yellow to process
 steps and green to decisions that are made in the algorithm.</p>
 <p>To match your collections data to POWO (and IUCN + BGCI) the
 algorithm and been wrapped into the function
-<code><a href="../reference/enrich_report.html">enrich_report()</a></code>, which can be used to match and enrich your
+<code>enrich_report()</code>, which can be used to match and enrich your
 collection without concerning yourself with the method applied. See
 vignette XX to see the function in action.</p>
 <p>Below we delve further into the details of each step of the
@@ -292,8 +292,8 @@ multiple entries in POWO.</p>
 <p>For example suppose our database contains the taxon name
 <code>'Abies taxifolia'</code>. Searching in POWO we find 6 records for
 that taxon name.</p>
-<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-ac9fecdfcb2b7b7e0ad5" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-ac9fecdfcb2b7b7e0ad5">{"x":{"filter":"none","vertical":false,"data":[["146571","146655","146808","176533","176535","688734"],[382029,382030,382027,382028,382031,382032],["Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia"],["Desf.","Raf.","Duhamel","Poir.","C.Presl","J.Jeffrey ex Gordon &amp; Glend."],["Synonym","Synonym","Synonym","Illegitimate","Synonym","Invalid"],[381621,381621,381621,469725,469725,469765]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>plant_name_id<\/th>\n      <th>taxon_name<\/th>\n      <th>taxon_authors<\/th>\n      <th>taxon_status<\/th>\n      <th>accepted_plant_name_id<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,5]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script><p>We that that each taxon name an author, a taxon status and an
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-8e3fc4399b99e148e78b" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-8e3fc4399b99e148e78b">{"x":{"filter":"none","vertical":false,"data":[["146571","146655","146808","176533","176535","688734"],[382029,382030,382027,382028,382031,382032],["Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia"],["Desf.","Raf.","Duhamel","Poir.","C.Presl","J.Jeffrey ex Gordon &amp; Glend."],["Synonym","Synonym","Synonym","Illegitimate","Synonym","Invalid"],[381621,381621,381621,469725,469725,469765]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>plant_name_id<\/th>\n      <th>taxon_name<\/th>\n      <th>taxon_authors<\/th>\n      <th>taxon_status<\/th>\n      <th>accepted_plant_name_id<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,5]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script><p>We that that each taxon name an author, a taxon status and an
 accepted plant name. These quantities can be used to decide which record
 we should match to.</p>
 <div class="section level6">
