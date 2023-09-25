@@ -2,18 +2,29 @@
 % Please edit documentation in R/utilities.R
 \name{author_check}
 \alias{author_check}
-\title{author_check()}
+\title{Compare two authors}
 \usage{
 author_check(original_author, proposed_author)
 }
 \arguments{
-\item{original_author}{original_author}
-
-\item{proposed_author}{proposed_author}
+\item{original_author, proposed_author}{The authors to be compared.}
 }
 \value{
-message of author comparison
+Either `Identical', 'Partial' or 'Different'.
 }
 \description{
-author_check()
+Compare two authors
+}
+\details{
+The result from the comparison is:
+\itemize{
+\item \code{"Identical"} if the two author strings are equal (\code{original_author == proposed_author}),
+\item \code{"Partial"} if any of the words in either author is found in the other. Author words are found using \code{\link[=author_words]{author_words()}}.
+\item \code{"Different"} otherwise.
+}
+}
+\examples{
+author_check("Schott", "Schott")
+author_check("Scott", "Schott")
+author_check("(Jacq.) Schott", "Schott")
 }

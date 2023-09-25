@@ -7,13 +7,17 @@
 add_alpha(col, alpha = 1)
 }
 \arguments{
-\item{col}{a vector of colours}
+\item{col}{A vector of colours.}
 
-\item{alpha}{transparency wanted}
+\item{alpha}{numeric in \verb{(0,1]}, the transparency wanted.}
 }
 \value{
 a vector of colours with added transparency
 }
 \description{
 Add transparency to colours
+}
+\examples{
+add_alpha(col = c("blue", rgb(100,20,30, max = 255), '#0A461E', viridis::viridis(1)),
+alpha = 0.5)
 }

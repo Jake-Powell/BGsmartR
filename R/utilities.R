@@ -1,11 +1,19 @@
-#' author_from_taxon_names_full()
+#' Separate author from combined taxonomic name and author
 #'
-#' @param taxon_names taxon names
-#' @param taxon_names_full taxon names with author
+#' Extract the taxonomic author from combined taxonomic name and author combined.
 #'
-#' @return only author
+#' `taxon_names` and `taxon_names_full` must have the same number of elements where the ith element of each correspond to the same name. To obtain the author of ith record and word/s found in `taxon_names[i]` are removed from  `taxon_names_full[i]`.
+#'
+#' @param taxon_names Vector of taxonomic names.
+#' @param taxon_names_full Vector of joined taxonomic name and author.
+#'
+#' @return Vector of the author/s of the taxonomic names.
 #' @export
 #'
+#' @examples
+#' taxon_names = c('Achatocarpus praecox', 'Anthurium affine')
+#' taxon_names_full = c('Achatocarpus praecox Griseb.', 'Anthurium affine Schott')
+#' author_from_taxon_name_full(taxon_names, taxon_names_full)
 author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
   #As we're using grepl need to add escape for special characters
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\.', '\\\\.')
@@ -44,13 +52,23 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
 
 
 
-#' author_check()
+#' Compare two authors
 #'
-#' @param original_author original_author
-#' @param proposed_author proposed_author
+#' @details
+#' The result from the comparison is:
+#' - `"Identical"` if the two author strings are equal (`original_author == proposed_author`),
+#' - `"Partial"` if any of the words in either author is found in the other. Author words are found using [author_words()].
+#' - `"Different"` otherwise.
 #'
-#' @return message of author comparison
+#' @param original_author,proposed_author The authors to be compared.
+#'
+#' @return Either `Identical', 'Partial' or 'Different'.
 #' @export
+#'
+#' @examples
+#' author_check("Schott", "Schott")
+#' author_check("Scott", "Schott")
+#' author_check("(Jacq.) Schott", "Schott")
 author_check <- function(original_author, proposed_author){
   if(is.na(original_author) || is.na(proposed_author)){
     return('Different')
@@ -77,12 +95,21 @@ author_check <- function(original_author, proposed_author){
   return('Different')
 }
 
-#' author_words()
+#' Extract words from author
+#'
+#' @details
+#' From the string `author` we extract any words that begin with a capital and is followed by at least two lower case letters or hyphens. Or the special cases `DC.`, `Sm.` and `Br.`. In the special cases `\\` will be added before `.` to allow regular expression searching of the authors such as `grepl("DC\\.", "Some Author")`. We have not included `L.` since this could be mistaken for an initial of another author rather than Carl Linnaeus.
+#'
+#' This function is used when comparing authors in [author_check()].
 #'
 #' @param author Author that wants splitting into words.
 #'
-#' @return author words
+#' @return Words contained in the author.
 #' @export
+#' @examples
+#' author_words('(Jacq.) Schott')
+#' author_words('Villarroel & J.R.I.Wood')
+#' author_words('(DC.) F.Muell.')
 author_words <- function(author){
   author_wordsA = unlist(stringr::str_extract_all(author,'[A-Z]{1}[a-z-]{2,}'))
   author_wordsB = unlist(stringr::str_extract_all(author,'DC\\.|Sm\\.|Br\\.'))

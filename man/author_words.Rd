@@ -2,7 +2,7 @@
 % Please edit documentation in R/utilities.R
 \name{author_words}
 \alias{author_words}
-\title{author_words()}
+\title{Extract words from author}
 \usage{
 author_words(author)
 }
@@ -10,8 +10,18 @@ author_words(author)
 \item{author}{Author that wants splitting into words.}
 }
 \value{
-author words
+Words contained in the author.
 }
 \description{
-author_words()
+Extract words from author
+}
+\details{
+From the string \code{author} we extract any words that begin with a capital and is followed by at least two lower case letters or hyphens. Or the special cases \code{DC.}, \code{Sm.} and \code{Br.}. In the special cases \verb{\\\\} will be added before \code{.} to allow regular expression searching of the authors such as \code{grepl("DC\\\\.", "Some Author")}. We have not included \code{L.} since this could be mistaken for an initial of another author rather than Carl Linnaeus.
+
+This function is used when comparing authors in \code{\link[=author_check]{author_check()}}.
+}
+\examples{
+author_words('(Jacq.) Schott')
+author_words('Villarroel & J.R.I.Wood')
+author_words('(DC.) F.Muell.')
 }

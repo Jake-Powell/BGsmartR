@@ -2,18 +2,26 @@
 % Please edit documentation in R/utilities.R
 \name{author_from_taxon_name_full}
 \alias{author_from_taxon_name_full}
-\title{author_from_taxon_names_full()}
+\title{Separate author from combined taxonomic name and author}
 \usage{
 author_from_taxon_name_full(taxon_names, taxon_names_full)
 }
 \arguments{
-\item{taxon_names}{taxon names}
+\item{taxon_names}{Vector of taxonomic names.}
 
-\item{taxon_names_full}{taxon names with author}
+\item{taxon_names_full}{Vector of joined taxonomic name and author.}
 }
 \value{
-only author
+Vector of the author/s of the taxonomic names.
 }
 \description{
-author_from_taxon_names_full()
+Extract the taxonomic author from combined taxonomic name and author combined.
+}
+\details{
+\code{taxon_names} and \code{taxon_names_full} must have the same number of elements where the ith element of each correspond to the same name. To obtain the author of ith record and word/s found in \code{taxon_names[i]} are removed from  \code{taxon_names_full[i]}.
+}
+\examples{
+taxon_names = c('Achatocarpus praecox', 'Anthurium affine')
+taxon_names_full = c('Achatocarpus praecox Griseb.', 'Anthurium affine Schott')
+author_from_taxon_name_full(taxon_names, taxon_names_full)
 }

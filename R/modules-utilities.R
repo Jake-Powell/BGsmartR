@@ -56,10 +56,14 @@ exist_at_date <- function(date, AccessionYear, ItemStatusDate, ItemStatusType){
 
 #' Add transparency to colours
 #'
-#' @param col a vector of colours
-#' @param alpha transparency wanted
+#' @param col A vector of colours.
+#' @param alpha numeric in `(0,1]`, the transparency wanted.
 #'
 #' @return a vector of colours with added transparency
+#' @export
+#' @examples
+#' add_alpha(col = c("blue", rgb(100,20,30, max = 255), '#0A461E', viridis::viridis(1)),
+#' alpha = 0.5)
 add_alpha <- function(col, alpha=1){
   if(missing(col))
     stop("Please provide a vector of colours.")

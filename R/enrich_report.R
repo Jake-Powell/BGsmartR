@@ -3,6 +3,8 @@
 #' This function enriches plant records in a collection using information from POWO (WCVP), IUCN redlist and BGCI.
 #'
 #'
+#'
+#'
 #' @param collection A data frame containing a collection.
 #' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()]. If `NA` WCVP enrichment is not performed.
 #' @param redList RedList database. If `NA` IUCN red list enrichment is not performed.
@@ -13,9 +15,9 @@
 #' @param do_is_autonym Flag (TRUE/FALSE) for whether to add the column is_autonym, see [add_is_autonym()] for details.
 #' @param do_status_year Flag (TRUE/FALSE) for whether to add the column status_year, see [add_status_year()] for details.
 #' @param do_taxon_types Flag (TRUE/FALSE) for whether to add the column taxon_type, see [add_taxon_type()] for details.
-#' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to [match_original_to_wcvp()]). Examples include `typo_method`, `do_convert_accepted` and `try_fix_hybrid`.
+#' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to [match_collection_to_wcvp()]). Examples include `typo_method`, `do_convert_accepted` and `try_fix_hybrid`.
 #' @param wcvp_wanted_info A character vector containing the information we want to extract from WCVP. These are matched to column names in `wcvp$wcvp_names`, `wcvp$geography` and `wcvp$redlist` (if the later two exist).
-#' @param redlist_wanted_info A character vector containing the information we want to extract from IUCN red list, corresponding to column names in `redList`
+#' @param redlist_wanted_info A character vector containing the information we want to extract from IUCN red list, corresponding to column names in `redList`.
 #'
 #' @return The `collection` data frame enriched with information dependent on function inputs (new columns).
 #' @export
@@ -30,7 +32,7 @@ enrich_collection <- function(collection,
                           do_status_year = FALSE,
                           do_taxon_types = FALSE,
                           ...,
-                          wcvp_wanted_info = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area", "Dist_000_area_code_l3", "Dist_000_labels", "Dist_100_area_code_l3", "Dist_010_area_code_l3", "Dist_001_area_code_l3", "Dist_101_area_code_l3", "Dist_110_area_code_l3", "Dist_011_plant_name_id", "Dist_011_area_code_l3", "main_common_name", "assessment_date", "category", "criteria", "population_trend"),
+                          wcvp_wanted_info = c("plant_name_id", "taxon_name", "taxon_authors", "taxon_rank", "taxon_status","powo_id", "family", "genus", "species", "lifeform_description", "climate_description", "geographic_area", "Dist_000_area_code_l3", "Dist_000_labels", "Dist_100_area_code_l3", "Dist_010_area_code_l3", "Dist_001_area_code_l3", "Dist_101_area_code_l3", "Dist_110_area_code_l3", "Dist_011_area_code_l3", "main_common_name", "assessment_date", "category", "criteria", "population_trend"),
                           redlist_wanted_info = c("plant_name_id", "main_common_name", "assessment_date", "category",           "criteria", "population_trend")
                           ){
 
@@ -75,11 +77,11 @@ enrich_collection <- function(collection,
   cli::cli_h2("Adding POWO information")
 
   # A) find the match between original report and wcvp.
-  match_info = match_original_to_wcvp(collection,
+  match_info = match_collection_to_wcvp(collection,
                                       wcvp,
-                                      taxon_name_col = 'sanitised_taxon',
-                                      taxon_name_full_col = NA,
-                                      taxon_author_col = 'extracted_author',
+                                      taxon_name_column = 'sanitised_taxon',
+                                      taxon_name_full_column = NA,
+                                      taxon_author_column = 'extracted_author',
                                       ...)
   enriched_report = data.frame(enriched_report,
                                POWO_original_authors = match_info$original_authors,
@@ -183,11 +185,11 @@ enrich_collection <- function(collection,
     redList$accepted_plant_name_id = 1:nrow(redList)
     redList$plant_name_id = 1:nrow(redList)
 
-    match_info = match_original_to_wcvp(collection,
+    match_info = match_collection_to_wcvp(collection,
                                         wcvp = list(wcvp_names = redList, exceptions = NULL, changes = NULL),
-                                        taxon_name_col = 'sanitised_taxon',
-                                        taxon_name_full_col = NA,
-                                        taxon_author_col = 'extracted_author',
+                                        taxon_name_column = 'sanitised_taxon',
+                                        taxon_name_full_column = NA,
+                                        taxon_author_column = 'extracted_author',
                                         ...)
 
     redList_wanted_columns = redlist_wanted_info

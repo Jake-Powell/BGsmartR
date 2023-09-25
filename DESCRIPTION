@@ -13,7 +13,8 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
-    DT
+    DT,
+    viridis
 Config/testthat/edition: 3
 Depends: 
     R (>= 3.50)

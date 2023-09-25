@@ -20,9 +20,8 @@ enrich_collection(
     "taxon_status", "powo_id", "family", "genus", "species", "lifeform_description",
     "climate_description", "geographic_area", "Dist_000_area_code_l3", "Dist_000_labels",
     "Dist_100_area_code_l3", "Dist_010_area_code_l3", "Dist_001_area_code_l3",
-    "Dist_101_area_code_l3", "Dist_110_area_code_l3", "Dist_011_plant_name_id",
-    "Dist_011_area_code_l3", "main_common_name", "assessment_date", "category",
-    "criteria", "population_trend"),
+    "Dist_101_area_code_l3", "Dist_110_area_code_l3", "Dist_011_area_code_l3",
+    "main_common_name", "assessment_date", "category", "criteria", "population_trend"),
   redlist_wanted_info = c("plant_name_id", "main_common_name", "assessment_date",
     "category", "criteria", "population_trend")
 )
@@ -48,11 +47,11 @@ enrich_collection(
 
 \item{do_taxon_types}{Flag (TRUE/FALSE) for whether to add the column taxon_type, see \code{\link[=add_taxon_type]{add_taxon_type()}} for details.}
 
-\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to \code{\link[=match_original_to_wcvp]{match_original_to_wcvp()}}). Examples include \code{typo_method}, \code{do_convert_accepted} and \code{try_fix_hybrid}.}
+\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to \code{\link[=match_collection_to_wcvp]{match_collection_to_wcvp()}}). Examples include \code{typo_method}, \code{do_convert_accepted} and \code{try_fix_hybrid}.}
 
 \item{wcvp_wanted_info}{A character vector containing the information we want to extract from WCVP. These are matched to column names in \code{wcvp$wcvp_names}, \code{wcvp$geography} and \code{wcvp$redlist} (if the later two exist).}
 
-\item{redlist_wanted_info}{A character vector containing the information we want to extract from IUCN red list, corresponding to column names in \code{redList}}
+\item{redlist_wanted_info}{A character vector containing the information we want to extract from IUCN red list, corresponding to column names in \code{redList}.}
 }
 \value{
 The \code{collection} data frame enriched with information dependent on function inputs (new columns).
