@@ -164,7 +164,7 @@ once a match is found for a single taxon name no more steps are taken.
 For example, if we found adding hybridisation leads to a match to POWO
 we will not search for typos later on with the inputted taxon name.</p>
 <p>In practice the algorithm will be run in a single step using the
-function <code><a href="../reference/match_original_to_wcvp.html">match_original_to_wcvp()</a></code>.</p>
+function <code>match_original_to_wcvp()</code>.</p>
 <p>We will now outline each step in the algorithm.</p>
 <hr>
 <div class="section level3">
@@ -219,15 +219,15 @@ for cultivars.</li>
 <li>Includes <code>Unknown</code>.</li>
 </ul>
 <p>This is performed using the function
-<code><a href="../reference/known_not_in_wcvp.html">known_not_in_wcvp()</a></code>, which returns the index of any taxon
+<code><a href="../reference/shorten_message.html">known_not_in_wcvp()</a></code>, which returns the index of any taxon
 name which contains any of the above patterns. For these taxon names we
 set the output message to
 <code>(Not in POWO &lt;known not to be in POWO&gt;)</code>.</p>
-<p>Below we provide an example of <code><a href="../reference/known_not_in_wcvp.html">known_not_in_wcvp()</a></code>.</p>
+<p>Below we provide an example of <code><a href="../reference/shorten_message.html">known_not_in_wcvp()</a></code>.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">taxon_names</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Acalypha fruticulosa'</span>, <span class="st">'Asclepias sp.'</span>, <span class="st">"Abies umbilicata 'Some Cultivar'"</span>, </span>
 <span>                <span class="st">'Ammi copticum cv.'</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/known_not_in_wcvp.html">known_not_in_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/shorten_message.html">known_not_in_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] NA -1 -1 -1</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -249,7 +249,7 @@ with different authors sharing the same taxonomic name.</p>
 <p>As the name is unique no further matching criteria is required (e.g
 authors).</p>
 <p>This step is performed using the function
-<code><a href="../reference/match_single_wcvp.html">match_single_wcvp()</a></code>.</p>
+<code><a href="../reference/shorten_message.html">match_single_wcvp()</a></code>.</p>
 <p>Below we outline an example of this function in action:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Choose some taxon names</span></span>
@@ -259,7 +259,7 @@ authors).</p>
 <span><span class="va">wcvp_search_index_single</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="va">wcvp</span><span class="op">$</span><span class="va">wcvp_names</span><span class="op">$</span><span class="va">single_entry</span> <span class="op">==</span> <span class="cn">T</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Perform the match</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/match_single_wcvp.html">match_single_wcvp</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span>, wcvp_search_index <span class="op">=</span> <span class="va">wcvp_search_index_single</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">match_single_wcvp</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span>, wcvp_search_index <span class="op">=</span> <span class="va">wcvp_search_index_single</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1]  1  2  3  4 NA</span></span>
@@ -292,8 +292,8 @@ multiple entries in POWO.</p>
 <p>For example suppose our database contains the taxon name
 <code>'Abies taxifolia'</code>. Searching in POWO we find 6 records for
 that taxon name.</p>
-<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-20a3c83c71f57a7915ac" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-20a3c83c71f57a7915ac">{"x":{"filter":"none","vertical":false,"data":[["146571","146655","146808","176533","176535","688734"],[382029,382030,382027,382028,382031,382032],["Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia"],["Desf.","Raf.","Duhamel","Poir.","C.Presl","J.Jeffrey ex Gordon &amp; Glend."],["Synonym","Synonym","Synonym","Illegitimate","Synonym","Invalid"],[381621,381621,381621,469725,469725,469765]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>plant_name_id<\/th>\n      <th>taxon_name<\/th>\n      <th>taxon_authors<\/th>\n      <th>taxon_status<\/th>\n      <th>accepted_plant_name_id<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,5]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script><p>We that that each taxon name an author, a taxon status and an
+<div class="datatables html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-9fbb0b1893e01f462355" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-9fbb0b1893e01f462355">{"x":{"filter":"none","vertical":false,"data":[["146571","146655","146808","176533","176535","688734"],[382029,382030,382027,382028,382031,382032],["Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia","Abies taxifolia"],["Desf.","Raf.","Duhamel","Poir.","C.Presl","J.Jeffrey ex Gordon &amp; Glend."],["Synonym","Synonym","Synonym","Illegitimate","Synonym","Invalid"],[381621,381621,381621,469725,469725,469765]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>plant_name_id<\/th>\n      <th>taxon_name<\/th>\n      <th>taxon_authors<\/th>\n      <th>taxon_status<\/th>\n      <th>accepted_plant_name_id<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,5]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script><p>We that that each taxon name an author, a taxon status and an
 accepted plant name. These quantities can be used to decide which record
 we should match to.</p>
 <div class="section level6">
@@ -301,7 +301,7 @@ we should match to.</p>
 </h6>
 <p>This can be split into two parts author matching and choosing
 records. We will begin with choosing records, which is performed by the
-function <code><a href="../reference/match_taxon_status.html">match_taxon_status()</a></code>. The algorithm is as
+function <code><a href="../reference/shorten_message.html">match_taxon_status()</a></code>. The algorithm is as
 follows:</p>
 <ul>
 <li>If we have a single record, return this record.</li>
@@ -341,18 +341,18 @@ current plant’s author. POWO = <code>J.Lee ex Steud.</code> current =
 further author matching.</p>
 <p>Note that author matching (especially partial author matching) may
 lead to multiple potential authors. Therefore, after trying each step of
-author matching we run <code><a href="../reference/match_taxon_status.html">match_taxon_status()</a></code>.</p>
+author matching we run <code><a href="../reference/shorten_message.html">match_taxon_status()</a></code>.</p>
 <p>The combination of author matching and taxon matching is performed by
-the function <code><a href="../reference/get_match_from_multiple.html">get_match_from_multiple()</a></code> for a single taxon
+the function <code><a href="../reference/shorten_message.html">get_match_from_multiple()</a></code> for a single taxon
 name and author combination. To author match for multiple records we use
-the function <code><a href="../reference/match_mult_wcvp.html">match_mult_wcvp()</a></code> which depends on
-<code><a href="../reference/get_match_from_multiple.html">get_match_from_multiple()</a></code>.</p>
+the function <code><a href="../reference/shorten_message.html">match_mult_wcvp()</a></code> which depends on
+<code><a href="../reference/shorten_message.html">get_match_from_multiple()</a></code>.</p>
 <p>An example of author matching is provided below</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">taxon_names</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Abies taxifolia'</span>, <span class="st">'Abies taxifolia'</span>, <span class="st">'Abies taxifolia'</span>, <span class="st">'Abies taxifolia'</span>, <span class="st">'fake name'</span><span class="op">)</span></span>
 <span><span class="va">taxon_authors</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Poir.'</span>, <span class="st">''</span>, <span class="st">'Desf. and Raf.'</span>, <span class="st">'Desf. and Poir.'</span>,  <span class="st">'Dave'</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/match_mult_wcvp.html">match_mult_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span>, <span class="va">taxon_authors</span>, <span class="va">wcvp</span>, <span class="va">wcvp</span><span class="op">$</span><span class="va">wcvp_names</span><span class="op">$</span><span class="va">single_entry</span> <span class="op">==</span> <span class="cn">F</span>, show_progress <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/shorten_message.html">match_mult_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span>, <span class="va">taxon_authors</span>, <span class="va">wcvp</span>, <span class="va">wcvp</span><span class="op">$</span><span class="va">wcvp_names</span><span class="op">$</span><span class="va">single_entry</span> <span class="op">==</span> <span class="cn">F</span>, show_progress <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1]  8 -2  5  5 NA</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -426,7 +426,7 @@ might be able to match a record in POWO. Therefore we want to try 1
 (6), to match to unique and non-unique taxon names respectively. If a
 single match is found we return this.</p>
 <p>This is all contained in the function
-<code><a href="../reference/match_rm_autonym.html">match_rm_autonym()</a></code>, which takes as an input the taxon
+<code><a href="../reference/shorten_message.html">match_rm_autonym()</a></code>, which takes as an input the taxon
 names, taxon names with the author and POWO information and returns the
 matches. This is shown below in an example.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
@@ -435,7 +435,7 @@ matches. This is shown below in an example.</p>
 <span>                <span class="st">'Acacia fake var. fake'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Perform the match</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/match_rm_autonym.html">match_rm_autonym</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">match_rm_autonym</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 11 NA NA</span></span>
@@ -494,7 +494,7 @@ multiple potential matches are found we change the output message
 informing the user that multiple matches are found and for which names
 this is the case, and no match is found.</p>
 <p>This is all contained in the function
-<code><a href="../reference/match_hybrid_issue.html">match_hybrid_issue()</a></code>, which takes as an input the taxon
+<code><a href="../reference/shorten_message.html">match_hybrid_issue()</a></code>, which takes as an input the taxon
 names, taxon names with the author and POWO information and returns the
 matches. This is shown below in an example.</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
@@ -503,7 +503,7 @@ matches. This is shown below in an example.</p>
 <span>                <span class="st">'Artemisia + pfaffii'</span>, <span class="st">'Acacia fake name'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Perform the match</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/match_hybrid_issue.html">match_hybrid_issue</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">match_hybrid_issue</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 12 13 14 NA</span></span>
@@ -588,7 +588,7 @@ names respectively. If a single match is found we return this. If
 multiple potential matches are found we change the output message
 informing the user that multiple matches are found and for which names
 this is the case, and no match is found.</p>
-<p>This is all contained in the function <code><a href="../reference/add_splitter.html">add_splitter()</a></code>,
+<p>This is all contained in the function <code><a href="../reference/shorten_message.html">add_splitter()</a></code>,
 which takes as an input the taxon names, taxon names with the author and
 POWO information and returns the matches. This is shown below in an
 example.</p>
@@ -598,7 +598,7 @@ example.</p>
 <span>                <span class="st">'Atriplex glabriuscula f. franktonii'</span>, <span class="st">'Acacia tortilis raddiana'</span>, <span class="st">'Acacia fake name'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Perform the match</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/add_splitter.html">add_splitter</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">add_splitter</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 15 16 17 NA NA</span></span>
@@ -683,7 +683,7 @@ positions.</li>
 </ul>
 <hr style="border: 0.3px solid green; width:80%;">
 <p>To check whether a typo exists we can use the function
-<code><a href="../reference/check_taxon_typo.html">check_taxon_typo()</a></code>, which checks all potential fixes
+<code><a href="../reference/shorten_message.html">check_taxon_typo()</a></code>, which checks all potential fixes
 against the names in POWO.</p>
 <p>To check for typos and match to records in POWO we use the function
 <code>match_typo()</code>. An example is outlined below.</p>
@@ -693,7 +693,7 @@ against the names in POWO.</p>
 <span>                <span class="st">'Acer × pseudocreticums'</span>, <span class="st">'Amaranthus paraguay-ensis'</span>, <span class="st">'Acacia fake name'</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Perform the match</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/match_typos.html">match_typos</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span>, typo_method <span class="op">=</span> <span class="st">'full'</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">match_typos</a></span><span class="op">(</span>taxon_names <span class="op">=</span> <span class="va">taxon_names</span>, taxon_authors <span class="op">=</span> <span class="va">taxon_names</span>, wcvp <span class="op">=</span> <span class="va">wcvp</span>, typo_method <span class="op">=</span> <span class="st">'full'</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 18 19 20 21 NA</span></span>
@@ -715,13 +715,13 @@ against the names in POWO.</p>
 <code>accepted_plant_name_id</code> does not match
 <code>plant_name_id</code> then we update the match to correspond to the
 accepted plant. This is performed by the function
-<code><a href="../reference/convert_to_accepted_name.html">convert_to_accepted_name()</a></code> in BGSmartR, which takes in the
+<code><a href="../reference/shorten_message.html">convert_to_accepted_name()</a></code> in BGSmartR, which takes in the
 current state of the matches and updates to the accepted form. An
 example is given below.</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">taxon_names</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Adina nobilis'</span>, <span class="st">'Acalypha gracilens var. fraseri'</span>, </span>
 <span>                <span class="st">'Andira zehntneri'</span><span class="op">)</span></span>
-<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/match_single_wcvp.html">match_single_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span>,<span class="va">wcvp</span>,<span class="va">wcvp_search_index_single</span><span class="op">)</span></span>
+<span><span class="va">match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">match_single_wcvp</a></span><span class="op">(</span><span class="va">taxon_names</span>,<span class="va">wcvp</span>,<span class="va">wcvp_search_index_single</span><span class="op">)</span></span>
 <span><span class="va">match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 22 23 24</span></span>
@@ -730,7 +730,7 @@ example is given below.</p>
 <span><span class="co">#&gt; [1] " -&gt; (matches POWO record with single entry) -&gt; (742921-1, Adina nobilis)"                </span></span>
 <span><span class="co">#&gt; [2] " -&gt; (matches POWO record with single entry) -&gt; (1280-2, Acalypha gracilens var. fraseri)"</span></span>
 <span><span class="co">#&gt; [3] " -&gt; (matches POWO record with single entry) -&gt; (12614-2, Andira zehntneri)"</span></span>
-<span><span class="va">new_match</span> <span class="op">=</span> <span class="fu"><a href="../reference/convert_to_accepted_name.html">convert_to_accepted_name</a></span><span class="op">(</span><span class="va">match</span><span class="op">$</span><span class="va">match</span>, <span class="va">wcvp</span><span class="op">)</span></span>
+<span><span class="va">new_match</span> <span class="op">=</span> <span class="fu"><a href="../reference/shorten_message.html">convert_to_accepted_name</a></span><span class="op">(</span><span class="va">match</span><span class="op">$</span><span class="va">match</span>, <span class="va">wcvp</span><span class="op">)</span></span>
 <span><span class="va">new_match</span></span>
 <span><span class="co">#&gt; $match</span></span>
 <span><span class="co">#&gt; [1] 25 26 24</span></span>
@@ -749,7 +749,7 @@ example is given below.</p>
 <p>We see that the first two taxon names go to an accepted form and the
 third does not. This is shown by both <code>$match</code> remaining the
 same and an empty <code>$message</code> after running
-<code><a href="../reference/convert_to_accepted_name.html">convert_to_accepted_name()</a></code>.</p>
+<code><a href="../reference/shorten_message.html">convert_to_accepted_name()</a></code>.</p>
 <p>We can check the accepted name by using the codes provided in the
 message on POWO’s website. This is done by changing the last part of the
 URL. For example <code>Adina nobilis</code> can be found at the address

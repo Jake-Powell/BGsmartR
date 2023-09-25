@@ -64,9 +64,8 @@
 <span>    <span class="st">"taxon_status"</span>, <span class="st">"powo_id"</span>, <span class="st">"family"</span>, <span class="st">"genus"</span>, <span class="st">"species"</span>, <span class="st">"lifeform_description"</span>,</span>
 <span>    <span class="st">"climate_description"</span>, <span class="st">"geographic_area"</span>, <span class="st">"Dist_000_area_code_l3"</span>, <span class="st">"Dist_000_labels"</span>,</span>
 <span>    <span class="st">"Dist_100_area_code_l3"</span>, <span class="st">"Dist_010_area_code_l3"</span>, <span class="st">"Dist_001_area_code_l3"</span>,</span>
-<span>    <span class="st">"Dist_101_area_code_l3"</span>, <span class="st">"Dist_110_area_code_l3"</span>, <span class="st">"Dist_011_plant_name_id"</span>,</span>
-<span>    <span class="st">"Dist_011_area_code_l3"</span>, <span class="st">"main_common_name"</span>, <span class="st">"assessment_date"</span>, <span class="st">"category"</span>,</span>
-<span>    <span class="st">"criteria"</span>, <span class="st">"population_trend"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"Dist_101_area_code_l3"</span>, <span class="st">"Dist_110_area_code_l3"</span>, <span class="st">"Dist_011_area_code_l3"</span>,</span>
+<span>    <span class="st">"main_common_name"</span>, <span class="st">"assessment_date"</span>, <span class="st">"category"</span>, <span class="st">"criteria"</span>, <span class="st">"population_trend"</span><span class="op">)</span>,</span>
 <span>  redlist_wanted_info <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"plant_name_id"</span>, <span class="st">"main_common_name"</span>, <span class="st">"assessment_date"</span>,</span>
 <span>    <span class="st">"category"</span>, <span class="st">"criteria"</span>, <span class="st">"population_trend"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -115,7 +114,7 @@
 
 
 <dt>...</dt>
-<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to <code><a href="match_original_to_wcvp.html">match_original_to_wcvp()</a></code>). Examples include <code>typo_method</code>, <code>do_convert_accepted</code> and <code>try_fix_hybrid</code>.</p></dd>
+<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to <code><a href="match_collection_to_wcvp.html">match_collection_to_wcvp()</a></code>). Examples include <code>typo_method</code>, <code>do_convert_accepted</code> and <code>try_fix_hybrid</code>.</p></dd>
 
 
 <dt>wcvp_wanted_info</dt>
@@ -123,7 +122,7 @@
 
 
 <dt>redlist_wanted_info</dt>
-<dd><p>A character vector containing the information we want to extract from IUCN red list, corresponding to column names in <code>redList</code></p></dd>
+<dd><p>A character vector containing the information we want to extract from IUCN red list, corresponding to column names in <code>redList</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

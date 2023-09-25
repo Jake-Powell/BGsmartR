@@ -25,9 +25,6 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_alpha.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/add_splitter.html</loc>
-  </url>
-  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_status_year.html</loc>
   </url>
   <url>
@@ -41,12 +38,6 @@
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/author_words.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/check_taxon_typo.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/convert_to_accepted_name.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_basic_stats_interactive.html</loc>
@@ -94,9 +85,6 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/get_accepted_plant.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/get_match_from_multiple.html</loc>
-  </url>
-  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/import_wcvp_names.html</loc>
   </url>
   <url>
@@ -106,37 +94,10 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/is_autonym.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/known_not_in_wcvp.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_all_issue.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_error.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_hybrid_issue.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_mult_wcvp.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/match_collection_to_wcvp.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/match_original_to_BGCI.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_original_to_wcvp.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_rm_autonym.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_single_wcvp.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_taxon_status.html</loc>
-  </url>
-  <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/match_typos.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/sanitise_name.html</loc>
