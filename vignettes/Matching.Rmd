@@ -92,9 +92,9 @@ This is performed on all taxon names that remain to be matched.
 This is done using the function `sanitise_name()` which takes a single taxon name as an input. Below we outline some examples of using `sanitise_name()`.
 
 ```{r sanitise names}
-sanitise_name('TRIGONELLA smyrnaea')
-sanitise_name('Halimium X pauanum')
-sanitise_name('Aruncus dioicus var acuminatus')
+# sanitise_name('TRIGONELLA smyrnaea')
+# sanitise_name('Halimium X pauanum')
+# sanitise_name('Aruncus dioicus var acuminatus')
 ```
 
 ***
@@ -119,14 +119,14 @@ This step sets the match to `-1` for the taxon names we know do not appear in PO
  - Includes `Hybrid `.
  - Includes `Unknown`.
 
-This is performed using the function `known_not_in_wcvp()`, which returns the index of any taxon name which contains any of the above patterns. For these taxon names we set the output message to `(Not in POWO <known not to be in POWO>)`. 
+This is performed using the function `no_match_cultivar_indet()`, which returns the index of any taxon name which contains any of the above patterns. For these taxon names we set the output message to `(Not in POWO <known not to be in POWO>)`. 
 
-Below we provide an example of `known_not_in_wcvp()`.
+Below we provide an example of `no_match_cultivar_indet()`.
 
-```{r known_not_in_wcvp}
-taxon_names = c('Acalypha fruticulosa', 'Asclepias sp.', "Abies umbilicata 'Some Cultivar'", 
-                'Ammi copticum cv.')
-known_not_in_wcvp(taxon_names)
+```{r no_match_cultivar_indet}
+# taxon_names = c('Acalypha fruticulosa', 'Asclepias sp.', "Abies umbilicata 'Some Cultivar'", 
+#                 'Ammi copticum cv.')
+# no_match_cultivar_indet(taxon_names)
 ```
 
 We see that the function returns the indices (starting from 1) of the taxon names which contains the patterns outlined above. 
@@ -139,20 +139,20 @@ This step matches the taxon names in the original report to the records in POWO 
 
 As the name is unique no further matching criteria is required (e.g authors). 
 
-This step is performed using the function `match_single_wcvp()`. 
+This step is performed using the function `match_single()`. 
 
 Below we outline an example of this function in action:
 
 ```{r match single}
-# Choose some taxon names
-taxon_names = c("Amaranthus graecizans subsp. silvestris", "Amsonia ciliata", "Aristolochia islandica", "Adenocalymma scabriusculum", "Fake name")
-
-# Choose the indices of wcvp which correspond to a unique taxon name using `single_entry`.
-wcvp_search_index_single = which(wcvp$wcvp_names$single_entry == T)
-
-# Perform the match
-match = match_single_wcvp(taxon_names = taxon_names, wcvp = wcvp, wcvp_search_index = wcvp_search_index_single)
-match
+# # Choose some taxon names
+# taxon_names = c("Amaranthus graecizans subsp. silvestris", "Amsonia ciliata", "Aristolochia islandica", "Adenocalymma scabriusculum", "Fake name")
+# 
+# # Choose the indices of wcvp which correspond to a unique taxon name using `single_entry`.
+# wcvp_search_index_single = which(wcvp$wcvp_names$single_entry == T)
+# 
+# # Perform the match
+# match = match_single(taxon_names = taxon_names, enrich_database = wcvp$wcvp_names, enrich_database_search_index = wcvp_search_index_single)
+# match
 ```
 
 We see that `match` is a list that contains:
@@ -171,7 +171,7 @@ This step searches for matches to POWO when the taxon name has multiple entries 
 For example suppose our database contains the taxon name `'Abies taxifolia'`. Searching in POWO we find 6 records for that taxon name. 
 
 ```{r, echo = F}
-DT::datatable(wcvp$wcvp_names[wcvp$wcvp_names$taxon_name == 'Abies taxifolia', c(1:3,5,6)])
+# DT::datatable(wcvp$wcvp_names[wcvp$wcvp_names$taxon_name == 'Abies taxifolia', c(1:3,5,6)])
 ```
 
 We that that each taxon name an author, a taxon status and an accepted plant name. These quantities can be used to decide which record we should match to. 
@@ -205,10 +205,10 @@ The combination of author matching and taxon matching is performed by the functi
 An example of author matching is provided below
 
 ```{r example mult author matching}
-taxon_names = c('Abies taxifolia', 'Abies taxifolia', 'Abies taxifolia', 'Abies taxifolia', 'fake name')
-taxon_authors = c('Poir.', '', 'Desf. and Raf.', 'Desf. and Poir.',  'Dave')
-
-match_mult_wcvp(taxon_names, taxon_authors, wcvp, wcvp$wcvp_names$single_entry == F, show_progress = F)
+# taxon_names = c('Abies taxifolia', 'Abies taxifolia', 'Abies taxifolia', 'Abies taxifolia', 'fake name')
+# taxon_authors = c('Poir.', '', 'Desf. and Raf.', 'Desf. and Poir.',  'Dave')
+# 
+# match_multiple(taxon_names, taxon_authors, wcvp$wcvp_names, wcvp$wcvp_names$single_entry == F, show_progress = F)
 ```
 
 
@@ -228,16 +228,16 @@ This step is used to compare the author names in the original report and the mat
 To extract words from an author name we use the function `author_words()`. This extracts all words which start with a capital letter and has at least length 3 (including hyphens), together with `DC.`, `Sm.` and `Br.`. Below we provide an example
 
 ```{r}
-author_words('Nakai & Tuyama')
-author_words('J.C.Wendl. ex Hornem.')
+# author_words('Nakai & Tuyama')
+# author_words('J.C.Wendl. ex Hornem.')
 ```
 
 The comparison of authors is performed by the function `author_check()` which given the original author and the matched author returns one of the three messages outlined above. For example
 
 ```{r}
-author_check('Oliv.','Oliv.')
-author_check('(Bong.) D.Don (Piper) C.L.Hitche','(Piper) C.H.Hitchc.')
-author_check('L.','(W.D.J.Koch) Arcang.')
+# author_check('Oliv.','Oliv.')
+# author_check('(Bong.) D.Don (Piper) C.L.Hitche','(Piper) C.H.Hitchc.')
+# author_check('L.','(W.D.J.Koch) Arcang.')
 ```
 
 The matching also returns the 'match' names and authors prior to converting to accepted names.
@@ -256,7 +256,7 @@ This step tries to match taxon names after the autonym has been removed.
 For example suppose we have `'Acmena hemilampra subsp. hemilampra'` in our original report. This does not exist in POWO. If we remove the autonym then we might be able to match a record in POWO. Therefore we want to try 1 'potential' taxon name:
 
 ```{r, echo = F}
-'Acmena hemilampra'
+# 'Acmena hemilampra'
 ```
 
 
@@ -265,13 +265,13 @@ The 'potential' taxon name is matched to POWO using steps (5) and (6), to match 
 This is all contained in the function `match_rm_autonym()`, which takes as an input the taxon names, taxon names with the author and POWO information and returns the matches. This is shown below in an example.
 
 ```{r match_rm_autonym, message=FALSE}
-# Choose some taxon names
-taxon_names = c('Acmena hemilampra subsp. hemilampra', 'Aesculus rubicunda',
-                'Acacia fake var. fake')
-
-# Perform the match
-match = match_rm_autonym(taxon_names = taxon_names, taxon_authors = taxon_names, wcvp = wcvp)
-match
+# # Choose some taxon names
+# taxon_names = c('Acmena hemilampra subsp. hemilampra', 'Aesculus rubicunda',
+#                 'Acacia fake var. fake')
+# 
+# # Perform the match
+# match = match_rm_autonym(taxon_names = taxon_names, taxon_authors = taxon_names, enrich_database = wcvp$wcvp_names)
+# match
 ```
 
 We see that if we find a match to the potential taxon name we return the index of the match, and a message informing that we removed the autonym. Potential names that do not find a match and taxon names that are not autonyms have match equal to `NA` and no message.
@@ -353,7 +353,7 @@ taxon_names = c('Asplenosorus', 'Aesculus rubicunda var. whitleyi',
                 'Artemisia + pfaffii', 'Acacia fake name')
 
 # Perform the match
-match = match_hybrid_issue(taxon_names = taxon_names, taxon_authors = taxon_names, wcvp = wcvp)
+match = match_hybrid_issue(taxon_names = taxon_names, taxon_authors = taxon_names, enrich_database = wcvp$wcvp_names)
 match
 ```
 
@@ -443,13 +443,13 @@ For each of the three cases we then match the 'potential' taxon names to POWO us
 This is all contained in the function `add_splitter()`, which takes as an input the taxon names, taxon names with the author and POWO information and returns the matches. This is shown below in an example.
 
 ```{r add splitter, message=FALSE}
-# Choose some taxon names
-taxon_names = c('Atractylis carduus glabrescens', 'Asplenium × corbariense andorranum',
-                'Atriplex glabriuscula f. franktonii', 'Acacia tortilis raddiana', 'Acacia fake name')
-
-# Perform the match
-match = add_splitter(taxon_names = taxon_names, taxon_authors = taxon_names, wcvp = wcvp)
-match
+# # Choose some taxon names
+# taxon_names = c('Atractylis carduus glabrescens', 'Asplenium × corbariense andorranum',
+#                 'Atriplex glabriuscula f. franktonii', 'Acacia tortilis raddiana', 'Acacia fake name')
+# 
+# # Perform the match
+# match = match_splitter_issue(taxon_names = taxon_names, taxon_authors = taxon_names, enrich_database = wcvp$wcvp_names)
+# match
 ```
 
 We see that if we find a single match in the potential taxon names then the index of the match is returned. If multiple potential names find matches then the match index is set to `-5` and the message informs of the potential taxon names that lead to matches. If we find no matches for any of the potential names the index is set to `NA` and the message is left blank.
@@ -508,13 +508,13 @@ To check whether a typo exists we can use the function `check_taxon_typo()`, whi
 To check for typos and match to records in POWO we use the function `match_typo()`. An example is outlined below.
 
 ```{r match_typo, message=FALSE}
-# Choose some taxon names
-taxon_names = c('Acalypha stellipilus', 'Aiphanes lucana',
-                'Acer × pseudocreticums', 'Amaranthus paraguay-ensis', 'Acacia fake name')
-
-# Perform the match
-match = match_typos(taxon_names = taxon_names, taxon_authors = taxon_names, wcvp = wcvp, typo_method = 'full')
-match
+# # Choose some taxon names
+# taxon_names = c('Acalypha stellipilus', 'Aiphanes lucana',
+#                 'Acer × pseudocreticums', 'Amaranthus paraguay-ensis', 'Acacia fake name')
+# 
+# # Perform the match
+# match = match_typos(taxon_names = taxon_names, taxon_authors = taxon_names, enrich_database = wcvp$wcvp_names, typo_method = 'full')
+# match
 ```
 
 
@@ -525,16 +525,16 @@ match
 To update taxon names to their accepted form we use the field `accepted_plant_name_id` in POWO. If the `accepted_plant_name_id` does not match `plant_name_id` then we update the match to correspond to the accepted plant. This is performed by the function `convert_to_accepted_name()` in BGSmartR, which takes in the current state of the matches and updates to the accepted form. An example is given below.
 
 ```{r}
-taxon_names = c('Adina nobilis', 'Acalypha gracilens var. fraseri', 
-                'Andira zehntneri')
-match = match_single_wcvp(taxon_names,wcvp,wcvp_search_index_single)
-match
-new_match = convert_to_accepted_name(match$match, wcvp)
-new_match
-
-#Putting the messages together.
-messages = paste0(match$message, new_match$message)
-messages
+# taxon_names = c('Adina nobilis', 'Acalypha gracilens var. fraseri', 
+#                 'Andira zehntneri')
+# match = match_single(taxon_names,wcvp$wcvp_names,wcvp_search_index_single)
+# match
+# new_match = convert_to_accepted_name(match$match, wcvp)
+# new_match
+# 
+# #Putting the messages together.
+# messages = paste0(match$message, new_match$message)
+# messages
 ```
 
 We see that the first two taxon names go to an accepted form and the third does not. This is shown by both `$match` remaining the same and an empty `$message` after running `convert_to_accepted_name()`.

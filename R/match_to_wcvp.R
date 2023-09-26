@@ -5,15 +5,29 @@
 #' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
-#' @param typo_method Flag for whether we search for typos
-#' @param try_add_split Flag for whether we search for missing f./var./subsp.
-#' @param try_fix_hybrid Flag for whether we search for hybrid issues.
-#' @param try_rm_autonym Flag for whether we try removing autonyms.
+#' @param typo_method Flag for whether we search for typos.
+#' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
+#' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
+#' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param do_convert_accepted Flag for whether we convert to accepted names in POWO.
+#' @param ... Flag for whether we convert to accepted names in POWO.
 #'
-#' @return A list of length two containing:
-#' `$match` the index of the match from `taxon_names` to `wcvp`, where the match goes to the record with accepted status.
-#' `$message` a message detailing the match.
+#' @details
+#' This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see the vignette.
+#'
+#' Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using `try_add_split`, `try_fix_hybrid`, `try_rm_autonym` and `typo_method`.
+#'
+#'
+#' @return A list of length seven containing:
+#' - `$match` the index of the record in `wcvp$wcvp_names` which matches the record in the collection database.
+#' - `$details_short` a simplified message detailing the match.
+#' - `$match_taxon_name` a longer format message detailing the match.
+#' - `$original_authors` The author/s (extracted) from the `collection` database.
+#' - `$match_authors` The author/s of the matched record in `wcvp$wcvp_names`.
+#' - `$author_check` Either `Identical`, `Partial` or `Different`  (`No Match` if a match to wcvp cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in `wcvp$wcvp_names`. Author similarity is found using the function  [author_check()].
+#'
+#'
+#' match = taxon_match_full,
 #' @export
 match_collection_to_wcvp <- function(collection, wcvp,
                                    taxon_name_column = 'TaxonName',
@@ -21,7 +35,8 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                    taxon_author_column = NA,
                                    typo_method = 'fast',
                                    try_add_split = TRUE, try_fix_hybrid = TRUE,
-                                   try_rm_autonym = TRUE, do_convert_accepted=TRUE){
+                                   try_rm_autonym = TRUE, do_convert_accepted=TRUE,
+                                   ...){
   if(!typo_method %in% c('full', 'fast','no')){
     stop('Invalid typo_method input!')
   }
@@ -95,7 +110,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
   # (Assume all exceptions are single records in POWO, this is the case currently)
   exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
   exception_indices = exception_indices[!is.na(exception_indices)]
-  match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, exception_indices)
+  match_info = match_single(taxon_name[index_to_find_matches], enrich_database =  wcvp$wcvp_names, exception_indices)
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
@@ -107,7 +122,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
   ################################################
   cli::cli_h2("Removing known not to be in POWO from {length(index_to_find_matches)} name{?s}")
 
-  match_info = known_not_in_wcvp(taxon_name[index_to_find_matches])
+  match_info = no_match_cultivar_indet(taxon_name[index_to_find_matches])
 
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -125,7 +140,10 @@ match_collection_to_wcvp <- function(collection, wcvp,
     cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
 
     single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
-    match_info = match_single_wcvp(taxon_name[index_to_find_matches], wcvp, single_indices)
+    match_info = match_single(taxon_names = taxon_name[index_to_find_matches],
+                              enrich_database = wcvp$wcvp_names,
+                              enrich_database_search_index = single_indices,
+                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -144,7 +162,11 @@ match_collection_to_wcvp <- function(collection, wcvp,
     cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
     mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
-    match_info = match_mult_wcvp(taxon_name[index_to_find_matches],taxon_author[index_to_find_matches],  wcvp, mult_indices)
+    match_info = match_multiple(taxon_names = taxon_name[index_to_find_matches],
+                                taxon_authors = taxon_author[index_to_find_matches],
+                                enrich_database = wcvp$wcvp_names,
+                                enrich_database_search_index = mult_indices,
+                                ...)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -182,7 +204,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
         # Get matches trying to fix taxon name.
         match_info = match_all_issue(taxon_names = taxon_name[diff_index],
                                      taxon_authors = taxon_author[diff_index],
-                                     wcvp = wcvp,
+                                     enrich_database = wcvp$wcvp_names,
                                      single_indices = single_indices,
                                      mult_indices = mult_indices,
                                      do_taxon_author = do_taxon_author,
@@ -224,7 +246,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
     match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
                                  taxon_authors = taxon_author[index_to_find_matches],
-                                 wcvp = wcvp,
+                                 enrich_database = wcvp$wcvp_names,
                                  single_indices = single_indices,
                                  mult_indices = mult_indices,
                                  do_taxon_author = do_taxon_author,
@@ -250,7 +272,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
     match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],
                              taxon_authors = taxon_author[index_to_find_matches],
-                             wcvp = wcvp,
+                             enrich_database = wcvp$wcvp_names,
                              single_indices = single_indices,
                              mult_indices = mult_indices,
                              typo_method = typo_method)
@@ -330,4 +352,43 @@ match_collection_to_wcvp <- function(collection, wcvp,
               original_authors = original_authors_full,
               match_authors = proposed_authors_full,
               author_check = author_checked_full))
+}
+
+
+
+#' Convert to accepted plant name for World Checklist of Vascular Plants
+#'
+#' @param original_match  The indices of the rows in `wcvp$wcvp_names` (or generally referred to as enrich_database) corresponding to the matches of the collection to it.
+#' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()].
+#'
+#' @return match and message after converting to accepted name
+#' @export
+#'
+convert_to_accepted_name <- function(original_match, wcvp){
+
+  # A) Setup: Create message. Reduce to only entries that have matches.
+  message = rep('', length(original_match))
+  a_match_has_been_found_index = which(!(is.na(original_match) | original_match < 0))
+  a_match_has_been_found  = original_match[a_match_has_been_found_index]
+
+  # B) Check if the plant name id equals the accepted plant name id.
+  is_accepted_plant = wcvp$wcvp_names$plant_name_id[a_match_has_been_found] == wcvp$wcvp_names$accepted_plant_name_id[a_match_has_been_found]
+
+  # B) Find those where there is not a match (= FALSE) and there is an accepted name (!= NA).
+  not_match_index = which(is_accepted_plant == FALSE & !is.na(is_accepted_plant))
+
+  # C) Extract the accepted plant_id for those that do not match
+  new_plant_id = wcvp$wcvp_names$accepted_plant_name_id[a_match_has_been_found[not_match_index]]
+
+  # D) Find the index of the corresponding accepted_plant_id
+  accepted_index = match(new_plant_id, wcvp$wcvp_names$plant_name_id)
+
+  # E) Update the a_match_has_been_found. Update original match.
+  original_match[a_match_has_been_found_index[not_match_index]] = accepted_index
+
+  # F) Update message
+  message[a_match_has_been_found_index[not_match_index]] = paste0(message[a_match_has_been_found_index[not_match_index]],' -> (Go to accepted name) -> (', wcvp$wcvp_names$powo_id[accepted_index],
+                                                                  ', ', wcvp$wcvp_names$taxon_name[accepted_index],
+                                                                  ')')
+  return(list(match = original_match, message = message))
 }

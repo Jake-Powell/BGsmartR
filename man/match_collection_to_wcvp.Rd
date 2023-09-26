@@ -14,7 +14,8 @@ match_collection_to_wcvp(
   try_add_split = TRUE,
   try_fix_hybrid = TRUE,
   try_rm_autonym = TRUE,
-  do_convert_accepted = TRUE
+  do_convert_accepted = TRUE,
+  ...
 )
 }
 \arguments{
@@ -28,21 +29,36 @@ match_collection_to_wcvp(
 
 \item{taxon_author_column}{The name of the column in the \code{collection} corresponding to the authors of the taxonomic names.}
 
-\item{typo_method}{Flag for whether we search for typos}
+\item{typo_method}{Flag for whether we search for typos.}
 
-\item{try_add_split}{Flag for whether we search for missing f./var./subsp.}
+\item{try_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
-\item{try_fix_hybrid}{Flag for whether we search for hybrid issues.}
+\item{try_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
 
-\item{try_rm_autonym}{Flag for whether we try removing autonyms.}
+\item{try_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
 
 \item{do_convert_accepted}{Flag for whether we convert to accepted names in POWO.}
+
+\item{...}{Flag for whether we convert to accepted names in POWO.}
 }
 \value{
-A list of length two containing:
-\verb{$match} the index of the match from \code{taxon_names} to \code{wcvp}, where the match goes to the record with accepted status.
-\verb{$message} a message detailing the match.
+A list of length seven containing:
+\itemize{
+\item \verb{$match} the index of the record in \code{wcvp$wcvp_names} which matches the record in the collection database.
+\item \verb{$details_short} a simplified message detailing the match.
+\item \verb{$match_taxon_name} a longer format message detailing the match.
+\item \verb{$original_authors} The author/s (extracted) from the \code{collection} database.
+\item \verb{$match_authors} The author/s of the matched record in \code{wcvp$wcvp_names}.
+\item \verb{$author_check} Either \code{Identical}, \code{Partial} or \code{Different}  (\verb{No Match} if a match to wcvp cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in \code{wcvp$wcvp_names}. Author similarity is found using the function  \code{\link[=author_check]{author_check()}}.
+}
+
+match = taxon_match_full,
 }
 \description{
 Match collection to World Checklist of Vascular Plants via taxonomic name
+}
+\details{
+This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see the vignette.
+
+Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using \code{try_add_split}, \code{try_fix_hybrid}, \code{try_rm_autonym} and \code{typo_method}.
 }
