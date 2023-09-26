@@ -40,6 +40,9 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/author_words.html</loc>
   </url>
   <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/convert_to_accepted_name.html</loc>
+  </url>
+  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_basic_stats_interactive.html</loc>
   </url>
   <url>
@@ -100,10 +103,10 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/match_original_to_BGCI.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/sanitise_name.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/match_single.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/shorten_message.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/sanitise_name.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/taxon_type.html</loc>
