@@ -54,7 +54,8 @@
 <span>  <span class="va">enrich_database_search_index</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_display_in_message_column <span class="op">=</span> <span class="st">"powo_id"</span>,</span>
-<span>  match_column <span class="op">=</span> <span class="cn">NA</span></span>
+<span>  match_column <span class="op">=</span> <span class="cn">NA</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">match_multiple</span><span class="op">(</span></span>
@@ -62,7 +63,7 @@
 <span>  <span class="va">taxon_authors</span>,</span>
 <span>  <span class="va">enrich_database</span>,</span>
 <span>  <span class="va">enrich_database_search_index</span>,</span>
-<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="fu">get_match_from_multiple</span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va">get_match_from_multiple</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_display_in_message_column <span class="op">=</span> <span class="st">"powo_id"</span>,</span>
 <span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
@@ -123,14 +124,20 @@
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">match_taxon_status</span><span class="op">(</span><span class="va">author_match</span>, <span class="va">corres_enrich_database</span>, current_message <span class="op">=</span> <span class="st">""</span><span class="op">)</span></span>
+<span><span class="fu">match_taxon_status</span><span class="op">(</span></span>
+<span>  <span class="va">author_match</span>,</span>
+<span>  <span class="va">corres_enrich_database</span>,</span>
+<span>  current_message <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">get_match_from_multiple</span><span class="op">(</span></span>
 <span>  <span class="va">taxon_name_and_author</span>,</span>
 <span>  <span class="va">enrich_database_mult</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
-<span>  enrich_taxon_author_words_column <span class="op">=</span> <span class="st">"author_parts"</span></span>
+<span>  enrich_taxon_author_words_column <span class="op">=</span> <span class="st">"author_parts"</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">match_error</span><span class="op">(</span></span>
@@ -138,7 +145,8 @@
 <span>  <span class="va">match_details</span>,</span>
 <span>  <span class="va">original_author</span>,</span>
 <span>  <span class="va">enrich_database</span>,</span>
-<span>  current_message <span class="op">=</span> <span class="st">""</span></span>
+<span>  current_message <span class="op">=</span> <span class="st">""</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">check_taxon_typo</span><span class="op">(</span></span>
@@ -146,7 +154,8 @@
 <span>  enrich_database <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  typo_df <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="typo_list.html">typo_list</a></span>,</span>
-<span>  typo_method <span class="op">=</span> <span class="st">"fast"</span></span>
+<span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">shorten_message</span><span class="op">(</span><span class="va">messages</span><span class="op">)</span></span></code></pre></div>
@@ -178,6 +187,10 @@
 <dd><p>either <code>NA</code> or the name of the column in <code>enrich_database</code>. The default value if <code>NA</code> which means the values of the match are the indices of the matched records in the enrich database. If instead a single column of <code>enrich_database</code> is desired to be the result of the match the name of the column needs to be provided.</p></dd>
 
 
+<dt>...</dt>
+<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include <code>enrich_taxon_authors_column</code>, <code>enrich_display_in_message_column</code> and <code>enrich_plant_identifier_column</code>.</p></dd>
+
+
 <dt>taxon_authors</dt>
 <dd><p>A vector of full taxon names (corresponding to <code>taxon_names</code>)</p></dd>
 
@@ -188,10 +201,6 @@
 
 <dt>enrich_plant_identifier_column</dt>
 <dd><p>The name of the column in <code>enrich_database</code> that corresponds to record identifier. Default value is <code>plant_name_id</code>.</p></dd>
-
-
-<dt>...</dt>
-<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include <code>enrich_taxon_authors_column</code>, <code>enrich_display_in_message_column</code> and <code>enrich_plant_identifier_column</code>.</p></dd>
 
 
 <dt>show_progress</dt>
