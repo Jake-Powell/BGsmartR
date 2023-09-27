@@ -22,7 +22,8 @@ match_single(
   enrich_database_search_index,
   enrich_taxon_name_column = "taxon_name",
   enrich_display_in_message_column = "powo_id",
-  match_column = NA
+  match_column = NA,
+  ...
 )
 
 match_multiple(
@@ -30,7 +31,7 @@ match_multiple(
   taxon_authors,
   enrich_database,
   enrich_database_search_index,
-  matching_criterion = BGSmartR::get_match_from_multiple(),
+  matching_criterion = BGSmartR::get_match_from_multiple,
   enrich_taxon_name_column = "taxon_name",
   enrich_display_in_message_column = "powo_id",
   enrich_plant_identifier_column = "plant_name_id",
@@ -91,14 +92,20 @@ match_hybrid_issue(
   ...
 )
 
-match_taxon_status(author_match, corres_enrich_database, current_message = "")
+match_taxon_status(
+  author_match,
+  corres_enrich_database,
+  current_message = "",
+  ...
+)
 
 get_match_from_multiple(
   taxon_name_and_author,
   enrich_database_mult,
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
-  enrich_taxon_author_words_column = "author_parts"
+  enrich_taxon_author_words_column = "author_parts",
+  ...
 )
 
 match_error(
@@ -106,7 +113,8 @@ match_error(
   match_details,
   original_author,
   enrich_database,
-  current_message = ""
+  current_message = "",
+  ...
 )
 
 check_taxon_typo(
@@ -114,7 +122,8 @@ check_taxon_typo(
   enrich_database = NA,
   enrich_taxon_name_column = "taxon_name",
   typo_df = BGSmartR::typo_list,
-  typo_method = "fast"
+  typo_method = "fast",
+  ...
 )
 
 shorten_message(messages)
@@ -132,13 +141,13 @@ shorten_message(messages)
 
 \item{match_column}{either \code{NA} or the name of the column in \code{enrich_database}. The default value if \code{NA} which means the values of the match are the indices of the matched records in the enrich database. If instead a single column of \code{enrich_database} is desired to be the result of the match the name of the column needs to be provided.}
 
+\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
+
 \item{taxon_authors}{A vector of full taxon names (corresponding to \code{taxon_names})}
 
 \item{matching_criterion}{The function used to find the best match when we have 'non-unique' taxonomic names. By default the function \code{BGSmartR::get_match_from_multiple()} is used.}
 
 \item{enrich_plant_identifier_column}{The name of the column in \code{enrich_database} that corresponds to record identifier. Default value is \code{plant_name_id}.}
-
-\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 
 \item{show_progress}{Flag (TRUE?FALSE) for whether we show progress bar.}
 

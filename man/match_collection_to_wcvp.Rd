@@ -39,7 +39,7 @@ match_collection_to_wcvp(
 
 \item{do_convert_accepted}{Flag for whether we convert to accepted names in POWO.}
 
-\item{...}{Flag for whether we convert to accepted names in POWO.}
+\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 }
 \value{
 A list of length seven containing:

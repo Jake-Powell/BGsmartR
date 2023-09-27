@@ -1,7 +1,7 @@
-#' Match collection to World Checklist of Vascular Plants via taxonomic name
+#' Match collection to IUCN Red List of Threatened Species via taxonomic name
 #'
 #' @param collection A data frame containing a collection.
-#' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()].
+#' @param iucnRedlist IUCN Red List of Threatened Species database, obtained using the function XXXX.
 #' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
@@ -9,38 +9,45 @@
 #' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
 #' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
 #' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
-#' @param do_convert_accepted Flag for whether we convert to accepted names in POWO.
-#' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
+#' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
+#' @param enrich_taxon_name_column The name of the column in the `iucnRedlist` corresponding to taxonomic names.Default value is `scientific_name`.
+#' @param enrich_display_in_message_column The name of the column in `iucnRedlist` that contains values to show in the matching messages. Default value is `taxonid`.
+#' @param enrich_plant_identifier_column The name of the column in `iucnRedlist` that corresponds to record identifier. Default value is `taxonid`.
 #'
 #' @details
-#' This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see the vignette.
+#' This function allows matching of a collection's database to IUCN Red List of Threatened Species database. This function relies of matching functions found that are documented in  [match_single()], and is broadly similar to the function [match_collection_to_wcvp()].
+#'
+#'
 #'
 #' Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using `try_add_split`, `try_fix_hybrid`, `try_rm_autonym` and `typo_method`.
 #'
 #'
 #' @return A list of length seven containing:
-#' - `$match` the index of the record in `wcvp$wcvp_names` which matches the record in the collection database.
+#' - `$match` the index of the record in `iucnRedlist` which matches the record in the collection database.
 #' - `$details_short` a simplified message detailing the match.
 #' - `$match_taxon_name` a longer format message detailing the match.
 #' - `$original_authors` The author/s (extracted) from the `collection` database.
-#' - `$match_authors` The author/s of the matched record in `wcvp$wcvp_names`.
-#' - `$author_check` Either `Identical`, `Partial` or `Different`  (`No Match` if a match to wcvp cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in `wcvp$wcvp_names`. Author similarity is found using the function  [author_check()].
+#' - `$match_authors` The author/s of the matched record in `iucnRedlist`.
+#' - `$author_check` Either `Identical`, `Partial` or `Different`  (`No Match` if a match to iucnRedlist cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in `iucnRedlist`. Author similarity is found using the function  [author_check()].
 #'
 #'
 #' match = taxon_match_full,
 #' @export
-match_collection_to_wcvp <- function(collection, wcvp,
-                                   taxon_name_column = 'TaxonName',
-                                   taxon_name_full_column = NA,
-                                   taxon_author_column = NA,
-                                   typo_method = 'fast',
-                                   try_add_split = TRUE, try_fix_hybrid = TRUE,
-                                   try_rm_autonym = TRUE, do_convert_accepted=TRUE,
-                                   ...){
+match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
+                                     taxon_name_column = 'TaxonName',
+                                     taxon_name_full_column = NA,
+                                     taxon_author_column = NA,
+                                     typo_method = 'fast',
+                                     try_add_split = TRUE, try_fix_hybrid = TRUE,
+                                     try_rm_autonym = TRUE,
+                                     ...,
+                                     enrich_taxon_name_column = 'scientific_name',
+                                     enrich_display_in_message_column = 'taxonid',
+                                     enrich_plant_identifier_column = 'taxonid'){
   if(!typo_method %in% c('full', 'fast','no')){
     stop('Invalid typo_method input!')
   }
-  #Implies collection and wcvp are already in the workspace.
+  #Implies collection and iucnRedlist are already in the workspace.
   no_records = nrow(collection)
   cli::cli_alert_info("{.var {no_records}} records found.")
 
@@ -104,23 +111,11 @@ match_collection_to_wcvp <- function(collection, wcvp,
   index_to_find_matches = 1:length(taxon_name)
   index_complete = NULL
 
-  ################################################
-  # 3) Match the exceptions of the known not to be in POWO.
-  ################################################
-  # (Assume all exceptions are single records in POWO, this is the case currently)
-  exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
-  exception_indices = exception_indices[!is.na(exception_indices)]
-  match_info = match_single(taxon_name[index_to_find_matches], enrich_database =  wcvp$wcvp_names, exception_indices)
-  taxon_match[index_to_find_matches] = match_info$match
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
-  index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
-  index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
-  cli::cli_alert_info("Found {length(index_complete)} exceptions to known not in POWO.")
 
   ################################################
-  # 4) Remove known to not be in POWO. (set taxon match to -1)
+  # 3) Remove cultivars and indeterminates. (set taxon match to -1)
   ################################################
-  cli::cli_h2("Removing known not to be in POWO from {length(index_to_find_matches)} name{?s}")
+  cli::cli_h2("Removing cultivars and indeterminates from {length(index_to_find_matches)} name{?s}")
 
   match_info = no_match_cultivar_indet(taxon_name[index_to_find_matches])
 
@@ -129,7 +124,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
   no_found = length(index_to_find_matches[!is.na(match_info$match)])
-  cli::cli_alert_success("Found {no_found} known not to be in POWO")
+  cli::cli_alert_success("Found {no_found} cultivars and indeterminates")
 
   index_to_find_matches = index_to_find_matches[is.na(match_info$match)]
 
@@ -139,10 +134,13 @@ match_collection_to_wcvp <- function(collection, wcvp,
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
 
-    single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
+    single_indices = which(iucnRedlist$single_entry == TRUE)
     match_info = match_single(taxon_names = taxon_name[index_to_find_matches],
-                              enrich_database = wcvp$wcvp_names,
+                              enrich_database = iucnRedlist,
                               enrich_database_search_index = single_indices,
+                              enrich_taxon_name_column = enrich_taxon_name_column,
+                              enrich_display_in_message_column = enrich_taxon_name_column,
+                              enrich_plant_identifier_column = enrich_taxon_name_column,
                               ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -156,16 +154,19 @@ match_collection_to_wcvp <- function(collection, wcvp,
   }
 
   ################################################
-  # 6) Match original report to all taxon names with a multiple entry in POWO.
+  # 6) Match original report to all taxon names with a multiple entry in iucnRedlist.
   ################################################
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to non-unique taxon names")
 
-    mult_indices = which(wcvp$wcvp_names$single_entry == FALSE)
+    mult_indices = which(iucnRedlist$single_entry == FALSE)
     match_info = match_multiple(taxon_names = taxon_name[index_to_find_matches],
                                 taxon_authors = taxon_author[index_to_find_matches],
-                                enrich_database = wcvp$wcvp_names,
+                                enrich_database = iucnRedlist,
                                 enrich_database_search_index = mult_indices,
+                                enrich_taxon_name_column = enrich_taxon_name_column,
+                                enrich_display_in_message_column = enrich_taxon_name_column,
+                                enrich_plant_identifier_column = enrich_taxon_name_column,
                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -190,7 +191,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
       original_authors = taxon_author[with_match]
       matched_authors = rep(NA,length(original_authors))
       match_bigger_0 = taxon_match[with_match] > 0
-      matched_authors[match_bigger_0] = wcvp$wcvp_names$taxon_authors_simp[taxon_match[with_match][match_bigger_0]]
+      matched_authors[match_bigger_0] = iucnRedlist$taxon_authors_simp[taxon_match[with_match][match_bigger_0]]
 
       author_checked = rep(NA, length(original_authors))
       for(i in 1:length(author_checked)){
@@ -204,18 +205,22 @@ match_collection_to_wcvp <- function(collection, wcvp,
         # Get matches trying to fix taxon name.
         match_info = match_all_issue(taxon_names = taxon_name[diff_index],
                                      taxon_authors = taxon_author[diff_index],
-                                     enrich_database = wcvp$wcvp_names,
+                                     enrich_database = iucnRedlist,
                                      single_indices = single_indices,
                                      mult_indices = mult_indices,
                                      do_taxon_author = do_taxon_author,
                                      try_add_split = try_add_split,
                                      try_fix_hybrid = try_fix_hybrid,
-                                     try_rm_autonym = try_rm_autonym)
+                                     try_rm_autonym = try_rm_autonym,
+                                     enrich_taxon_name_column = enrich_taxon_name_column,
+                                     enrich_display_in_message_column = enrich_taxon_name_column,
+                                     enrich_plant_identifier_column = enrich_taxon_name_column,
+                                     ...)
 
         proposed_authors = rep(NA, length(taxon_author[diff_index]))
         current_match = match_info$match
         current_match[is.na(current_match)] = -3
-        proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
+        proposed_authors[current_match > 0] = iucnRedlist$taxon_authors_simp[current_match[current_match >0]]
 
         # Check if proposed author is same/similar to original.
         compare_author_new = rep(NA, length(proposed_authors))
@@ -246,13 +251,17 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
     match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
                                  taxon_authors = taxon_author[index_to_find_matches],
-                                 enrich_database = wcvp$wcvp_names,
+                                 enrich_database = iucnRedlist,
                                  single_indices = single_indices,
                                  mult_indices = mult_indices,
                                  do_taxon_author = do_taxon_author,
                                  try_add_split = try_add_split,
                                  try_fix_hybrid = try_fix_hybrid,
-                                 try_rm_autonym = try_rm_autonym)
+                                 try_rm_autonym = try_rm_autonym,
+                                 enrich_taxon_name_column = enrich_taxon_name_column,
+                                 enrich_display_in_message_column = enrich_taxon_name_column,
+                                 enrich_plant_identifier_column = enrich_taxon_name_column,
+                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -272,10 +281,14 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
     match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],
                              taxon_authors = taxon_author[index_to_find_matches],
-                             enrich_database = wcvp$wcvp_names,
+                             enrich_database = iucnRedlist,
                              single_indices = single_indices,
                              mult_indices = mult_indices,
-                             typo_method = typo_method)
+                             typo_method = typo_method,
+                             enrich_taxon_name_column = enrich_taxon_name_column,
+                             enrich_display_in_message_column = enrich_taxon_name_column,
+                             enrich_plant_identifier_column = enrich_taxon_name_column,
+                             ...)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -295,9 +308,9 @@ match_collection_to_wcvp <- function(collection, wcvp,
   proposed_authors = rep(NA, length(taxon_author))
   current_match = taxon_match
   current_match[is.na(current_match)] = -3
-  proposed_authors[current_match > 0] = wcvp$wcvp_name$taxon_authors_simp[current_match[current_match >0]]
+  proposed_authors[current_match > 0] = iucnRedlist$taxon_authors_simp[current_match[current_match >0]]
   matched_name = rep(NA, length(taxon_author))
-  matched_name[current_match > 0] = wcvp$wcvp_name$taxon_name[current_match[current_match >0]]
+  matched_name[current_match > 0] = iucnRedlist$taxon_name[current_match[current_match >0]]
 
   # Check if proposed author is same/similar to original.
   author_checked = rep(NA, length(proposed_authors))
@@ -305,22 +318,6 @@ match_collection_to_wcvp <- function(collection, wcvp,
     author_checked[i] = author_check(taxon_author[i],  proposed_authors[i])
   }
   author_checked[current_match < 0] = 'No Match'
-
-  ################################################
-  # 11) Convert to accepted name where possible.
-  ################################################
-  if(do_convert_accepted){
-    cli::cli_h2("Converting to accepted name..")
-
-    match_info = convert_to_accepted_name(taxon_match, wcvp)
-
-    taxon_match = match_info$match
-    taxon_name_story = paste0(taxon_name_story, match_info$message)
-
-    updated = sum(match_info$message != '')
-    cli::cli_alert_success("Updated to accepted name for {updated} of {no_unique} names")
-
-  }
 
   ################################################
   # 12) Set remaining taxon_match to -3 and add story.
@@ -354,41 +351,3 @@ match_collection_to_wcvp <- function(collection, wcvp,
               author_check = author_checked_full))
 }
 
-
-
-#' Convert to accepted plant name for World Checklist of Vascular Plants
-#'
-#' @param original_match  The indices of the rows in `wcvp$wcvp_names` (or generally referred to as enrich_database) corresponding to the matches of the collection to it.
-#' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()].
-#'
-#' @return match and message after converting to accepted name
-#' @export
-#'
-convert_to_accepted_name <- function(original_match, wcvp){
-
-  # A) Setup: Create message. Reduce to only entries that have matches.
-  message = rep('', length(original_match))
-  a_match_has_been_found_index = which(!(is.na(original_match) | original_match < 0))
-  a_match_has_been_found  = original_match[a_match_has_been_found_index]
-
-  # B) Check if the plant name id equals the accepted plant name id.
-  is_accepted_plant = wcvp$wcvp_names$plant_name_id[a_match_has_been_found] == wcvp$wcvp_names$accepted_plant_name_id[a_match_has_been_found]
-
-  # B) Find those where there is not a match (= FALSE) and there is an accepted name (!= NA).
-  not_match_index = which(is_accepted_plant == FALSE & !is.na(is_accepted_plant))
-
-  # C) Extract the accepted plant_id for those that do not match
-  new_plant_id = wcvp$wcvp_names$accepted_plant_name_id[a_match_has_been_found[not_match_index]]
-
-  # D) Find the index of the corresponding accepted_plant_id
-  accepted_index = match(new_plant_id, wcvp$wcvp_names$plant_name_id)
-
-  # E) Update the a_match_has_been_found. Update original match.
-  original_match[a_match_has_been_found_index[not_match_index]] = accepted_index
-
-  # F) Update message
-  message[a_match_has_been_found_index[not_match_index]] = paste0(message[a_match_has_been_found_index[not_match_index]],' -> (Go to accepted name) -> (', wcvp$wcvp_names$powo_id[accepted_index],
-                                                                  ', ', wcvp$wcvp_names$taxon_name[accepted_index],
-                                                                  ')')
-  return(list(match = original_match, message = message))
-}

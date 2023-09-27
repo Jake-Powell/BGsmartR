@@ -63,7 +63,7 @@
 match_single <- function(taxon_names, enrich_database, enrich_database_search_index,
                          enrich_taxon_name_column = 'taxon_name',
                          enrich_display_in_message_column = 'powo_id',
-                         match_column = NA){
+                         match_column = NA,...){
 
   # A) setup
   enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
@@ -97,7 +97,7 @@ match_single <- function(taxon_names, enrich_database, enrich_database_search_in
 #' @rdname match_single
 #' @export
 match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_database_search_index,
-                           matching_criterion = BGSmartR::get_match_from_multiple(),
+                           matching_criterion = BGSmartR::get_match_from_multiple,
                            enrich_taxon_name_column = 'taxon_name',
                            enrich_display_in_message_column = 'powo_id',
                            enrich_plant_identifier_column = 'plant_name_id',
@@ -124,11 +124,16 @@ match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_da
   # 3) Find the match.
   if(show_progress){
     match_info = pbapply::pblapply(to_find_match, function(x){
-      matching_criterion(x,wcvp_multiple, ...)})
+      matching_criterion(taxon_name_and_author = x,
+                         enrich_database_mult = wcvp_multiple,
+                         ...)
+      })
   }
   else{
     match_info = lapply(to_find_match, function(x){
-      matching_criterion(x,wcvp_multiple, ...)})
+      matching_criterion(taxon_name_and_author = x,
+                         enrich_database_mult = wcvp_multiple,
+                         ...)})
   }
 
   match_info_plant_name_id = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
@@ -632,8 +637,15 @@ match_splitter_issue <- function(taxon_names, taxon_authors, enrich_database,
       # x here are the potential taxon names with splitters added.
 
       # Match to either single or multiple.
-      match_details_single = match_single(x[[1]], enrich_database, wcvp_index_splitters_single, ...)
-      match_details_mult = match_multiple(x[[1]], rep(x[[2]],8), enrich_database, wcvp_index_splitters_mult, ...)
+      match_details_single = match_single(taxon_names = x[[1]],
+                                          enrich_database = enrich_database,
+                                          enrich_database_search_index = wcvp_index_splitters_single,
+                                          ...)
+      match_details_mult = match_multiple(taxon_names = x[[1]],
+                                          taxon_authors = rep(x[[2]],8),
+                                          enrich_database = enrich_database,
+                                          enrich_database_search_index = wcvp_index_splitters_mult,
+                                          ...)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
                            message = c(match_details_single$message, match_details_mult$message))
 
@@ -924,7 +936,7 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, enrich_database,
 
 #' @rdname match_single
 #' @export
-match_taxon_status <- function(author_match, corres_enrich_database, current_message = ''){
+match_taxon_status <- function(author_match, corres_enrich_database, current_message = '',...){
   author_match[is.na(author_match)] = FALSE # NA matches go to FALSE. This occurs when POWO author = NA.
 
   match_flag = FALSE
@@ -1000,7 +1012,7 @@ match_taxon_status <- function(author_match, corres_enrich_database, current_mes
 get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
                                     enrich_taxon_name_column = 'taxon_name',
                                     enrich_taxon_authors_column = 'taxon_authors_simp',
-                                    enrich_taxon_author_words_column = 'author_parts'){
+                                    enrich_taxon_author_words_column = 'author_parts',...){
   #Setup
   enriched_taxon_names = enrich_database_mult[,match(enrich_taxon_name_column, names(enrich_database_mult))]
 
@@ -1087,7 +1099,7 @@ get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
 
 #' @rdname match_single
 #' @export
-match_error <- function(taxon_names, match_details, original_author, enrich_database, current_message =''){
+match_error <- function(taxon_names, match_details, original_author, enrich_database, current_message ='',...){
   # A) Index of the matches we found.
   found_match_index = which(!is.na(match_details$match))
   if(length(found_match_index) == 0){
@@ -1152,7 +1164,7 @@ match_error <- function(taxon_names, match_details, original_author, enrich_data
 check_taxon_typo <- function(taxon_name, enrich_database = NA,
                              enrich_taxon_name_column = 'taxon_name',
                              typo_df = BGSmartR::typo_list,
-                             typo_method = 'fast'){
+                             typo_method = 'fast',...){
   ########################
   # 1) Return NA for non-words and special characters
   ########################

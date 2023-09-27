@@ -185,8 +185,8 @@ enrich_collection <- function(collection,
     redList$accepted_plant_name_id = 1:nrow(redList)
     redList$plant_name_id = 1:nrow(redList)
 
-    match_info = match_collection_to_wcvp(collection,
-                                        wcvp = list(wcvp_names = redList, exceptions = NULL, changes = NULL),
+    match_info = match_collection_to_iucnRedlist(collection,
+                                                 iucnRedlist = redList,
                                         taxon_name_column = 'sanitised_taxon',
                                         taxon_name_full_column = NA,
                                         taxon_author_column = 'extracted_author',
