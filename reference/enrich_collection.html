@@ -51,7 +51,7 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">enrich_collection</span><span class="op">(</span></span>
 <span>  <span class="va">collection</span>,</span>
 <span>  wcvp <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  redList <span class="op">=</span> <span class="cn">NA</span>,</span>
+<span>  iucnRedlist <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  BGCI <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  taxon_name_column <span class="op">=</span> <span class="st">"TaxonName"</span>,</span>
 <span>  taxon_name_full_column <span class="op">=</span> <span class="cn">NA</span>,</span>
@@ -81,8 +81,8 @@
 <dd><p>World Checklist of Vascular Plants (WCVP) database, obtained using the function <code><a href="import_wcvp_names.html">import_wcvp_names()</a></code>. If <code>NA</code> WCVP enrichment is not performed.</p></dd>
 
 
-<dt>redList</dt>
-<dd><p>RedList database. If <code>NA</code> IUCN red list enrichment is not performed.</p></dd>
+<dt>iucnRedlist</dt>
+<dd><p>IUCN Red List of Threatened Species database, obtained using the function XXXX.  If <code>NA</code> IUCN red list enrichment is not performed.</p></dd>
 
 
 <dt>BGCI</dt>
@@ -122,7 +122,7 @@
 
 
 <dt>redlist_wanted_info</dt>
-<dd><p>A character vector containing the information we want to extract from IUCN red list, corresponding to column names in <code>redList</code>.</p></dd>
+<dd><p>A character vector containing the information we want to extract from IUCN red list, corresponding to column names in <code>iucnRedlist</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

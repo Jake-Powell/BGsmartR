@@ -31,6 +31,9 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_wcvp_distributions.html</loc>
   </url>
   <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/additional_wcvp_matching.html</loc>
+  </url>
+  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/author_check.html</loc>
   </url>
   <url>
@@ -97,6 +100,9 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/is_autonym.html</loc>
   </url>
   <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/match_authors.html</loc>
+  </url>
+  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/match_collection_to_iucnRedlist.html</loc>
   </url>
   <url>
@@ -107,6 +113,9 @@
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/match_single.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/no_additional_matching.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/sanitise_name.html</loc>
