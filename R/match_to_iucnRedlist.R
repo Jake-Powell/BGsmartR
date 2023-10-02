@@ -6,9 +6,9 @@
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
 #' @param typo_method Flag for whether we search for typos.
-#' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
-#' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
-#' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
+#' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
+#' @param do_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
+#' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
 #' @param enrich_taxon_name_column The name of the column in the `iucnRedlist` corresponding to taxonomic names.Default value is `scientific_name`.
 #' @param enrich_display_in_message_column The name of the column in `iucnRedlist` that contains values to show in the matching messages. Default value is `taxonid`.
@@ -17,9 +17,9 @@
 #' @details
 #' This function allows matching of a collection's database to IUCN Red List of Threatened Species database. This function relies of matching functions found that are documented in  [match_single()], and is broadly similar to the function [match_collection_to_wcvp()].
 #'
+#' Note that by default the matching functions use column names from (WCVP) therefore these will often require changing prior to matching unless you change the column names in iucnRedlist to concure with wcvp column names.
 #'
-#'
-#' Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using `try_add_split`, `try_fix_hybrid`, `try_rm_autonym` and `typo_method`.
+#' Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using `do_add_split`, `do_fix_hybrid`, `do_rm_autonym` and `typo_method`.
 #'
 #'
 #' @return A list of length seven containing:
@@ -38,12 +38,15 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      taxon_name_full_column = NA,
                                      taxon_author_column = NA,
                                      typo_method = 'fast',
-                                     try_add_split = TRUE, try_fix_hybrid = TRUE,
-                                     try_rm_autonym = TRUE,
+                                     do_add_split = TRUE, do_fix_hybrid = TRUE,
+                                     do_rm_autonym = TRUE,
                                      ...,
                                      enrich_taxon_name_column = 'scientific_name',
                                      enrich_display_in_message_column = 'taxonid',
-                                     enrich_plant_identifier_column = 'taxonid'){
+                                     enrich_plant_identifier_column = 'taxonid',
+                                     matching_criterion = BGSmartR::no_additional_matching,
+                                     try_hybrid = FALSE
+                                    ){
   if(!typo_method %in% c('full', 'fast','no')){
     stop('Invalid typo_method input!')
   }
@@ -139,8 +142,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                               enrich_database = iucnRedlist,
                               enrich_database_search_index = single_indices,
                               enrich_taxon_name_column = enrich_taxon_name_column,
-                              enrich_display_in_message_column = enrich_taxon_name_column,
-                              enrich_plant_identifier_column = enrich_taxon_name_column,
+                              enrich_display_in_message_column = enrich_display_in_message_column,
                               ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -165,8 +167,9 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                 enrich_database = iucnRedlist,
                                 enrich_database_search_index = mult_indices,
                                 enrich_taxon_name_column = enrich_taxon_name_column,
-                                enrich_display_in_message_column = enrich_taxon_name_column,
-                                enrich_plant_identifier_column = enrich_taxon_name_column,
+                                enrich_display_in_message_column = enrich_display_in_message_column,
+                                enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                matching_criterion = matching_criterion,
                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -203,18 +206,15 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
 
       if(length(diff_index) > 0){
         # Get matches trying to fix taxon name.
-        match_info = match_all_issue(taxon_names = taxon_name[diff_index],
+        match_info = match_all_issue_new(taxon_names = taxon_name[diff_index],
                                      taxon_authors = taxon_author[diff_index],
                                      enrich_database = iucnRedlist,
-                                     single_indices = single_indices,
-                                     mult_indices = mult_indices,
-                                     do_taxon_author = do_taxon_author,
-                                     try_add_split = try_add_split,
-                                     try_fix_hybrid = try_fix_hybrid,
-                                     try_rm_autonym = try_rm_autonym,
-                                     enrich_taxon_name_column = enrich_taxon_name_column,
-                                     enrich_display_in_message_column = enrich_taxon_name_column,
-                                     enrich_plant_identifier_column = enrich_taxon_name_column,
+                                     do_add_split = do_add_split,
+                                     do_fix_hybrid = do_fix_hybrid,
+                                     do_rm_autonym = do_rm_autonym,
+                                     matching_criterion = matching_criterion,
+                                     enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                     try_hybrid = try_hybrid,
                                      ...)
 
         proposed_authors = rep(NA, length(taxon_author[diff_index]))
@@ -249,18 +249,15 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Testing and matching taxon name issues for {length(index_to_find_matches)} name{?s}")
 
-    match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
+    match_info = match_all_issue_new(taxon_names = taxon_name[index_to_find_matches],
                                  taxon_authors = taxon_author[index_to_find_matches],
                                  enrich_database = iucnRedlist,
-                                 single_indices = single_indices,
-                                 mult_indices = mult_indices,
-                                 do_taxon_author = do_taxon_author,
-                                 try_add_split = try_add_split,
-                                 try_fix_hybrid = try_fix_hybrid,
-                                 try_rm_autonym = try_rm_autonym,
-                                 enrich_taxon_name_column = enrich_taxon_name_column,
-                                 enrich_display_in_message_column = enrich_taxon_name_column,
-                                 enrich_plant_identifier_column = enrich_taxon_name_column,
+                                 do_add_split = do_add_split,
+                                 do_fix_hybrid = do_fix_hybrid,
+                                 do_rm_autonym = do_rm_autonym,
+                                 matching_criterion = matching_criterion,
+                                 enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                 try_hybrid = try_hybrid,
                                  ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -286,8 +283,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                              mult_indices = mult_indices,
                              typo_method = typo_method,
                              enrich_taxon_name_column = enrich_taxon_name_column,
-                             enrich_display_in_message_column = enrich_taxon_name_column,
-                             enrich_plant_identifier_column = enrich_taxon_name_column,
+                             enrich_display_in_message_column = enrich_display_in_message_column,
                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match

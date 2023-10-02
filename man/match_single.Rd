@@ -14,6 +14,10 @@
 \alias{match_error}
 \alias{check_taxon_typo}
 \alias{shorten_message}
+\alias{match_all_issue_new}
+\alias{try_rm_autonym}
+\alias{try_fix_infraspecific_level}
+\alias{try_fix_hybrid}
 \title{Matching functions}
 \usage{
 match_single(
@@ -31,7 +35,6 @@ match_multiple(
   taxon_authors,
   enrich_database,
   enrich_database_search_index,
-  matching_criterion = BGSmartR::get_match_from_multiple,
   enrich_taxon_name_column = "taxon_name",
   enrich_display_in_message_column = "powo_id",
   enrich_plant_identifier_column = "plant_name_id",
@@ -51,6 +54,7 @@ match_all_issue(
   try_rm_autonym = TRUE,
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
+  enrich_plant_identifier_column = "plant_name_id",
   ...
 )
 
@@ -102,6 +106,8 @@ match_taxon_status(
 get_match_from_multiple(
   taxon_name_and_author,
   enrich_database_mult,
+  matching_criterion = BGSmartR::additional_wcvp_matching,
+  enrich_plant_identifier_column = "plant_name_id",
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
   enrich_taxon_author_words_column = "author_parts",
@@ -127,6 +133,42 @@ check_taxon_typo(
 )
 
 shorten_message(messages)
+
+match_all_issue_new(
+  taxon_names,
+  taxon_authors = rep(NA, length(taxon_names)),
+  enrich_database,
+  matching_criterion = BGSmartR::additional_wcvp_matching,
+  do_add_split = TRUE,
+  do_fix_hybrid = TRUE,
+  do_rm_autonym = TRUE,
+  enrich_taxon_name_column = "taxon_name",
+  enrich_taxon_authors_column = "taxon_authors_simp",
+  enrich_plant_identifier_column = "plant_name_id",
+  ...
+)
+
+try_rm_autonym(
+  taxon_names,
+  enrich_database_taxon_names,
+  console_message = TRUE
+)
+
+try_fix_infraspecific_level(
+  taxon_names,
+  enrich_database_taxon_names,
+  try_hybrid = TRUE,
+  console_message = TRUE,
+  ...
+)
+
+try_fix_hybrid(
+  taxon_names,
+  enrich_database_taxon_names,
+  try_hybrid = TRUE,
+  console_message = TRUE,
+  ...
+)
 }
 \arguments{
 \item{taxon_names}{Vector of taxonomic names.}
@@ -145,11 +187,9 @@ shorten_message(messages)
 
 \item{taxon_authors}{A vector of full taxon names (corresponding to \code{taxon_names})}
 
-\item{matching_criterion}{The function used to find the best match when we have 'non-unique' taxonomic names. By default the function \code{BGSmartR::get_match_from_multiple()} is used.}
-
 \item{enrich_plant_identifier_column}{The name of the column in \code{enrich_database} that corresponds to record identifier. Default value is \code{plant_name_id}.}
 
-\item{show_progress}{Flag (TRUE?FALSE) for whether we show progress bar.}
+\item{show_progress}{Flag (TRUE/FALSE) for whether we show progress bar.}
 
 \item{single_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'unique' taxonomic names.}
 
@@ -175,6 +215,8 @@ shorten_message(messages)
 
 \item{enrich_database_mult}{\code{enrich_database} restricted to the rows that correspond to 'non-unique' taxonomic names.}
 
+\item{matching_criterion}{The function used to find the best match when we have 'non-unique' taxonomic names. By default the function \code{BGSmartR::get_match_from_multiple()} is used.}
+
 \item{enrich_taxon_author_words_column}{The name of the column in \code{enrich_database} that corresponds to the words contained in the authors of taxonomic names. Default value is \code{author_parts}.}
 
 \item{match_details}{match_details}
@@ -186,6 +228,19 @@ shorten_message(messages)
 \item{typo_df}{A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default \code{BGSmartR::typo_list} is used.}
 
 \item{messages}{messages detailing how a match is obtained.}
+
+\item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
+
+\item{do_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
+
+\item{do_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
+
+\item{enrich_database_taxon_names}{The taxon names taken from \code{enrich_database}.
+enrich_database_taxon_names}
+
+\item{console_message}{Flag (TRUE/FALSE) detailing whether to show messages in the console.}
+
+\item{try_hybrid}{Flag (TRUE/FALSE) for whether hybrid fixes are attempted.}
 }
 \description{
 Functions used to match taxonomic names from a collection to exterior databases (POWO's WCVP, IUCN Redlist)

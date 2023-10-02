@@ -7,7 +7,7 @@
 enrich_collection(
   collection,
   wcvp = NA,
-  redList = NA,
+  iucnRedlist = NA,
   BGCI = NA,
   taxon_name_column = "TaxonName",
   taxon_name_full_column = NA,
@@ -31,7 +31,7 @@ enrich_collection(
 
 \item{wcvp}{World Checklist of Vascular Plants (WCVP) database, obtained using the function \code{\link[=import_wcvp_names]{import_wcvp_names()}}. If \code{NA} WCVP enrichment is not performed.}
 
-\item{redList}{RedList database. If \code{NA} IUCN red list enrichment is not performed.}
+\item{iucnRedlist}{IUCN Red List of Threatened Species database, obtained using the function XXXX.  If \code{NA} IUCN red list enrichment is not performed.}
 
 \item{BGCI}{Requires a cleaned BGCI plant search database to obtain how many collections globally a taxon is contained (Not freely available). If \code{NA} BGCI plant search enrichment is not performed.}
 
@@ -51,7 +51,7 @@ enrich_collection(
 
 \item{wcvp_wanted_info}{A character vector containing the information we want to extract from WCVP. These are matched to column names in \code{wcvp$wcvp_names}, \code{wcvp$geography} and \code{wcvp$redlist} (if the later two exist).}
 
-\item{redlist_wanted_info}{A character vector containing the information we want to extract from IUCN red list, corresponding to column names in \code{redList}.}
+\item{redlist_wanted_info}{A character vector containing the information we want to extract from IUCN red list, corresponding to column names in \code{iucnRedlist}.}
 }
 \value{
 The \code{collection} data frame enriched with information dependent on function inputs (new columns).

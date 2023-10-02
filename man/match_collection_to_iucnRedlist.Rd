@@ -66,5 +66,7 @@ Match collection to IUCN Red List of Threatened Species via taxonomic name
 \details{
 This function allows matching of a collection's database to IUCN Red List of Threatened Species database. This function relies of matching functions found that are documented in  \code{\link[=match_single]{match_single()}}, and is broadly similar to the function \code{\link[=match_collection_to_wcvp]{match_collection_to_wcvp()}}.
 
+Note that by default the matching functions use column names from (WCVP) therefore these will often require changing prior to matching unless you change the column names in iucnRedlist to concure with wcvp column names.
+
 Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using \code{try_add_split}, \code{try_fix_hybrid}, \code{try_rm_autonym} and \code{typo_method}.
 }

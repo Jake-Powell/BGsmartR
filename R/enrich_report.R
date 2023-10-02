@@ -7,7 +7,7 @@
 #'
 #' @param collection A data frame containing a collection.
 #' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()]. If `NA` WCVP enrichment is not performed.
-#' @param redList RedList database. If `NA` IUCN red list enrichment is not performed.
+#' @param iucnRedlist IUCN Red List of Threatened Species database, obtained using the function XXXX.  If `NA` IUCN red list enrichment is not performed.
 #' @param BGCI Requires a cleaned BGCI plant search database to obtain how many collections globally a taxon is contained (Not freely available). If `NA` BGCI plant search enrichment is not performed.
 #' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
@@ -17,13 +17,13 @@
 #' @param do_taxon_types Flag (TRUE/FALSE) for whether to add the column taxon_type, see [add_taxon_type()] for details.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to [match_collection_to_wcvp()]). Examples include `typo_method`, `do_convert_accepted` and `try_fix_hybrid`.
 #' @param wcvp_wanted_info A character vector containing the information we want to extract from WCVP. These are matched to column names in `wcvp$wcvp_names`, `wcvp$geography` and `wcvp$redlist` (if the later two exist).
-#' @param redlist_wanted_info A character vector containing the information we want to extract from IUCN red list, corresponding to column names in `redList`.
+#' @param redlist_wanted_info A character vector containing the information we want to extract from IUCN red list, corresponding to column names in `iucnRedlist`.
 #'
 #' @return The `collection` data frame enriched with information dependent on function inputs (new columns).
 #' @export
 enrich_collection <- function(collection,
                           wcvp = NA,
-                          redList = NA,
+                          iucnRedlist = NA,
                           BGCI = NA,
                           taxon_name_column = 'TaxonName',
                           taxon_name_full_column = NA,
@@ -172,32 +172,46 @@ enrich_collection <- function(collection,
   # We run infrageneric_level on the taxonName from POWO unless we didn't find a match then we use the original taxon name.
   if(do_taxon_types){
     cli::cli_h2("Adding taxon types")
+    if(!is.na(wcvp)[1]){
     enriched_report = add_taxon_type(enriched_report, POWO_taxon_name_column = 'POWO_taxon_name')
+    }else{
+      enriched_report = add_taxon_type(enriched_report, POWO_taxon_name_column = NA)
+
+    }
   }
 
   ############################################
-  # 5) Add RedList information.
+  # 5) Add iucnRedlist information.
   ############################################
-  if(!is.na(redList)[1]){
+  if(!is.na(iucnRedlist)[1]){
     cli::cli_h2("Adding ICUN Red list information")
 
-    redList$taxon_status = rep('NA',nrow(redList))
-    redList$accepted_plant_name_id = 1:nrow(redList)
-    redList$plant_name_id = 1:nrow(redList)
+    if(!exists('enrich_taxon_name_column')){
+      enrich_taxon_name_column = 'scientific_name'
+    }
+    if(!exists('enrich_plant_identifier_column')){
+      enrich_plant_identifier_column = 'taxonid'
+    }
+    if(!exists('enrich_display_in_message_column')){
+      enrich_display_in_message_column = 'taxonid'
+    }
 
     match_info = match_collection_to_iucnRedlist(collection,
-                                                 iucnRedlist = redList,
+                                                 iucnRedlist = iucnRedlist,
                                         taxon_name_column = 'sanitised_taxon',
                                         taxon_name_full_column = NA,
                                         taxon_author_column = 'extracted_author',
+                                        enrich_taxon_name_column =  enrich_taxon_name_column,
+                                        enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                        enrich_display_in_message_column = enrich_display_in_message_column,
                                         ...)
 
     redList_wanted_columns = redlist_wanted_info
-    redList_wanted_columns = redList_wanted_columns[redList_wanted_columns %in% names(redList)]
+    redList_wanted_columns = redList_wanted_columns[redList_wanted_columns %in% names(iucnRedlist)]
     redList_info = data.frame(matrix(NA, nrow = nrow(collection), ncol = length(redList_wanted_columns)))
     names(redList_info) = paste0('redList_',redList_wanted_columns)
     indices = which(!(is.na(match_info$match) | match_info$match < 0))
-    redList_info[indices,] = redList[match_info$match[indices],match(redList_wanted_columns,names(redList))]
+    redList_info[indices,] = iucnRedlist[match_info$match[indices],match(redList_wanted_columns,names(iucnRedlist))]
 
     enriched_report = data.frame(enriched_report,
                                  redList_original_authors = match_info$original_authors,

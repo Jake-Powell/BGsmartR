@@ -6,9 +6,9 @@
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
 #' @param typo_method Flag for whether we search for typos.
-#' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
-#' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
-#' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
+#' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
+#' @param do_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
+#' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param do_convert_accepted Flag for whether we convert to accepted names in POWO.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
 #'
@@ -34,8 +34,9 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                    taxon_name_full_column = NA,
                                    taxon_author_column = NA,
                                    typo_method = 'fast',
-                                   try_add_split = TRUE, try_fix_hybrid = TRUE,
-                                   try_rm_autonym = TRUE, do_convert_accepted=TRUE,
+                                   do_add_split = TRUE, do_fix_hybrid = TRUE,
+                                   do_rm_autonym = TRUE, do_convert_accepted=TRUE,
+                                   enriching_criterion = BGSmartR::additional_wcvp_matching,
                                    ...){
   if(!typo_method %in% c('full', 'fast','no')){
     stop('Invalid typo_method input!')
@@ -202,15 +203,15 @@ match_collection_to_wcvp <- function(collection, wcvp,
 
       if(length(diff_index) > 0){
         # Get matches trying to fix taxon name.
-        match_info = match_all_issue(taxon_names = taxon_name[diff_index],
+        match_info = match_all_issue_new(taxon_names = taxon_name[diff_index],
                                      taxon_authors = taxon_author[diff_index],
                                      enrich_database = wcvp$wcvp_names,
-                                     single_indices = single_indices,
-                                     mult_indices = mult_indices,
                                      do_taxon_author = do_taxon_author,
-                                     try_add_split = try_add_split,
-                                     try_fix_hybrid = try_fix_hybrid,
-                                     try_rm_autonym = try_rm_autonym)
+                                     do_add_split = do_add_split,
+                                     do_fix_hybrid = do_fix_hybrid,
+                                     do_rm_autonym = do_rm_autonym,
+                                     enriching_criterion = enriching_criterion
+                                     )
 
         proposed_authors = rep(NA, length(taxon_author[diff_index]))
         current_match = match_info$match
@@ -244,15 +245,13 @@ match_collection_to_wcvp <- function(collection, wcvp,
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Testing and matching taxon name issues for {length(index_to_find_matches)} name{?s}")
 
-    match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
+    match_info = match_all_issue_new(taxon_names = taxon_name[index_to_find_matches],
                                  taxon_authors = taxon_author[index_to_find_matches],
                                  enrich_database = wcvp$wcvp_names,
-                                 single_indices = single_indices,
-                                 mult_indices = mult_indices,
-                                 do_taxon_author = do_taxon_author,
-                                 try_add_split = try_add_split,
-                                 try_fix_hybrid = try_fix_hybrid,
-                                 try_rm_autonym = try_rm_autonym)
+                                 do_add_split = do_add_split,
+                                 do_fix_hybrid = do_fix_hybrid,
+                                 do_rm_autonym = do_rm_autonym,
+                                 matching_criterion = matching_criterion)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -391,4 +390,70 @@ convert_to_accepted_name <- function(original_match, wcvp){
                                                                   ', ', wcvp$wcvp_names$taxon_name[accepted_index],
                                                                   ')')
   return(list(match = original_match, message = message))
+}
+
+
+
+
+#' Pick the best record given an extract of World Checklist of Vascular Plants (WCVP) database
+#'
+#' @param enrich_database_extract Extract of database (often records with identical taxonomic names).
+#' @param message Matching message.
+#' @return a list of length 3 containing,
+#' - `$row` The row/s index of `enrich_database_extract` which corresponds to the best record we match to.
+#' - `$message` A message detailing how the matched record was decided.
+#' @export
+#'
+additional_wcvp_matching <- function(enrich_database_extract, message = ''){
+
+  #Check that the desired columns used exist in enrich_database_extract otherwise throw an error.
+  if(!all(c('plant_name_id', 'accepted_plant_name_id','taxon_status') %in% colnames(enrich_database_extract))){
+    stop('Error in choose_best_from_enriched_database required columns not in enrich_database!')
+  }
+  match_flag = FALSE
+
+  accepted_plant_id = enrich_database_extract$accepted_plant_name_id
+
+  # Check if all exact matches point to the same accepted name
+  if(identical(accepted_plant_id, rep(accepted_plant_id[1], length(accepted_plant_id)))){
+    # match to accepted if one exists if not the first plant that matches.
+    taxon_accepted = enrich_database_extract$taxon_status == 'Accepted'
+    if(any(taxon_accepted)){
+      matched = which(taxon_accepted)[1]
+      message = paste0('(', message, 'all point to same accepted plant',')',collapse = '')
+    }
+    else{
+      matched = 1
+      message = paste0('(', message, 'all point to same accepted plant',')',collapse = '')
+
+    }
+    match_flag = TRUE
+  }
+
+  # Check for differences in taxon_status.
+  if(!match_flag){
+    taxon_status = enrich_database_extract$taxon_status
+    taxon_status_match = match(taxon_status , c('Accepted', 'Synonym'))
+    if(all(is.na(taxon_status_match))){
+      matched = 1:nrow(enrich_database_extract)
+      message = paste0('(', message, 'no accepted or synonym',')',collapse = '')
+      match_flag = TRUE
+    }
+    else{
+      chosen_record = which(taxon_status_match == min(taxon_status_match, na.rm = T))
+      if(length(chosen_record) == 1){
+        matched = chosen_record
+        message = paste0('(', message, 'choose via taxon_status',')',collapse = '')
+        match_flag = TRUE
+      }
+      else if(length(chosen_record) >1){
+        matched = chosen_record
+        message = paste0('(', message, 'multiple best taxon status, do not match',')',collapse = '')
+        match_flag = TRUE
+      }
+    }
+
+  }
+
+  return(list(row = matched, message = message))
 }

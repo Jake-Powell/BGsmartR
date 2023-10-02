@@ -39,11 +39,13 @@
 #' @param match_column either `NA` or the name of the column in `enrich_database`. The default value if `NA` which means the values of the match are the indices of the matched records in the enrich database. If instead a single column of `enrich_database` is desired to be the result of the match the name of the column needs to be provided.
 #' @param enrich_taxon_authors_column The name of the column in `enrich_database` that corresponds to the authors of taxonomic names. Default value is `taxon_authors_simp`.
 #' @param enrich_taxon_author_words_column The name of the column in `enrich_database` that corresponds to the words contained in the authors of taxonomic names. Default value is `author_parts`.
+#' @param enrich_database_taxon_names The taxon names taken from `enrich_database`.
+#' enrich_database_taxon_names
 #' @param enrich_plant_identifier_column The name of the column in `enrich_database` that corresponds to record identifier. Default value is `plant_name_id`.
 #' @param enrich_database_mult `enrich_database` restricted to the rows that correspond to 'non-unique' taxonomic names.
-#' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
-#' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
-#' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
+#' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
+#' @param do_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
+#' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param typo_method Either `full` or `fast`, the method used for finding typos.
 #' @param typo_df A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default `BGSmartR::typo_list` is used.
 #' @param author_match Logical vector (TRUE/FALSE) detailing whether we have a match or not.
@@ -53,20 +55,28 @@
 #' @param match_details match_details
 #' @param original_author The author of the taxonomic name wanted to be matched to the enriched information.
 #' @param taxon_name A single taxonomic name.
-#' @param show_progress Flag (TRUE?FALSE) for whether we show progress bar.
+#' @param show_progress Flag (TRUE/FALSE) for whether we show progress bar.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
 #' @param matching_criterion The function used to find the best match when we have 'non-unique' taxonomic names. By default the function `BGSmartR::get_match_from_multiple()` is used.
 #' @param messages messages detailing how a match is obtained.
-
-#'
+#' @param console_message Flag (TRUE/FALSE) detailing whether to show messages in the console.
+#' @param try_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
+#' @param try_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
+#' @param try_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
+#' @param try_hybrid Flag (TRUE/FALSE) for whether hybrid fixes are attempted.
 #'
 match_single <- function(taxon_names, enrich_database, enrich_database_search_index,
                          enrich_taxon_name_column = 'taxon_name',
                          enrich_display_in_message_column = 'powo_id',
                          match_column = NA,...){
 
+  # If no indices given return no match.
+  if(length(enrich_database_search_index) == 0){
+    return(list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names))))
+  }
+
   # A) setup
-  enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
+  enriched_taxon_names = enrich_database[[enrich_taxon_name_column]]
   enriched_display_in_message = enrich_database[,match(enrich_display_in_message_column, names(enrich_database))]
   message = rep('', length(taxon_names))
 
@@ -97,22 +107,29 @@ match_single <- function(taxon_names, enrich_database, enrich_database_search_in
 #' @rdname match_single
 #' @export
 match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_database_search_index,
-                           matching_criterion = BGSmartR::get_match_from_multiple,
                            enrich_taxon_name_column = 'taxon_name',
                            enrich_display_in_message_column = 'powo_id',
                            enrich_plant_identifier_column = 'plant_name_id',
                            match_column = NA,
                            ...,
                            show_progress = TRUE){
+
+  #################################
+  # If no indices given return no match.
+  #################################
+  if(length(enrich_database_search_index) == 0){
+    return(list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names))))
+  }
+
   # A) Setup.
   match_to_multiple = rep(NA,length(taxon_names))
   message = rep('',length(taxon_names))
-  enriched_plant_identifier = enrich_database[,match(enrich_plant_identifier_column, names(enrich_database))]
-  enriched_display_in_message = enrich_database[,match(enrich_display_in_message_column, names(enrich_database))]
-  enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
+  enriched_plant_identifier = enrich_database[[enrich_plant_identifier_column]]
+  enriched_display_in_message = enrich_database[[enrich_display_in_message_column]]
+  enriched_taxon_names = enrich_database[[enrich_taxon_name_column]]
 
   wcvp_multiple = enrich_database[enrich_database_search_index,]
-  wcvp_multiple_taxon_name = wcvp_multiple[,match(enrich_taxon_name_column, names(wcvp_multiple))]
+  wcvp_multiple_taxon_name = wcvp_multiple[[enrich_taxon_name_column]]
 
 
   # 1) Find which taxon names are in the restricted wcvp.
@@ -124,23 +141,23 @@ match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_da
   # 3) Find the match.
   if(show_progress){
     match_info = pbapply::pblapply(to_find_match, function(x){
-      matching_criterion(taxon_name_and_author = x,
+      get_match_from_multiple(taxon_name_and_author = x,
                          enrich_database_mult = wcvp_multiple,
                          ...)
       })
   }
   else{
     match_info = lapply(to_find_match, function(x){
-      matching_criterion(taxon_name_and_author = x,
+      get_match_from_multiple(taxon_name_and_author = x,
                          enrich_database_mult = wcvp_multiple,
                          ...)})
   }
 
-  match_info_plant_name_id = as.numeric(unlist(lapply(match_info,function(x){x[[1]]})))
+  match_info_plant_identifier = unlist(lapply(match_info,function(x){x[[1]]}))
   match_info_mess = unlist(lapply(match_info,function(x){x[[2]]}))
 
   # 4) update match_to_multiple and message.
-  match_info_match =  match(match_info_plant_name_id, enriched_plant_identifier)
+  match_info_match =  match(match_info_plant_identifier, enriched_plant_identifier)
   match_info_match[is.na(match_info_match)] = -2
   match_to_multiple[in_wcvp] = match_info_match
 
@@ -170,61 +187,86 @@ match_all_issue <- function(taxon_names,
                             try_rm_autonym = TRUE,
                             enrich_taxon_name_column = 'taxon_name',
                             enrich_taxon_authors_column = 'taxon_authors_simp',
+                            enrich_plant_identifier_column = 'plant_name_id',
                             ...){
-  enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
-  enrich_taxon_authors = enrich_database[,match(enrich_taxon_authors_column, names(enrich_database))]
-
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) If there are no taxon_names return NULLs.
   if(length(taxon_names) == 0){
     return(list(match = NULL, message = NULL))
   }
 
-  #If none of the methods are selected return no matches found.
+  ### 1.2) If none of the methods are selected return no matches found.
   if(all(c(!try_add_split, !try_fix_hybrid, !try_rm_autonym))){
     return(list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names)) ))
   }
 
-  # Do we have author details?
+  ### 1.3) Get the quantities needed from enrich_database
+  enriched_taxon_names = enrich_database[[enrich_taxon_name_column]]
+  enrich_taxon_authors = enrich_database[[enrich_taxon_authors_column]]
+  enrich_plant_identifier = enrich_database[[enrich_plant_identifier_column]]
+
+  ### 1.4) Setup whether we need author matching.
   if(all(is.na(taxon_authors))){
     do_taxon_author = FALSE
   }else{
     do_taxon_author = TRUE
   }
 
-  # Try removing autonyms?
+  ##############################
+  # 2) Run the methods to find matches.
+  ##############################
+  ### 2.1) Try removing autonyms.
   if(try_rm_autonym){
     match_auto = match_rm_autonym(taxon_names, taxon_authors, enrich_database,
                                   single_indices = single_indices,
-                                  mult_indices = mult_indices, ...)
+                                  mult_indices = mult_indices,
+                                  enrich_taxon_name_column = enrich_taxon_name_column,
+                                  enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                  ...)
   }else{
     match_auto = list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names)) )
   }
 
-  # Try infrageneric change?
+  ### 2.2) Try changing/removing/adding infraspecific level (var., f., subsp.)
   if(try_add_split){
-    match_splitter = match_splitter_issue(taxon_names, taxon_authors, enrich_database, ...)
+    match_splitter = match_splitter_issue(taxon_names, taxon_authors, enrich_database,
+                                          enrich_taxon_name_column = enrich_taxon_name_column,
+                                          enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                    ...)
   }else{
     match_splitter = list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names)) )
   }
 
-  # Try hybrid change?
+  ### 2.3) Try adding/changing/removing hybrid markers.
   if(try_fix_hybrid){
-    match_hybrid = match_hybrid_issue(taxon_names, taxon_authors, enrich_database, ...)
+    match_hybrid = match_hybrid_issue(taxon_names, taxon_authors, enrich_database,
+                                      enrich_taxon_name_column = enrich_taxon_name_column,
+                                      enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                      ...)
   }else{
     match_hybrid = list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names)) )
 
   }
 
-  #Combine matches.
+  ### 2.4) Combine matches.
   matches = data.frame(autonym = match_auto$match, infra = match_splitter$match, hybrid = match_hybrid$match)
   messages = data.frame(autonym = match_auto$message, infra = match_splitter$message, hybrid = match_hybrid$message)
 
+  ### 2.5) How many of the methods found a match.
   no_method_find_match = apply(matches, 1,function(x){sum(!is.na(x))})
+
+  ### 2.6) Combine the names that found a match into a single string with ' OR ' as the separator.
   combined_names = rep(NA,length(taxon_names))
   for(i in which(no_method_find_match > 1)){
     auto_indices = matches[i,][!is.na(matches[i,])]
     combined_names[i] = paste0(enriched_taxon_names[auto_indices],collapse =' OR ')
   }
 
+  ##############################
+  # 3) Author Matching
+  ##############################
   # If we don't have authors we decide which is the best order.
   if(!do_taxon_author){
     # Order to keep 1) Infra 2) Hybrid  3) Autonym
@@ -290,6 +332,7 @@ match_all_issue <- function(taxon_names,
 
 
       #Choose the best records according to author matching.
+      # This returns the list of match and message. $match is a logical vector of length 3 which is true is the given method (autonym, infra, hybrid) found a match by best author matching. $message details the best level of author matching.
       author_choose = apply(authors,1,function(x){
         # Get the original author and matched authors
         auth_orig = as.character(x[1])
@@ -360,7 +403,7 @@ match_all_issue <- function(taxon_names,
                                        corres_enrich_database = corres_enrich_database,
                                        current_message = paste0('-> ',author_choose[[i]]$message, ' -> '))
         #Note that match_taxon_status returns the plant_name_id and not the row number of the match
-        matches_cur[i] = match(match_cur$plant_name_id, enrich_database$plant_name_id)
+        matches_cur[i] = match(match_cur[[enrich_plant_identifier_column]], enrich_plant_identifier)
         messages_cur[i] = match_cur$message
       }
 
@@ -563,7 +606,18 @@ match_rm_autonym <- function(taxon_names, taxon_authors, enrich_database,
   ########################
   if(length(index_to_find_matches) > 0){
     auto_index = autonym_indices[index_to_find_matches]
-    match_info = match_multiple(name_to_try[index_to_find_matches], taxon_authors[auto_index],  enrich_database, mult_indices,...)
+    args = list(...)
+    args$taxon_names = name_to_try[index_to_find_matches]
+    args$taxon_authors = taxon_authors[auto_index]
+    args$enrich_database = enrich_database
+    args$enrich_database_search_index = mult_indices
+    # print(args)
+    match_info = do.call(match_multiple, args)
+    # match_info = match_multiple(taxon_names = name_to_try[index_to_find_matches],
+    #                             taxon_authors = taxon_authors[auto_index],
+    #                             enrich_database = enrich_database,
+    #                             enrich_database_search_index = mult_indices,
+    #                             ...)
     out_match[auto_index] = match_info$match
     out_message[auto_index] = paste0(out_message[auto_index], match_info$message)
   }
@@ -764,6 +818,7 @@ match_splitter_issue <- function(taxon_names, taxon_authors, enrich_database,
 #' @export
 match_hybrid_issue <- function(taxon_names, taxon_authors, enrich_database,
                                enrich_taxon_name_column = 'taxon_name', ...){
+
   # We know from exploring POWO that var/f/subsp only occurs after the genus species. (with the potential addition of 'x' or '+' for hybrids)
   enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
 
@@ -821,7 +876,6 @@ match_hybrid_issue <- function(taxon_names, taxon_authors, enrich_database,
     match_info = unlist(pbapply::pblapply(to_try, function(x){
       # x here are the potential taxon names with splitters added.
 
-      # Match to either single or multiple.
       match_details_single = match_single(x[[1]], enrich_database, wcvp_index_hybrid_single, ...)
       match_details_mult = match_multiple(x[[1]], rep(x[[2]],2), enrich_database, wcvp_index_hybrid_mult, ...,  show_progress = FALSE)
       match_details = list(match = c(match_details_single$match, match_details_mult$match),
@@ -1010,89 +1064,72 @@ match_taxon_status <- function(author_match, corres_enrich_database, current_mes
 #' @rdname match_single
 #' @export
 get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
+                                    matching_criterion = BGSmartR::additional_wcvp_matching,
+                                    enrich_plant_identifier_column = 'plant_name_id',
                                     enrich_taxon_name_column = 'taxon_name',
                                     enrich_taxon_authors_column = 'taxon_authors_simp',
                                     enrich_taxon_author_words_column = 'author_parts',...){
-  #Setup
-  enriched_taxon_names = enrich_database_mult[,match(enrich_taxon_name_column, names(enrich_database_mult))]
-
-  # 1) Split taxon name and taxon full
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) Separate taxon names and taxon author, get enriched taxon names.
+  enriched_taxon_names = enrich_database_mult[[enrich_taxon_name_column]]
   taxon_name_current = taxon_name_and_author[1]
   taxon_author_current = taxon_name_and_author[2]
+  current_message = '(Multiple records in enriched database) -> '
 
-
-  try_author_match = TRUE # flag for whether we have author information
-  flag = TRUE # flag for whether we need to do checks.
-  #If the author is NA
-  if(is.na(taxon_author_current)){
+  ### 1.2) Create `try_author_match` flag to check whether we have author information needed for author matching.
+  try_author_match = TRUE
+  if(is.na(taxon_author_current) || taxon_author_current == ''){
     try_author_match = FALSE
   }
-  else{
-    if(taxon_author_current == ''){
-      try_author_match = FALSE
 
-    }
+  ### 1.3) Get the corresponding records in enrich_database_mult.
+  enriched_cur = enrich_database_mult[enriched_taxon_names == taxon_name_current,]
+  enrich_taxon_authors_cur = enriched_cur[[enrich_taxon_authors_column]]
+  enrich_taxon_authors_words_cur = enriched_cur[[enrich_taxon_author_words_column]]
+
+  ### 1.4) If there are no corresponding records in enrich_database_mult (nrow(enriched_cur) = 0) then return no match.
+  if(nrow(enriched_cur) == 0){
+    list(plant_identifer = -2, message = '')
   }
 
-  # 2) Get the corresponding records in enrich_database_mult.
-  POWO_cur = enrich_database_mult[enriched_taxon_names == taxon_name_current,]
-  enrich_taxon_authors_cur = POWO_cur[,match(enrich_taxon_authors_column, names(POWO_cur))]
-  enrich_taxon_authors_words_cur = POWO_cur[,match(enrich_taxon_author_words_column, names(POWO_cur))]
 
-  ###
-  # 3) Get the match by author (if one exists)
-  ###
+  ##############################
+  # 2) Author Matching (reducing enriched_cur to the best matches)
+  ##############################
   if(try_author_match){
-    # A) By author (exact).
-    exact_match = taxon_author_current == enrich_taxon_authors_cur
-    match_cur = match_taxon_status(exact_match, POWO_cur, current_message = '(Exact author match) -> ')
+    # Get the author matches.
+    matched_by_authors = match_authors(collection_author = taxon_author_current,
+                  enriched_database_authors = enrich_taxon_authors_cur,
+                  ...)
 
-    # B) By partial author.
-    if(!match_cur$match_flag){
+    # Reduce enriched_cur by author matching.
+    enriched_cur = enriched_cur[matched_by_authors$wanted,]
+    current_message = paste0(current_message, matched_by_authors$message, collapse =' ')
 
-      # Get the words for the original and POWO authors.
-      POWO_author_words = enrich_taxon_authors_words_cur
-      original_author_words = author_words(taxon_author_current)
-
-      #Find number of words in POWO authors found in the original author
-      no_powo_author_in_original = unlist(lapply(POWO_author_words,function(x){
-        words = stringr::str_split(x,', ')[[1]]
-        words = words[words != '']
-        contain_words = unlist(lapply(words, function(x){grepl(x,taxon_author_current)}))
-        return(sum(contain_words))
-      }))
-
-      #Find number of words in original author found in the POWO authors
-      no_original_author_in_powo = rowSums(data.frame(lapply(original_author_words, function(x){grepl(x,POWO_cur$taxon_authors_simp)})))
-
-      # Combine above and find the maximum shared words.
-      total_match_word_count = rowSums(cbind(no_powo_author_in_original,no_original_author_in_powo))
-      max_words_found =  max(total_match_word_count, na.rm=T)
-
-      # If maximum shared words > 0 then try and find a match with those with the maximum number of shared words.
-      if(max_words_found > 0){
-        match_author_words = total_match_word_count == max_words_found
-        match_cur = match_taxon_status(match_author_words, POWO_cur,  current_message = '(Partial author) -> ')
-      }
+    # If enriched_cur only has one row then we have found the best match and no further matching required.
+    if(nrow(enriched_cur) == 1){
+      return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
     }
-  }
-  ###
-  # 4) Try to match when we do not have the author or the author doesn't match any in POWO.
-  ###
-  if(!try_author_match){
-    match_cur = match_taxon_status(rep(TRUE, nrow(POWO_cur)), POWO_cur, current_message = '(No authors) -> ')
   }
   else{
-    if(!match_cur$match_flag){
-      match_cur = match_taxon_status(rep(TRUE, nrow(POWO_cur)), POWO_cur, current_message = '(No authors match) -> ')
-
-    }
+    current_message = paste0(current_message, '(No authors) ->', collapse =' ')
   }
 
-  if(match_cur$match_flag == TRUE){
-    match_cur$message = paste0('(Multiple records in enriched database) ->', match_cur$message, collapse = ' ')
+  ##############################
+  # 3) Criterion Matching (dependent on enrich_database)
+  ##############################
+  match_by_criterion = matching_criterion(enriched_cur)
+  current_message = paste0(current_message, match_by_criterion$message, collapse =' ')
+  # If matching_criterion finds a best match the corresponding row in enriched_cur is returned otherwise the row is set to -2, to denote no match.
+  if(length(match_by_criterion$row) == 1){
+    enriched_cur = enriched_cur[match_by_criterion$row,]
+    return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
   }
-  return(list(plant_name_id = match_cur$plant_name_id, message = match_cur$message))
+
+  return(list(plant_identifer = -2, message = current_message))
+
 }
 
 
@@ -1336,3 +1373,551 @@ shorten_message <- function(messages){
 
   return(match_short)
 }
+
+#' @rdname match_single
+#' @export
+match_all_issue_new <- function(taxon_names,
+                                taxon_authors = rep(NA,length(taxon_names)),
+                                enrich_database,
+                                matching_criterion = BGSmartR::additional_wcvp_matching,
+                                do_add_split = TRUE,
+                                do_fix_hybrid = TRUE,
+                                do_rm_autonym = TRUE,
+                                enrich_taxon_name_column = 'taxon_name',
+                                enrich_taxon_authors_column = 'taxon_authors_simp',
+                                enrich_plant_identifier_column = 'plant_name_id',
+                                ...){
+
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) If there are no taxon_names return NULLs.
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
+
+  ### 1.2) If none of the methods are selected return no matches found.
+  if(all(c(!do_add_split, !do_fix_hybrid, !do_rm_autonym))){
+    return(list(match = rep(NA, length(taxon_names)), message = rep('', length(taxon_names)) ))
+  }
+
+  ### 1.3) Get the quantities needed from enrich_database
+  enriched_taxon_names = enrich_database[[enrich_taxon_name_column]]
+
+  ### 1.4) Setup whether we need author matching.
+  if(all(is.na(taxon_authors))){
+    do_taxon_author = FALSE
+  }else{
+    do_taxon_author = TRUE
+  }
+
+  ##############################
+  # 2) Find potential fixed taxonomic names.
+  ##############################
+  ### 2.1) Try removing autonyms.
+  if(do_rm_autonym){
+    fix_auto = try_rm_autonym(taxon_names = taxon_names,
+                              enrich_database_taxon_names = enrich_database[[enrich_taxon_name_column]],
+                              ...)
+  }else{
+    fix_auto = rep('',length(taxon_names))
+  }
+
+  ### 2.2) Try changing/removing/adding infraspecific level (var., f., subsp.)
+  if(do_add_split){
+    fix_splitter = try_fix_infraspecific_level(taxon_names = taxon_names,
+                                               enrich_database_taxon_names = enrich_database[[enrich_taxon_name_column]],
+                                               ...)
+  }else{
+    fix_splitter =  rep('',length(taxon_names))
+  }
+
+  ### 2.3) Try adding/changing/removing hybrid markers.
+  if(do_fix_hybrid){
+    fix_hybrid = try_fix_hybrid(taxon_names = taxon_names,
+                                enrich_database_taxon_names = enrich_database[[enrich_taxon_name_column]],
+                                ...)
+  }else{
+    fix_hybrid =  rep('',length(taxon_names))
+
+  }
+
+  ### 2.4) Combine fixed names.
+  names_to_try = paste0(fix_auto, ' OR ',fix_splitter, ' OR ',fix_hybrid)
+  names_to_try = stringr::str_replace_all(names_to_try, pattern = ' OR  OR ', ' OR ') # clean missing values
+  names_to_try = stringr::str_replace_all(names_to_try, pattern = '^ OR | OR $', '') # clean missing values
+
+
+  ##############################
+  # 3) Find best match out of fixed names.
+  ##############################
+  to_try = data.frame(taxon_names = names_to_try, authors = taxon_authors)
+  ### 3.1) Loop over all names_to_try.
+  counter = 0
+  matches = apply(to_try, 1, function(name_author){
+    counter <<- counter +1
+    tax_names = name_author[1]
+    tax_author = name_author[2]
+    current_message = ''
+
+    ### 3.2) if names == '' return no match.
+    if(tax_names == ''){
+      return(list(match = NA, message = ''))
+    }
+    current_message = paste0(current_message, '(Try Fixing taxomonic name) -> ',collapse =' ')
+    current_message = paste0(current_message, tax_names, ' -> ',collapse =' ')
+
+
+    ### 3.3) Extract possible matches from enriched database.
+    split_names = stringr::str_split(tax_names, pattern = ' OR ')[[1]]
+    enriched_cur = enrich_database[enriched_taxon_names %in% split_names,]
+
+    ### 3.4) If only a single record return it.
+    if(nrow(enriched_cur) == 1){
+      current_message = paste0(current_message, ' (single fixed record) -> ',collapse =' ')
+
+      return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
+    }
+
+     enrich_taxon_authors_cur = enriched_cur[[enrich_taxon_authors_column]]
+    ### 3.4) Author matching.
+    if(do_taxon_author){
+      # Get the author matches.
+      matched_by_authors = match_authors(collection_author = tax_author,
+                                         enriched_database_authors = enrich_taxon_authors_cur,
+                                         ...)
+
+      # Reduce enriched_cur by author matching.
+      enriched_cur = enriched_cur[matched_by_authors$wanted,]
+      current_message = paste0(current_message, matched_by_authors$message, collapse =' ')
+
+      # If enriched_cur only has one row then we have found the best match and no further matching required.
+      if(nrow(enriched_cur) == 1){
+        return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
+      }
+    }
+    else{
+      current_message = paste0(current_message, '(No authors) -> ', collapse =' ')
+    }
+
+    ### 3.5) Matching criterion. (dependent on enrich_database)
+    match_by_criterion = matching_criterion(enrich_database_extract = enriched_cur, message = '')
+    enriched_cur = enriched_cur[match_by_criterion$row,]
+    current_message = paste0(current_message, match_by_criterion$message, collapse =' ')
+    if(nrow(enriched_cur) == 1){
+      return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
+    }
+
+    ### 3.6) Match by method used.(Fix splitter > fix hybrid < remove autonym)
+    remaining_taxon_names = enriched_cur[[enrich_taxon_name_column]]
+    best_method = unlist(lapply(remaining_taxon_names, function(x){
+      if(grepl(x, fix_splitter[counter])){
+        return(1)
+      }
+      if(grepl(x, fix_hybrid[counter])){
+        return(2)
+      }
+      if(grepl(x, fix_auto[counter])){
+        return(3)
+      }
+    }))
+    min_best_method = min(best_method,na.rm = T)
+    enriched_cur = enriched_cur[which(best_method == min_best_method),]
+
+    if(nrow(enriched_cur) == 1){
+      message = '(Decide on Method: Remove Autonym) -> '
+      if(min_best_method == 2){message = '(Decide on Method: Fix hybrid) -> '}
+      if(min_best_method == 1){message = '(Decide on Method: Fix infraspecific level) -> '}
+      current_message = paste0(current_message, message, collapse =' ')
+      return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
+    }
+
+    current_message = paste0(current_message, '(Cannot decide via fixing method) -> ', collapse =' ')
+
+    # No method can find the single best record match.
+    return(list(plant_identifer = -2, message = current_message))
+
+  })
+
+  counter = 0
+  m = unlist(lapply(matches, function(x){x[[1]]}))
+  mess = unlist(lapply(matches, function(x){x[[2]]}))
+
+  ### Convert enrich_plant_identifier_column to index in enrich database.
+  matched = rep(NA, length(taxon_names))
+  matched =match(m, enrich_database[[enrich_plant_identifier_column]])
+  matched[which(m == -2)] = -2
+
+  return(list(match = matched, message = mess))
+}
+
+#' @rdname match_single
+#' @export
+try_rm_autonym <- function(taxon_names, enrich_database_taxon_names,
+                           console_message = TRUE, ...
+){
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) Check for NA in taxon names and give warning if there are.
+  if(any(is.na(taxon_names))){
+    warning('In try_rm_autonym(), taxon names contain NA.')
+  }
+
+  ### 1.2) If no taxon_names provided return NULLs.
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
+
+  if(console_message){
+    cli::cli_alert_info(text = "Trying removing autonyms from taxon names")
+  }
+
+  ##############################
+  # 2) Find which taxon_names are autonyms and create vector of taxon names with autonym removed that are in enrich database.
+  ##############################
+  ### 2.1) As is_autonym column to the taxon_names.
+  taxon_names_and_autonym = add_is_autonym(data.frame(TaxonName = taxon_names))
+  autonym_indices =  which(taxon_names_and_autonym$is_autonym)
+
+  ### 2.2) If there exist no_autonyms exist function.
+  if(length(autonym_indices) == 0){
+    return(rep('',length(taxon_names)))
+  }
+
+  ### 2.3) extract the base of the autonyms and save in autonym_base.
+  autonym_base = rep(NA,length(taxon_names))
+  autonym_base[autonym_indices] = stringr::str_extract(string = taxon_names[autonym_indices],
+                                                       pattern = '^.*?(?= var\\. | subsp\\. | f\\. | ssp\\. | nothosubsp\\. )')
+
+
+  ### 2.4) Reduce autonym base to NA, if the base is not found in enrich_database.
+  autonym_base[!autonym_base %in% enrich_database_taxon_names] = ''
+
+  return(autonym_base)
+}
+
+#' @rdname match_single
+#' @export
+try_fix_infraspecific_level <- function(taxon_names, enrich_database_taxon_names,
+                                        try_hybrid = TRUE,
+                                        console_message = TRUE,
+                                        ...){
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) Check for NA in taxon names and give warning if there are.
+  if(any(is.na(taxon_names))){
+    warning('In try_rm_autonym(), taxon names contain NA.')
+  }
+
+  ### 1.2) If no taxon_names provided return NULLs.
+  if(length(taxon_names) == 0){
+    return(list(match = NULL, message = NULL))
+  }
+
+  ### 1.3) Define the infraspecific levels.
+  splitters = c('subsp.', 'var.', 'f.', 'nothosubsp.')
+  splitters_grepl = ' subsp\\. | var\\. | f\\. | nothosubsp\\. '
+
+  ### 1.4) Find how many word each taxon_name has.
+  no_words = stringr::str_count(taxon_names, ' ')+1
+
+  ### 1.5) Define output variable
+  out_fixed_names = rep('',length(taxon_names))
+
+  ### 1.6) Set lapply to pbapply::pblapply to show console progression.
+  if(console_message){
+    lapply = pbapply::pblapply
+  }
+
+  ### 1.7) Get reduced enriched taxon names that contain infraspecific levels.
+  enrich_taxon_names_w_split = enrich_database_taxon_names[grepl(splitters_grepl,enrich_database_taxon_names)]
+
+
+
+  ##############################
+  # 2) Try adding a infraspecific level. (taxon name needs 3 words)
+  ##############################
+  ### 2.1) Get the indices of taxon_names with 3 words
+  index_words_3 = which(no_words == 3 & !grepl('\u00D7|\\+',taxon_names))
+
+  if(length(index_words_3)>0){
+    if(console_message){
+      cli::cli_alert_info("Trying adding infraspecific level to {length(index_words_3)} name{?s}")
+    }
+    ### 2.2) Get the taxon names to try with adding infraspecific (/hybrid) markers. whilst checking if in enrich_database.
+    words_3 = stringr::str_split(taxon_names[index_words_3], ' ')
+    if(try_hybrid){
+      new_taxon_names = unlist(lapply(words_3, function(x){
+        just_splitter = paste(x[1], x[2], splitters, x[3])
+        taxon_namesA = just_splitter[just_splitter %in% enrich_taxon_names_w_split]
+        hybrid_and_splitter =  paste(x[1], '\u00D7', x[2], splitters, x[3])
+        taxon_namesB = hybrid_and_splitter[hybrid_and_splitter %in% enrich_taxon_names_w_split]
+        new_taxon_names = c(taxon_namesA,taxon_namesB)
+        return(paste0(new_taxon_names, collapse = ' OR '))
+      }))
+
+    }
+    else{
+      new_taxon_names = unlist(lapply(words_3, function(x){
+        just_splitter = paste(x[1], x[2], splitters, x[3])
+        new_taxon_names = just_splitter[just_splitter %in% enrich_taxon_names_w_split]
+
+        return(paste0(new_taxon_names, collapse = ' OR '))
+      }))
+
+    }
+    out_fixed_names[index_words_3] = paste0(out_fixed_names[index_words_3], new_taxon_names, sep = '')
+  }
+
+
+  ##############################
+  # 3) Try adding a infraspecific level when hybrid marker exists. (taxon name needs 4 words)
+  ##############################
+  if(try_hybrid){
+    ### 3.1) Get the indices of taxon_names with 4 words and hybrid in the best position.
+    index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
+    hybrid_position = unlist(lapply(stringr::str_split(taxon_names[index_words_4], ' '),function(x){which(grepl('\u00D7|\\+',x))}))
+    index_words_4 = index_words_4[hybrid_position %in% c(1,2)]
+
+    if(length(index_words_4)>0){
+      if(console_message){
+        cli::cli_alert_info("Trying adding infraspecific level (taxon with hybrid markers) to {length(index_words_4)} name{?s}")
+      }
+      ### 3.2) Get the taxon names to try with adding infraspecific (/hybrid) markers. whilst checking if in enrich_database.
+      words_4 = stringr::str_split(taxon_names[index_words_4], ' ')
+      new_taxon_names = unlist(lapply(words_4, function(x){
+        just_splitter = paste(x[1], x[2], x[3], splitters, x[4])
+        new_taxon_names = just_splitter[just_splitter %in% enrich_taxon_names_w_split]
+
+        return(paste0(new_taxon_names, collapse = ' OR '))
+      }))
+
+      out_fixed_names[index_words_4] = paste0(out_fixed_names[index_words_4], new_taxon_names, sep = '')
+    }
+
+
+  }
+
+  ##############################
+  # 4) Try changing an infraspecific level.
+  ##############################
+  ### 4.1) Get the indices of taxon_names with 3 words
+  index_words_with_splitter = which(grepl(splitters_grepl, taxon_names))
+
+  if(length(index_words_with_splitter) >0){
+    if(console_message){
+      cli::cli_alert_info("Trying changing infraspecific level to {length(index_words_with_splitter)} name{?s}")
+    }
+    new_taxon_names = unlist(lapply(taxon_names[index_words_with_splitter], function(x){
+      A=stringr::str_replace(x,pattern = splitters_grepl, ' var\\. ')
+      B=stringr::str_replace(x,pattern = splitters_grepl, ' f\\. ')
+      C=stringr::str_replace(x,pattern = splitters_grepl, ' subsp\\. ')
+      D=stringr::str_replace(x,pattern = splitters_grepl, ' nothosubsp\\. ')
+      options = c(A,B,C,D)
+      new_taxon_names = options[-match(x, options)]
+
+      new_taxon_names = new_taxon_names[new_taxon_names %in% enrich_taxon_names_w_split]
+
+      return(paste0(new_taxon_names, collapse = ' OR '))
+    }))
+    out_fixed_names[index_words_with_splitter] = paste0(out_fixed_names[index_words_with_splitter], new_taxon_names, sep = '')
+  }
+
+  return(out_fixed_names)
+}
+
+#' @rdname match_single
+#' @export
+try_fix_hybrid <- function(taxon_names, enrich_database_taxon_names,
+                           try_hybrid = TRUE,
+                           console_message = TRUE,
+                           ...){
+  ##############################
+  # 1) Setup
+  ##############################
+  ### 1.1) Check for NA in taxon names and give warning if there are.
+  if(any(is.na(taxon_names))){
+    warning('In try_rm_autonym(), taxon names contain NA.')
+  }
+
+  ### 1.2) If no taxon_names provided return NULLs.
+  if(length(taxon_names) == 0){
+    return(NULL)
+  }
+
+  ### 1.2) If we don't want to fix hybrid things.
+  if(!try_hybrid){
+    return(rep('',length(taxon_names)))
+  }
+
+  ### 1.3) Set lapply to pbapply::pblapply to show console progression.
+  if(console_message){
+    lapply = pbapply::pblapply
+  }
+
+  ### 1.4) Define the hybrid markers
+  hybrids = c('\u00D7', '+')
+  hybrids_grepl = ' \u00D7 | \\+  '
+
+  ### 1.5) Find how many word each taxon_name has.
+  no_words = stringr::str_count(taxon_names, ' ')+1
+
+  ### 1.6) Define output variable
+  out_fixed_names = rep('',length(taxon_names))
+
+  ### 1.7) Get reduced enriched taxon names that contain hybrids.
+  enrich_taxon_names_w_hybrid = enrich_database_taxon_names[grepl(hybrids_grepl,enrich_database_taxon_names)]
+
+  ##############################
+  # 2) Try hybrid at start. (taxon name needs 1 word)
+  ##############################
+  ### 2.1) Get the indices of taxon_names with 1 word
+  index_words_1 = which(no_words == 1)
+
+  if(length(index_words_1)>0){
+    if(console_message){
+      cli::cli_alert_info("Trying fixing hybrid for taxon names with 1 words {length(index_words_1)} name{?s}")
+    }
+    ### 2.2) Get the taxon names By adding hybrid before first word.
+    words_1 = taxon_names[index_words_1]
+    new_taxon_names = unlist(lapply(words_1, function(x){
+      new_taxon_names = c(paste('+',x,collapse =' '), paste('\u00D7', x, collapse = ' '))
+      new_taxon_names = new_taxon_names[new_taxon_names %in% enrich_taxon_names_w_hybrid]
+
+      return(paste0(new_taxon_names, collapse = ' OR '))
+    }))
+
+    out_fixed_names[index_words_1] = paste0(out_fixed_names[index_words_1], new_taxon_names, sep = '')
+
+  }
+
+  ########################
+  # 3) 2/3/4 words try hybrid at start or after first word.
+  ########################
+  ### 3.1) Get the indices of taxon_names with 2/3/4 words
+  index_words_2_3_4 = which(no_words %in% c(2,3,4), !grepl('\u00D7|\\+',taxon_names))
+
+  if(length(index_words_2_3_4) > 0){
+    if(console_message){
+      cli::cli_alert_info("Trying fixing hybrid for taxon names with 2/3/4 words {length(index_words_2_3_4)} name{?s}")
+    }
+
+    words_2_3_4 = stringr::str_split(taxon_names[index_words_2_3_4], ' ', n=2)
+    new_taxon_names = unlist(lapply(words_2_3_4, function(x){
+      ### 3.2) Get the taxon names to try with adding infraspecific (/hybrid) markers. whilst checking if in enrich_database.
+      before_first_word = paste(hybrids, x[1],x[2])
+      after_first_word = paste(x[1], hybrids, x[2])
+      new_taxon_names = c(before_first_word,after_first_word)
+      new_taxon_names = new_taxon_names[new_taxon_names %in% enrich_taxon_names_w_hybrid]
+
+      return(paste0(new_taxon_names, collapse = ' OR '))
+    }))
+
+    out_fixed_names[index_words_2_3_4] = paste0(out_fixed_names[index_words_2_3_4], new_taxon_names, sep = '')
+
+
+  }
+
+  ########################
+  # 4) Change/remove hybrid
+  ########################
+  ### 3.1) Get the indices of taxon_names with hybrid characters.
+  index_words_with_hybrid = which(grepl('\u00D7|\\+',taxon_names))
+
+  if(length(index_words_with_hybrid) > 0){
+    if(console_message){
+      cli::cli_alert_info("Trying changing/removing hybrid for taxon names {length(index_words_with_hybrid)} name{?s}")
+    }
+
+    # Get the words with the hybrid changed or removed.
+    new_taxon_names = unlist(lapply(taxon_names[index_words_with_hybrid], function(x){
+      A=stringr::str_replace(x,pattern = '\u00D7|\\+', '')
+      B=stringr::str_replace(x,pattern = '\u00D7|\\+', '\\+')
+      C=stringr::str_replace(x,pattern = '\u00D7|\\+', '\u00D7')
+      options = c(A,B,C)
+      options = stringr::str_squish(options)
+      new_taxon_names = options[-match(x, options)]
+      new_taxon_names = new_taxon_names[new_taxon_names %in% enrich_database_taxon_names]
+
+      return(paste0(new_taxon_names, collapse = ' OR '))
+    }))
+
+    out_fixed_names[index_words_with_hybrid] = paste0(out_fixed_names[index_words_with_hybrid], new_taxon_names, sep = '')
+
+  }
+
+
+  return(out_fixed_names)
+
+}
+
+#' Find best author matches
+#'
+#' @param collection_author The author from the collection wanted to be matched
+#' @param enriched_database_authors Author options from the enrich_database.
+#' @param partial_method Either `'most words` or `'any_words'`, defining the method used to find partial matches.
+#' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions).
+#'
+#' @return a list of length 2 with:
+#'  - `$wanted` is a logical (TRUE/FALSE) vector with length `length(enriched_database_authors)` corresponding to the enriched database authors that most match the collection author.
+#'  - `$message` detailing whether the author match was exact, partial or no match was found.
+#' @export
+#'
+#' @examples
+#' collection_author = 'Schult'
+#' enriched_database_authors = c("(Lour.) Schult", "Borhidi & E.Martinez")
+#' match_authors(collection_author, enriched_database_authors)
+match_authors <- function(collection_author, enriched_database_authors, partial_method = 'most words', ...){
+
+  ### 1) Exact matching
+  exact_match = collection_author == enriched_database_authors
+  exact_match[is.na(exact_match)] = FALSE # Set NA values to FALSE
+  if(any(exact_match)){
+    return(list(wanted = exact_match, message = '(Exact author match) -> '))
+  }
+
+  ### 2) Partial matching
+  if(partial_method == 'most words'){
+    # Get the words for the collections and databases authors.
+    enriched_database_authors_words = lapply(enriched_database_authors, author_words)
+    collection_author_words = author_words(collection_author)
+
+    #Find number of words in database's authors found in the collection's author
+    no_database_author_in_collection = unlist(lapply(enriched_database_authors_words,function(words){
+      words = words[words != '']
+      contain_words = unlist(lapply(words, function(x){grepl(x,collection_author)}))
+      return(sum(contain_words))
+    }))
+
+    #Find number of words in collection's author found in the database's authors
+    no_collection_author_in_database = rowSums(data.frame(lapply(collection_author_words, function(x){grepl(x,enriched_database_authors)})))
+
+    # Combine above and find the maximum shared words.
+    total_match_word_count = rowSums(cbind(no_database_author_in_collection,no_collection_author_in_database))
+    max_words_found =  max(total_match_word_count, na.rm=T)
+
+    # If maximum shared words > 0 return those with the maximum number of shared words.
+    if(max_words_found > 0){
+      match_author_words = total_match_word_count == max_words_found
+      match_author_words[is.na(match_author_words)] = FALSE # Set NA values to FALSE
+      return(list(wanted = match_author_words, message = '(Partial author <most words>) -> '))
+    }
+  }
+  else if(partial_method == 'any words'){
+    author_checks = unlist(lapply(enriched_database_authors,function(x){author_check(collection_author,x)}))
+    if(any(author_checks == 'Partial')){
+      partial_authors = author_checks == 'Partial'
+      partial_authors[is.na(partial_authors)] = FALSE # Set NA values to FALSE
+      return(list(wanted = partial_authors, message = '(Partial author <any words>) -> '))
+    }
+  }else{
+    stop('Invalid partial_method input in match_authors()!')
+  }
+
+
+  ### 3) No matching
+  return(list(wanted = rep(TRUE, length(enriched_database_authors)), message = '(No authors match) ->'))
+}
+
