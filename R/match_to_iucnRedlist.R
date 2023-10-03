@@ -13,6 +13,8 @@
 #' @param enrich_taxon_name_column The name of the column in the `iucnRedlist` corresponding to taxonomic names.Default value is `scientific_name`.
 #' @param enrich_display_in_message_column The name of the column in `iucnRedlist` that contains values to show in the matching messages. Default value is `taxonid`.
 #' @param enrich_plant_identifier_column The name of the column in `iucnRedlist` that corresponds to record identifier. Default value is `taxonid`.
+#' @param try_hybrid Flag (TRUE/FALSE) whether we want to look at hybrid fixes across all fixing methods.
+#' @param matching_criterion A function used to chose the best method from extracts of the `iucnRedlist`.
 #'
 #' @details
 #' This function allows matching of a collection's database to IUCN Red List of Threatened Species database. This function relies of matching functions found that are documented in  [match_single()], and is broadly similar to the function [match_collection_to_wcvp()].
@@ -206,7 +208,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
 
       if(length(diff_index) > 0){
         # Get matches trying to fix taxon name.
-        match_info = match_all_issue_new(taxon_names = taxon_name[diff_index],
+        match_info = match_all_issue(taxon_names = taxon_name[diff_index],
                                      taxon_authors = taxon_author[diff_index],
                                      enrich_database = iucnRedlist,
                                      do_add_split = do_add_split,
@@ -249,7 +251,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Testing and matching taxon name issues for {length(index_to_find_matches)} name{?s}")
 
-    match_info = match_all_issue_new(taxon_names = taxon_name[index_to_find_matches],
+    match_info = match_all_issue(taxon_names = taxon_name[index_to_find_matches],
                                  taxon_authors = taxon_author[index_to_find_matches],
                                  enrich_database = iucnRedlist,
                                  do_add_split = do_add_split,

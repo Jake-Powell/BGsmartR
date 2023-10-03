@@ -11,13 +11,15 @@ match_collection_to_iucnRedlist(
   taxon_name_full_column = NA,
   taxon_author_column = NA,
   typo_method = "fast",
-  try_add_split = TRUE,
-  try_fix_hybrid = TRUE,
-  try_rm_autonym = TRUE,
+  do_add_split = TRUE,
+  do_fix_hybrid = TRUE,
+  do_rm_autonym = TRUE,
   ...,
   enrich_taxon_name_column = "scientific_name",
   enrich_display_in_message_column = "taxonid",
-  enrich_plant_identifier_column = "taxonid"
+  enrich_plant_identifier_column = "taxonid",
+  matching_criterion = BGSmartR::no_additional_matching,
+  try_hybrid = FALSE
 )
 }
 \arguments{
@@ -33,11 +35,11 @@ match_collection_to_iucnRedlist(
 
 \item{typo_method}{Flag for whether we search for typos.}
 
-\item{try_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
+\item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
-\item{try_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
+\item{do_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
 
-\item{try_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
+\item{do_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
 
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 
@@ -46,6 +48,10 @@ match_collection_to_iucnRedlist(
 \item{enrich_display_in_message_column}{The name of the column in \code{iucnRedlist} that contains values to show in the matching messages. Default value is \code{taxonid}.}
 
 \item{enrich_plant_identifier_column}{The name of the column in \code{iucnRedlist} that corresponds to record identifier. Default value is \code{taxonid}.}
+
+\item{matching_criterion}{A function used to chose the best method from extracts of the \code{iucnRedlist}.}
+
+\item{try_hybrid}{Flag (TRUE/FALSE) whether we want to look at hybrid fixes across all fixing methods.}
 }
 \value{
 A list of length seven containing:
@@ -68,5 +74,5 @@ This function allows matching of a collection's database to IUCN Red List of Thr
 
 Note that by default the matching functions use column names from (WCVP) therefore these will often require changing prior to matching unless you change the column names in iucnRedlist to concure with wcvp column names.
 
-Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using \code{try_add_split}, \code{try_fix_hybrid}, \code{try_rm_autonym} and \code{typo_method}.
+Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using \code{do_add_split}, \code{do_fix_hybrid}, \code{do_rm_autonym} and \code{typo_method}.
 }

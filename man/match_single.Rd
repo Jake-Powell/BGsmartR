@@ -6,15 +6,9 @@
 \alias{match_all_issue}
 \alias{match_typos}
 \alias{no_match_cultivar_indet}
-\alias{match_rm_autonym}
-\alias{match_splitter_issue}
-\alias{match_hybrid_issue}
-\alias{match_taxon_status}
 \alias{get_match_from_multiple}
-\alias{match_error}
 \alias{check_taxon_typo}
 \alias{shorten_message}
-\alias{match_all_issue_new}
 \alias{try_rm_autonym}
 \alias{try_fix_infraspecific_level}
 \alias{try_fix_hybrid}
@@ -47,11 +41,10 @@ match_all_issue(
   taxon_names,
   taxon_authors = rep(NA, length(taxon_names)),
   enrich_database,
-  single_indices = NA,
-  mult_indices = NA,
-  try_add_split = TRUE,
-  try_fix_hybrid = TRUE,
-  try_rm_autonym = TRUE,
+  matching_criterion = BGSmartR::additional_wcvp_matching,
+  do_add_split = TRUE,
+  do_fix_hybrid = TRUE,
+  do_rm_autonym = TRUE,
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
   enrich_plant_identifier_column = "plant_name_id",
@@ -71,38 +64,6 @@ match_typos(
 
 no_match_cultivar_indet(taxon_names)
 
-match_rm_autonym(
-  taxon_names,
-  taxon_authors,
-  enrich_database,
-  single_indices = NA,
-  mult_indices = NA,
-  ...
-)
-
-match_splitter_issue(
-  taxon_names,
-  taxon_authors,
-  enrich_database,
-  enrich_taxon_name_column = "taxon_name",
-  ...
-)
-
-match_hybrid_issue(
-  taxon_names,
-  taxon_authors,
-  enrich_database,
-  enrich_taxon_name_column = "taxon_name",
-  ...
-)
-
-match_taxon_status(
-  author_match,
-  corres_enrich_database,
-  current_message = "",
-  ...
-)
-
 get_match_from_multiple(
   taxon_name_and_author,
   enrich_database_mult,
@@ -111,15 +72,6 @@ get_match_from_multiple(
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
   enrich_taxon_author_words_column = "author_parts",
-  ...
-)
-
-match_error(
-  taxon_names,
-  match_details,
-  original_author,
-  enrich_database,
-  current_message = "",
   ...
 )
 
@@ -134,24 +86,11 @@ check_taxon_typo(
 
 shorten_message(messages)
 
-match_all_issue_new(
-  taxon_names,
-  taxon_authors = rep(NA, length(taxon_names)),
-  enrich_database,
-  matching_criterion = BGSmartR::additional_wcvp_matching,
-  do_add_split = TRUE,
-  do_fix_hybrid = TRUE,
-  do_rm_autonym = TRUE,
-  enrich_taxon_name_column = "taxon_name",
-  enrich_taxon_authors_column = "taxon_authors_simp",
-  enrich_plant_identifier_column = "plant_name_id",
-  ...
-)
-
 try_rm_autonym(
   taxon_names,
   enrich_database_taxon_names,
-  console_message = TRUE
+  console_message = TRUE,
+  ...
 )
 
 try_fix_infraspecific_level(
@@ -191,49 +130,33 @@ try_fix_hybrid(
 
 \item{show_progress}{Flag (TRUE/FALSE) for whether we show progress bar.}
 
-\item{single_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'unique' taxonomic names.}
-
-\item{mult_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'non-unique' taxonomic names.}
-
-\item{try_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
-
-\item{try_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
-
-\item{try_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
-
-\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{taxon_authors_simp}.}
-
-\item{typo_method}{Either \code{full} or \code{fast}, the method used for finding typos.}
-
-\item{author_match}{Logical vector (TRUE/FALSE) detailing whether we have a match or not.}
-
-\item{corres_enrich_database}{the corresponding entries in the \code{enrich_database} (rows must equal length \verb{author match}).}
-
-\item{current_message}{the current message detailing the matching steps already completed.}
-
-\item{taxon_name_and_author}{the pair of taxonomic name and combined taxonomic name and author}
-
-\item{enrich_database_mult}{\code{enrich_database} restricted to the rows that correspond to 'non-unique' taxonomic names.}
-
 \item{matching_criterion}{The function used to find the best match when we have 'non-unique' taxonomic names. By default the function \code{BGSmartR::get_match_from_multiple()} is used.}
-
-\item{enrich_taxon_author_words_column}{The name of the column in \code{enrich_database} that corresponds to the words contained in the authors of taxonomic names. Default value is \code{author_parts}.}
-
-\item{match_details}{match_details}
-
-\item{original_author}{The author of the taxonomic name wanted to be matched to the enriched information.}
-
-\item{taxon_name}{A single taxonomic name.}
-
-\item{typo_df}{A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default \code{BGSmartR::typo_list} is used.}
-
-\item{messages}{messages detailing how a match is obtained.}
 
 \item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
 \item{do_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
 
 \item{do_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
+
+\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{taxon_authors_simp}.}
+
+\item{single_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'unique' taxonomic names.}
+
+\item{mult_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'non-unique' taxonomic names.}
+
+\item{typo_method}{Either \code{full} or \code{fast}, the method used for finding typos.}
+
+\item{taxon_name_and_author}{the pair of taxonomic name and combined taxonomic name and author}
+
+\item{enrich_database_mult}{\code{enrich_database} restricted to the rows that correspond to 'non-unique' taxonomic names.}
+
+\item{enrich_taxon_author_words_column}{The name of the column in \code{enrich_database} that corresponds to the words contained in the authors of taxonomic names. Default value is \code{author_parts}.}
+
+\item{taxon_name}{A single taxonomic name.}
+
+\item{typo_df}{A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default \code{BGSmartR::typo_list} is used.}
+
+\item{messages}{messages detailing how a match is obtained.}
 
 \item{enrich_database_taxon_names}{The taxon names taken from \code{enrich_database}.
 enrich_database_taxon_names}
@@ -251,13 +174,12 @@ Below we outline the uses of each function. For further details and examples on 
 Each of the matching functions generally return the index of the matching record in \code{enrich_database} and a message detailing how the match was obtained. These function can be used as building blocks to build a custom taxonomic name matching algorithm.
 \itemize{
 \item \code{match_single()} matches \code{taxon_names} to \code{enrich_database} taking only the first match. \code{enrich_database_search_index} should be used to restrict the enrich database to only 'unique' taxonomic names (i.e taxonomic names that correspond to a single record in the enrich database). For 'non-unique' taxonomic names \code{match_multiple()} should be used.
-\item \code{match_multiple()} matches \code{taxon_names} to \code{enrich_database} for entries in enrich database that have \code{non-unique} taxonomic names. For 'unique' taxonomic names \code{match_single()} should be used. For \code{non-unique} taxonomic names a matching criterion is applied to find the best match using taxonomic authors, and taxon status to decide the best match. For further details see  \code{Matching.Rmd} vignette. The matching criterion function is passed as the input parameter \code{matching_criterion} allowing customization. By default the function \code{get_match_from_multiple()} is used (which also depends on \code{match_taxon_status()}).
+\item \code{match_multiple()} matches \code{taxon_names} to \code{enrich_database} for entries in enrich database that have \code{non-unique} taxonomic names. For 'unique' taxonomic names \code{match_single()} should be used. For \code{non-unique} taxonomic names we first use taxonomic author matching to decide which record to use. This matching is performed to each taxonomic name and author using the function \code{get_match_from_multiple()}. \code{get_match_from_multiple()} further depends on a  matching criteria function which can be added using the input \code{matching_criterion} (passed via \code{...}). By default this is set to \code{\link[=additional_wcvp_matching]{additional_wcvp_matching()}}, which uses accepted_plant_name_id and taxon_status to chose the best match (in WCVP).
 \item \code{match_all_issue()} attempts to fix hybridisation, change infraspecific levels or remove autonyms to find matches to an enriched database. This function depends on the functions:
 \itemize{
-\item \code{match_rm_autonym()} attempts to find matches by removing autonyms.
-\item \code{match_splitter_issue()} attempts to find matches by adding/changing/removing infraspecific levels (var., f., etc).
-\item \code{match_hybrid_issue()} attempts to find matching  by adding/changing/removing hybrid markers (+ or x).
-\item \code{match_error()} Attempts to find the best match when fixing errors leads to multiple possible matches.
+\item \code{try_rm_autonym()} attempts to find taxonomic names in \code{enrich_database} by removing autonyms.
+\item \code{try_fix_infraspecific_level()} attempts to find taxonomic names in \code{enrich_database} by adding/changing/removing infraspecific levels (var., f., etc).
+\item \code{try_fix_hybrid()}  attempts to find taxonomic names in \code{enrich_database} by adding/changing/removing hybrid markers (+ or x).
 }
 \item \code{match_typos()} attempts to find matches by searching for typos in the taxonomic name. This depends on the function:
 \itemize{

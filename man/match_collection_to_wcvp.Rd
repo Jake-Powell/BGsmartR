@@ -11,10 +11,11 @@ match_collection_to_wcvp(
   taxon_name_full_column = NA,
   taxon_author_column = NA,
   typo_method = "fast",
-  try_add_split = TRUE,
-  try_fix_hybrid = TRUE,
-  try_rm_autonym = TRUE,
+  do_add_split = TRUE,
+  do_fix_hybrid = TRUE,
+  do_rm_autonym = TRUE,
   do_convert_accepted = TRUE,
+  matching_criterion = BGSmartR::additional_wcvp_matching,
   ...
 )
 }
@@ -31,13 +32,15 @@ match_collection_to_wcvp(
 
 \item{typo_method}{Flag for whether we search for typos.}
 
-\item{try_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
+\item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
-\item{try_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
+\item{do_fix_hybrid}{Flag (TRUE/FALSE) for whether we search for hybrid issues.}
 
-\item{try_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
+\item{do_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
 
 \item{do_convert_accepted}{Flag for whether we convert to accepted names in POWO.}
+
+\item{matching_criterion}{A function used to chose the best method from extracts of the \code{wcvp$wcvp_names}.}
 
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 }

@@ -2,22 +2,31 @@
 % Please edit documentation in R/matching_criterions.R
 \name{no_additional_matching}
 \alias{no_additional_matching}
-\title{Blank Matching criterion}
+\alias{additional_wcvp_matching}
+\title{Matching criterions}
 \usage{
 no_additional_matching(enrich_database_extract, message = "")
+
+additional_wcvp_matching(enrich_database_extract, message = "")
 }
 \arguments{
-\item{enrich_database_extract}{extract of database (often records with identical taxonomic names)}
+\item{enrich_database_extract}{extract of enrichment database (often records with identical taxonomic names).}
 
 \item{message}{Matching message.}
 }
 \value{
-Always returns a list of 3 with:
+Always returns a list of 2 with:
 \itemize{
-\item \verb{$row} =\code{-2} set to no match.
-\item \verb{$message} A combination of the input message and \verb{unclear, do not match'}.
+\item \verb{$row} The rows of \code{enrich_database_extract} corresponding to the best match/s according to the criterion.
+\item \verb{$message} A combination of the input message the method used to determine a match.
 }
 }
 \description{
-Blank Matching criterion
+Functions used within \code{\link[=match_all_issue]{match_all_issue()}} and \code{\link[=get_match_from_multiple]{get_match_from_multiple()}} to get the best match to enrichment databases with custom criteria.
+}
+\details{
+\itemize{
+\item \code{no_additional_matching()} is used when no custom matching wants to be performed.
+\item \code{additional_wcvp_matching()} is the default for additional matching to the World Checklist of Vascular Plants (WCVP) database. This method includes looking ahead to see if potential matches lead to the same accepted plant name, and matching on the taxon_status of the records (Accepted or Synonym).
+}
 }
