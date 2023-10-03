@@ -75,11 +75,10 @@
 <span>  <span class="va">taxon_names</span>,</span>
 <span>  taxon_authors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="va">enrich_database</span>,</span>
-<span>  single_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  mult_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  try_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
+<span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
 <span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
@@ -99,55 +98,14 @@
 <span></span>
 <span><span class="fu">no_match_cultivar_indet</span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">match_rm_autonym</span><span class="op">(</span></span>
-<span>  <span class="va">taxon_names</span>,</span>
-<span>  <span class="va">taxon_authors</span>,</span>
-<span>  <span class="va">enrich_database</span>,</span>
-<span>  single_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  mult_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">match_splitter_issue</span><span class="op">(</span></span>
-<span>  <span class="va">taxon_names</span>,</span>
-<span>  <span class="va">taxon_authors</span>,</span>
-<span>  <span class="va">enrich_database</span>,</span>
-<span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">match_hybrid_issue</span><span class="op">(</span></span>
-<span>  <span class="va">taxon_names</span>,</span>
-<span>  <span class="va">taxon_authors</span>,</span>
-<span>  <span class="va">enrich_database</span>,</span>
-<span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">match_taxon_status</span><span class="op">(</span></span>
-<span>  <span class="va">author_match</span>,</span>
-<span>  <span class="va">corres_enrich_database</span>,</span>
-<span>  current_message <span class="op">=</span> <span class="st">""</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
 <span><span class="fu">get_match_from_multiple</span><span class="op">(</span></span>
 <span>  <span class="va">taxon_name_and_author</span>,</span>
 <span>  <span class="va">enrich_database_mult</span>,</span>
-<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="additional_wcvp_matching.html">additional_wcvp_matching</a></span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
 <span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
 <span>  enrich_taxon_author_words_column <span class="op">=</span> <span class="st">"author_parts"</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu">match_error</span><span class="op">(</span></span>
-<span>  <span class="va">taxon_names</span>,</span>
-<span>  <span class="va">match_details</span>,</span>
-<span>  <span class="va">original_author</span>,</span>
-<span>  <span class="va">enrich_database</span>,</span>
-<span>  current_message <span class="op">=</span> <span class="st">""</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -162,24 +120,11 @@
 <span></span>
 <span><span class="fu">shorten_message</span><span class="op">(</span><span class="va">messages</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">match_all_issue_new</span><span class="op">(</span></span>
-<span>  <span class="va">taxon_names</span>,</span>
-<span>  taxon_authors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  <span class="va">enrich_database</span>,</span>
-<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="additional_wcvp_matching.html">additional_wcvp_matching</a></span>,</span>
-<span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
-<span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
-<span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
-<span>  <span class="va">...</span></span>
-<span><span class="op">)</span></span>
-<span></span>
 <span><span class="fu">try_rm_autonym</span><span class="op">(</span></span>
 <span>  <span class="va">taxon_names</span>,</span>
 <span>  <span class="va">enrich_database_taxon_names</span>,</span>
-<span>  console_message <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  console_message <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">try_fix_infraspecific_level</span><span class="op">(</span></span>
@@ -241,80 +186,8 @@
 <dd><p>Flag (TRUE/FALSE) for whether we show progress bar.</p></dd>
 
 
-<dt>single_indices</dt>
-<dd><p>A vector of indices of <code>enrich_database</code> that correspond to the records that have 'unique' taxonomic names.</p></dd>
-
-
-<dt>mult_indices</dt>
-<dd><p>A vector of indices of <code>enrich_database</code> that correspond to the records that have 'non-unique' taxonomic names.</p></dd>
-
-
-<dt>try_add_split</dt>
-<dd><p>Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.</p></dd>
-
-
-<dt>try_fix_hybrid</dt>
-<dd><p>Flag (TRUE/FALSE) for whether we search for hybrid issues.</p></dd>
-
-
-<dt>try_rm_autonym</dt>
-<dd><p>Flag (TRUE/FALSE) for whether we try removing autonyms.</p></dd>
-
-
-<dt>enrich_taxon_authors_column</dt>
-<dd><p>The name of the column in <code>enrich_database</code> that corresponds to the authors of taxonomic names. Default value is <code>taxon_authors_simp</code>.</p></dd>
-
-
-<dt>typo_method</dt>
-<dd><p>Either <code>full</code> or <code>fast</code>, the method used for finding typos.</p></dd>
-
-
-<dt>author_match</dt>
-<dd><p>Logical vector (TRUE/FALSE) detailing whether we have a match or not.</p></dd>
-
-
-<dt>corres_enrich_database</dt>
-<dd><p>the corresponding entries in the <code>enrich_database</code> (rows must equal length <code>author match</code>).</p></dd>
-
-
-<dt>current_message</dt>
-<dd><p>the current message detailing the matching steps already completed.</p></dd>
-
-
-<dt>taxon_name_and_author</dt>
-<dd><p>the pair of taxonomic name and combined taxonomic name and author</p></dd>
-
-
-<dt>enrich_database_mult</dt>
-<dd><p><code>enrich_database</code> restricted to the rows that correspond to 'non-unique' taxonomic names.</p></dd>
-
-
 <dt>matching_criterion</dt>
 <dd><p>The function used to find the best match when we have 'non-unique' taxonomic names. By default the function <code>BGSmartR::get_match_from_multiple()</code> is used.</p></dd>
-
-
-<dt>enrich_taxon_author_words_column</dt>
-<dd><p>The name of the column in <code>enrich_database</code> that corresponds to the words contained in the authors of taxonomic names. Default value is <code>author_parts</code>.</p></dd>
-
-
-<dt>match_details</dt>
-<dd><p>match_details</p></dd>
-
-
-<dt>original_author</dt>
-<dd><p>The author of the taxonomic name wanted to be matched to the enriched information.</p></dd>
-
-
-<dt>taxon_name</dt>
-<dd><p>A single taxonomic name.</p></dd>
-
-
-<dt>typo_df</dt>
-<dd><p>A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default <code><a href="typo_list.html">BGSmartR::typo_list</a></code> is used.</p></dd>
-
-
-<dt>messages</dt>
-<dd><p>messages detailing how a match is obtained.</p></dd>
 
 
 <dt>do_add_split</dt>
@@ -327,6 +200,46 @@
 
 <dt>do_rm_autonym</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we try removing autonyms.</p></dd>
+
+
+<dt>enrich_taxon_authors_column</dt>
+<dd><p>The name of the column in <code>enrich_database</code> that corresponds to the authors of taxonomic names. Default value is <code>taxon_authors_simp</code>.</p></dd>
+
+
+<dt>single_indices</dt>
+<dd><p>A vector of indices of <code>enrich_database</code> that correspond to the records that have 'unique' taxonomic names.</p></dd>
+
+
+<dt>mult_indices</dt>
+<dd><p>A vector of indices of <code>enrich_database</code> that correspond to the records that have 'non-unique' taxonomic names.</p></dd>
+
+
+<dt>typo_method</dt>
+<dd><p>Either <code>full</code> or <code>fast</code>, the method used for finding typos.</p></dd>
+
+
+<dt>taxon_name_and_author</dt>
+<dd><p>the pair of taxonomic name and combined taxonomic name and author</p></dd>
+
+
+<dt>enrich_database_mult</dt>
+<dd><p><code>enrich_database</code> restricted to the rows that correspond to 'non-unique' taxonomic names.</p></dd>
+
+
+<dt>enrich_taxon_author_words_column</dt>
+<dd><p>The name of the column in <code>enrich_database</code> that corresponds to the words contained in the authors of taxonomic names. Default value is <code>author_parts</code>.</p></dd>
+
+
+<dt>taxon_name</dt>
+<dd><p>A single taxonomic name.</p></dd>
+
+
+<dt>typo_df</dt>
+<dd><p>A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default <code><a href="typo_list.html">BGSmartR::typo_list</a></code> is used.</p></dd>
+
+
+<dt>messages</dt>
+<dd><p>messages detailing how a match is obtained.</p></dd>
 
 
 <dt>enrich_database_taxon_names</dt>
@@ -346,11 +259,10 @@ enrich_database_taxon_names</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Below we outline the uses of each function. For further details and examples on matching functions please see the <code>Matching.Rmd</code> vignette.</p>
 <p>Each of the matching functions generally return the index of the matching record in <code>enrich_database</code> and a message detailing how the match was obtained. These function can be used as building blocks to build a custom taxonomic name matching algorithm.</p><ul><li><p><code>match_single()</code> matches <code>taxon_names</code> to <code>enrich_database</code> taking only the first match. <code>enrich_database_search_index</code> should be used to restrict the enrich database to only 'unique' taxonomic names (i.e taxonomic names that correspond to a single record in the enrich database). For 'non-unique' taxonomic names <code>match_multiple()</code> should be used.</p></li>
-<li><p><code>match_multiple()</code> matches <code>taxon_names</code> to <code>enrich_database</code> for entries in enrich database that have <code>non-unique</code> taxonomic names. For 'unique' taxonomic names <code>match_single()</code> should be used. For <code>non-unique</code> taxonomic names a matching criterion is applied to find the best match using taxonomic authors, and taxon status to decide the best match. For further details see  <code>Matching.Rmd</code> vignette. The matching criterion function is passed as the input parameter <code>matching_criterion</code> allowing customization. By default the function <code>get_match_from_multiple()</code> is used (which also depends on <code>match_taxon_status()</code>).</p></li>
-<li><p><code>match_all_issue()</code> attempts to fix hybridisation, change infraspecific levels or remove autonyms to find matches to an enriched database. This function depends on the functions:</p><ul><li><p><code>match_rm_autonym()</code> attempts to find matches by removing autonyms.</p></li>
-<li><p><code>match_splitter_issue()</code> attempts to find matches by adding/changing/removing infraspecific levels (var., f., etc).</p></li>
-<li><p><code>match_hybrid_issue()</code> attempts to find matching  by adding/changing/removing hybrid markers (+ or x).</p></li>
-<li><p><code>match_error()</code> Attempts to find the best match when fixing errors leads to multiple possible matches.</p></li>
+<li><p><code>match_multiple()</code> matches <code>taxon_names</code> to <code>enrich_database</code> for entries in enrich database that have <code>non-unique</code> taxonomic names. For 'unique' taxonomic names <code>match_single()</code> should be used. For <code>non-unique</code> taxonomic names we first use taxonomic author matching to decide which record to use. This matching is performed to each taxonomic name and author using the function <code>get_match_from_multiple()</code>. <code>get_match_from_multiple()</code> further depends on a  matching criteria function which can be added using the input <code>matching_criterion</code> (passed via <code>...</code>). By default this is set to <code><a href="no_additional_matching.html">additional_wcvp_matching()</a></code>, which uses accepted_plant_name_id and taxon_status to chose the best match (in WCVP).</p></li>
+<li><p><code>match_all_issue()</code> attempts to fix hybridisation, change infraspecific levels or remove autonyms to find matches to an enriched database. This function depends on the functions:</p><ul><li><p><code>try_rm_autonym()</code> attempts to find taxonomic names in <code>enrich_database</code> by removing autonyms.</p></li>
+<li><p><code>try_fix_infraspecific_level()</code> attempts to find taxonomic names in <code>enrich_database</code> by adding/changing/removing infraspecific levels (var., f., etc).</p></li>
+<li><p><code>try_fix_hybrid()</code>  attempts to find taxonomic names in <code>enrich_database</code> by adding/changing/removing hybrid markers (+ or x).</p></li>
 </ul></li>
 <li><p><code>match_typos()</code> attempts to find matches by searching for typos in the taxonomic name. This depends on the function:</p><ul><li><p><code>check_taxon_typo()</code> to check a single taxonomic name for typos found either in a typo list or the enriched database.</p></li>
 </ul></li>

@@ -55,10 +55,11 @@
 <span>  taxon_name_full_column <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  taxon_author_column <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
-<span>  try_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  do_convert_accepted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -89,20 +90,24 @@
 <dd><p>Flag for whether we search for typos.</p></dd>
 
 
-<dt>try_add_split</dt>
+<dt>do_add_split</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.</p></dd>
 
 
-<dt>try_fix_hybrid</dt>
+<dt>do_fix_hybrid</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we search for hybrid issues.</p></dd>
 
 
-<dt>try_rm_autonym</dt>
+<dt>do_rm_autonym</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we try removing autonyms.</p></dd>
 
 
 <dt>do_convert_accepted</dt>
 <dd><p>Flag for whether we convert to accepted names in POWO.</p></dd>
+
+
+<dt>matching_criterion</dt>
+<dd><p>A function used to chose the best method from extracts of the <code>wcvp$wcvp_names</code>.</p></dd>
 
 
 <dt>...</dt>

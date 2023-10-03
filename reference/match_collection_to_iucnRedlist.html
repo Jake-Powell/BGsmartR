@@ -55,13 +55,15 @@
 <span>  taxon_name_full_column <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  taxon_author_column <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
-<span>  try_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  try_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="va">...</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"scientific_name"</span>,</span>
 <span>  enrich_display_in_message_column <span class="op">=</span> <span class="st">"taxonid"</span>,</span>
-<span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"taxonid"</span></span>
+<span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"taxonid"</span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">no_additional_matching</a></span>,</span>
+<span>  try_hybrid <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -91,15 +93,15 @@
 <dd><p>Flag for whether we search for typos.</p></dd>
 
 
-<dt>try_add_split</dt>
+<dt>do_add_split</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.</p></dd>
 
 
-<dt>try_fix_hybrid</dt>
+<dt>do_fix_hybrid</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we search for hybrid issues.</p></dd>
 
 
-<dt>try_rm_autonym</dt>
+<dt>do_rm_autonym</dt>
 <dd><p>Flag (TRUE/FALSE) for whether we try removing autonyms.</p></dd>
 
 
@@ -118,6 +120,14 @@
 <dt>enrich_plant_identifier_column</dt>
 <dd><p>The name of the column in <code>iucnRedlist</code> that corresponds to record identifier. Default value is <code>taxonid</code>.</p></dd>
 
+
+<dt>matching_criterion</dt>
+<dd><p>A function used to chose the best method from extracts of the <code>iucnRedlist</code>.</p></dd>
+
+
+<dt>try_hybrid</dt>
+<dd><p>Flag (TRUE/FALSE) whether we want to look at hybrid fixes across all fixing methods.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -135,7 +145,7 @@
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>This function allows matching of a collection's database to IUCN Red List of Threatened Species database. This function relies of matching functions found that are documented in  <code><a href="match_single.html">match_single()</a></code>, and is broadly similar to the function <code><a href="match_collection_to_wcvp.html">match_collection_to_wcvp()</a></code>.</p>
 <p>Note that by default the matching functions use column names from (WCVP) therefore these will often require changing prior to matching unless you change the column names in iucnRedlist to concure with wcvp column names.</p>
-<p>Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using <code>try_add_split</code>, <code>try_fix_hybrid</code>, <code>try_rm_autonym</code> and <code>typo_method</code>.</p>
+<p>Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using <code>do_add_split</code>, <code>do_fix_hybrid</code>, <code>do_rm_autonym</code> and <code>typo_method</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
