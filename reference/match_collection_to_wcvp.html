@@ -54,7 +54,8 @@
 <span>  taxon_name_column <span class="op">=</span> <span class="st">"TaxonName"</span>,</span>
 <span>  taxon_name_full_column <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  taxon_author_column <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
+<span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
+<span>  typo_method <span class="op">=</span> <span class="st">"All"</span>,</span>
 <span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -86,8 +87,12 @@
 <dd><p>The name of the column in the <code>collection</code> corresponding to the authors of the taxonomic names.</p></dd>
 
 
+<dt>enrich_taxon_authors_column</dt>
+<dd><p>The name of the column in <code>enrich_database</code> that corresponds to the authors of taxonomic names. Default value is <code>taxon_authors_simp</code>.</p></dd>
+
+
 <dt>typo_method</dt>
-<dd><p>Flag for whether we search for typos.</p></dd>
+<dd><p>Either <code>'All'</code>, <code>'Data frame only'</code>,<code>'Data frame + common'</code>, detailing the level of typo finding required.</p></dd>
 
 
 <dt>do_add_split</dt>
@@ -103,7 +108,7 @@
 
 
 <dt>do_convert_accepted</dt>
-<dd><p>Flag for whether we convert to accepted names in POWO.</p></dd>
+<dd><p>Flag for whether we convert to accepted names in wcvp</p></dd>
 
 
 <dt>matching_criterion</dt>
@@ -111,7 +116,7 @@
 
 
 <dt>...</dt>
-<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include <code>enrich_taxon_authors_column</code>, <code>enrich_display_in_message_column</code> and <code>enrich_plant_identifier_column</code>.</p></dd>
+<dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, <code>enrich_display_in_message_column</code> and <code>enrich_plant_identifier_column</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -124,12 +129,10 @@
 <li><p><code>$original_authors</code> The author/s (extracted) from the <code>collection</code> database.</p></li>
 <li><p><code>$match_authors</code> The author/s of the matched record in <code>wcvp$wcvp_names</code>.</p></li>
 <li><p><code>$author_check</code> Either <code>Identical</code>, <code>Partial</code> or <code>Different</code>  (<code>No Match</code> if a match to wcvp cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in <code>wcvp$wcvp_names</code>. Author similarity is found using the function  <code><a href="author_check.html">author_check()</a></code>.</p></li>
-</ul><p>match = taxon_match_full,</p>
-    </div>
+</ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see the vignette.</p>
-<p>Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using <code>try_add_split</code>, <code>try_fix_hybrid</code>, <code>try_rm_autonym</code> and <code>typo_method</code>.</p>
+    <p>This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see <code>Method of Matching taxonomic records</code> vignette (Matching.Rmd).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>

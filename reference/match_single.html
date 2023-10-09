@@ -75,6 +75,7 @@
 <span>  <span class="va">taxon_names</span>,</span>
 <span>  taxon_authors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">taxon_names</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>  <span class="va">enrich_database</span>,</span>
+<span>  matching_authors <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="match_authors.html">match_authors</a></span>,</span>
 <span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
 <span>  do_add_split <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  do_fix_hybrid <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -82,6 +83,7 @@
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
 <span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
+<span>  enrich_display_in_message_column <span class="op">=</span> <span class="st">"powo_id"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -92,7 +94,7 @@
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  single_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  mult_indices <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
+<span>  typo_method <span class="op">=</span> <span class="st">"Data frame only"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -101,7 +103,8 @@
 <span><span class="fu">get_match_from_multiple</span><span class="op">(</span></span>
 <span>  <span class="va">taxon_name_and_author</span>,</span>
 <span>  <span class="va">enrich_database_mult</span>,</span>
-<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
+<span>  matching_authors <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="match_authors.html">match_authors</a></span>,</span>
+<span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">no_additional_matching</a></span>,</span>
 <span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">"taxon_authors_simp"</span>,</span>
@@ -114,7 +117,7 @@
 <span>  enrich_database <span class="op">=</span> <span class="cn">NA</span>,</span>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
 <span>  typo_df <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="typo_list.html">typo_list</a></span>,</span>
-<span>  typo_method <span class="op">=</span> <span class="st">"fast"</span>,</span>
+<span>  typo_method <span class="op">=</span> <span class="st">"Data frame only"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
 <span></span>
@@ -186,6 +189,10 @@
 <dd><p>Flag (TRUE/FALSE) for whether we show progress bar.</p></dd>
 
 
+<dt>matching_authors</dt>
+<dd><p>The function used to find the best match using the author of taxonomic names. By default the function <code><a href="match_authors.html">BGSmartR::match_authors()</a></code> is used.</p></dd>
+
+
 <dt>matching_criterion</dt>
 <dd><p>The function used to find the best match when we have 'non-unique' taxonomic names. By default the function <code>BGSmartR::get_match_from_multiple()</code> is used.</p></dd>
 
@@ -215,7 +222,7 @@
 
 
 <dt>typo_method</dt>
-<dd><p>Either <code>full</code> or <code>fast</code>, the method used for finding typos.</p></dd>
+<dd><p>Either <code>'All'</code>, <code>'Data frame only'</code>,<code>'Data frame + common'</code>, detailing the level of typo finding required.</p></dd>
 
 
 <dt>taxon_name_and_author</dt>
