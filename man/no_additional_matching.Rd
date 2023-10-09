@@ -22,11 +22,14 @@ Always returns a list of 2 with:
 }
 }
 \description{
-Functions used within \code{\link[=match_all_issue]{match_all_issue()}} and \code{\link[=get_match_from_multiple]{get_match_from_multiple()}} to get the best match to enrichment databases with custom criteria.
+Custom matching criterions used within \code{match_all_issue()} and \code{get_match_from_multiple()}.
 }
 \details{
+Within BGSmartR we have two in-built custom matching criterions.
 \itemize{
 \item \code{no_additional_matching()} is used when no custom matching wants to be performed.
 \item \code{additional_wcvp_matching()} is the default for additional matching to the World Checklist of Vascular Plants (WCVP) database. This method includes looking ahead to see if potential matches lead to the same accepted plant name, and matching on the taxon_status of the records (Accepted or Synonym).
 }
+
+These can be used within \code{\link[=match_all_issue]{match_all_issue()}} and \code{\link[=get_match_from_multiple]{get_match_from_multiple()}} via the input \code{matching_criterion}. See vignette \verb{Method of Matching taxonomic records} for further details on custom matching and how to create new matching criterions.
 }

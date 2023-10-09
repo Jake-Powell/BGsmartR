@@ -1,10 +1,14 @@
 #'  Matching criterions
 #'
-#'  Functions used within [match_all_issue()] and [get_match_from_multiple()] to get the best match to enrichment databases with custom criteria.
+#'  Custom matching criterions used within `match_all_issue()` and `get_match_from_multiple()`.
+#'
+#' Within BGSmartR we have two in-built custom matching criterions.
 #'
 #'  - `no_additional_matching()` is used when no custom matching wants to be performed.
 #'
 #'  - `additional_wcvp_matching()` is the default for additional matching to the World Checklist of Vascular Plants (WCVP) database. This method includes looking ahead to see if potential matches lead to the same accepted plant name, and matching on the taxon_status of the records (Accepted or Synonym).
+#'
+#'  These can be used within [match_all_issue()] and [get_match_from_multiple()] via the input `matching_criterion`. See vignette `Method of Matching taxonomic records` for further details on custom matching and how to create new matching criterions.
 #'
 #' @param enrich_database_extract extract of enrichment database (often records with identical taxonomic names).
 #' @param message Matching message.

@@ -44,13 +44,15 @@
 #' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
 #' @param do_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
 #' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
-#' @param typo_method Either `full` or `fast`, the method used for finding typos.
+#' @param typo_method Either `'All'`, `'Data frame only'`,`'Data frame + common'`, detailing the level of typo finding required.
 #' @param typo_df A data frame where the first column is a taxonomic name with a typo and the second column is the corrected taxonomic name. By default `BGSmartR::typo_list` is used.
 #' @param taxon_name_and_author the pair of taxonomic name and combined taxonomic name and author
 #' @param taxon_name A single taxonomic name.
 #' @param show_progress Flag (TRUE/FALSE) for whether we show progress bar.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
 #' @param matching_criterion The function used to find the best match when we have 'non-unique' taxonomic names. By default the function `BGSmartR::get_match_from_multiple()` is used.
+#' @param matching_authors The function used to find the best match using the author of taxonomic names. By default the function `BGSmartR::match_authors()` is used.
+
 #' @param messages messages detailing how a match is obtained.
 #' @param console_message Flag (TRUE/FALSE) detailing whether to show messages in the console.
 #' @param try_hybrid Flag (TRUE/FALSE) for whether hybrid fixes are attempted.
@@ -171,6 +173,7 @@ match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_da
 match_all_issue <- function(taxon_names,
                             taxon_authors = rep(NA,length(taxon_names)),
                             enrich_database,
+                            matching_authors = BGSmartR::match_authors,
                             matching_criterion = BGSmartR::additional_wcvp_matching,
                             do_add_split = TRUE,
                             do_fix_hybrid = TRUE,
@@ -178,6 +181,7 @@ match_all_issue <- function(taxon_names,
                             enrich_taxon_name_column = 'taxon_name',
                             enrich_taxon_authors_column = 'taxon_authors_simp',
                             enrich_plant_identifier_column = 'plant_name_id',
+                            enrich_display_in_message_column = 'powo_id',
                             ...){
 
   ##############################
@@ -256,7 +260,7 @@ match_all_issue <- function(taxon_names,
     if(tax_names == ''){
       return(list(match = NA, message = ''))
     }
-    current_message = paste0(current_message, '(Try Fixing taxomonic name) -> ',collapse =' ')
+    current_message = paste0(current_message, ' -> (Try Fixing taxomonic name) -> ',collapse =' ')
     current_message = paste0(current_message, tax_names, ' -> ',collapse =' ')
 
 
@@ -267,7 +271,9 @@ match_all_issue <- function(taxon_names,
     ### 3.4) If only a single record return it.
     if(nrow(enriched_cur) == 1){
       current_message = paste0(current_message, ' (single fixed record) -> ',collapse =' ')
-
+      current_message = paste0(current_message, ' (',enriched_cur[[enrich_display_in_message_column]],
+                               ', ', enriched_cur[[enrich_taxon_name_column]],
+                               ')',collapse =' ')
       return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
     }
 
@@ -275,7 +281,7 @@ match_all_issue <- function(taxon_names,
     ### 3.4) Author matching.
     if(do_taxon_author){
       # Get the author matches.
-      matched_by_authors = match_authors(collection_author = tax_author,
+      matched_by_authors = matching_authors(collection_author = tax_author,
                                          enriched_database_authors = enrich_taxon_authors_cur,
                                          ...)
 
@@ -349,7 +355,7 @@ match_typos <- function(taxon_names, taxon_authors, enrich_database,
                         enrich_taxon_name_column = 'taxon_name',
                         single_indices = NA,
                         mult_indices = NA,
-                        typo_method = 'fast', ...){
+                        typo_method = 'Data frame only', ...){
   enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
 
   #Check for NA in taxon_names and remove if they exist.
@@ -366,13 +372,13 @@ match_typos <- function(taxon_names, taxon_authors, enrich_database,
   out_message = rep('',length(taxon_names))
 
   # Get typos
-  if(typo_method == 'fast'){
-    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,NA, typo_method = 'fast')}))
+  if(typo_method == 'Data frame only'){
+    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,NA, typo_method = typo_method)}))
   }
   else{
     wcvp_without_repeated = enrich_database[match(unique(enriched_taxon_names),
                                                   enriched_taxon_names),]
-    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,wcvp_without_repeated, typo_method = 'full')}))
+    fixed_typo = unlist(pbapply::pblapply(taxon_names, function(x){check_taxon_typo(x,wcvp_without_repeated, typo_method = typo_method)}))
 
   }
 
@@ -442,11 +448,13 @@ no_match_cultivar_indet <- function(taxon_names){
 #' @rdname match_single
 #' @export
 get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
-                                    matching_criterion = BGSmartR::additional_wcvp_matching,
+                                    matching_authors = BGSmartR::match_authors,
+                                    matching_criterion = BGSmartR::no_additional_matching,
                                     enrich_plant_identifier_column = 'plant_name_id',
                                     enrich_taxon_name_column = 'taxon_name',
                                     enrich_taxon_authors_column = 'taxon_authors_simp',
                                     enrich_taxon_author_words_column = 'author_parts',...){
+
   ##############################
   # 1) Setup
   ##############################
@@ -478,7 +486,7 @@ get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
   ##############################
   if(try_author_match){
     # Get the author matches.
-    matched_by_authors = match_authors(collection_author = taxon_author_current,
+    matched_by_authors = matching_authors(collection_author = taxon_author_current,
                   enriched_database_authors = enrich_taxon_authors_cur,
                   ...)
 
@@ -515,7 +523,7 @@ get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
 check_taxon_typo <- function(taxon_name, enrich_database = NA,
                              enrich_taxon_name_column = 'taxon_name',
                              typo_df = BGSmartR::typo_list,
-                             typo_method = 'fast',...){
+                             typo_method = 'Data frame only',...){
   ########################
   # 1) Return NA for non-words and special characters
   ########################
@@ -532,14 +540,13 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
     return(typo_df[match_to_typo,2])
   }
   #If we only want to check the typo list return NA for non-matches at this stage.
-  if(typo_method == 'fast'){
+  if(typo_method == 'Data frame only'){
     return(NA)
   }
 
   ########################
   # 3) reduce the wcvp names to check. And split into three vectors for same length, one less and one more.
   ########################
-  enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
   #     A) Make sure the wcvp names are either the same length or one extra character.
   length_taxon = stringr::str_length(taxon_name)
   wcvp_needed = enrich_database[enrich_database$taxon_length %in% c(length_taxon-1, length_taxon, length_taxon+1),]
@@ -548,10 +555,10 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
   words = words[!grepl('\\.|\\+|\u00D7', words)]
   pat = paste0(words,collapse = '|')
 
-  wcvp_needed = wcvp_needed[grepl(pat, enriched_taxon_names),]
-  wcvp_needed_minus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon-1)]
-  wcvp_needed_same = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon)]
-  wcvp_needed_plus_1 = wcvp_needed$taxon_name[wcvp_needed$taxon_length == (length_taxon+1)]
+  wcvp_needed = wcvp_needed[grepl(pat, wcvp_needed[[enrich_taxon_name_column]]),]
+  wcvp_needed_minus_1 = wcvp_needed[[enrich_taxon_name_column]][wcvp_needed$taxon_length == (length_taxon-1)]
+  wcvp_needed_same = wcvp_needed[[enrich_taxon_name_column]][wcvp_needed$taxon_length == (length_taxon)]
+  wcvp_needed_plus_1 = wcvp_needed[[enrich_taxon_name_column]][wcvp_needed$taxon_length == (length_taxon+1)]
 
   ########################
   # 4) Find common typos in taxon names
@@ -577,7 +584,7 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
   # Function that loops over all final letter changes and returns if typo is found.
   for(i in 1:nrow(final_letter_change)){
     if(stringr::str_ends(taxon_name,final_letter_change[i,1])){
-      fixed = wcvp_needed$taxon_name[wcvp_needed$taxon_name == stringr::str_replace(taxon_name,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2])]
+      fixed = wcvp_needed[[enrich_taxon_name_column]][wcvp_needed[[enrich_taxon_name_column]] == stringr::str_replace(taxon_name,paste0(final_letter_change[i,1],'$',collapse = ''),final_letter_change[i,2])]
       if(length(fixed) >0){
         return(fixed[1])
       }
@@ -609,7 +616,7 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
                               stringr::str_sub(taxon_name,current[k,2]+1,-1))
           }
 
-          fixed = wcvp_needed$taxon_name[wcvp_needed$taxon_name == new_name]
+          fixed = wcvp_needed[[enrich_taxon_name_column]][wcvp_needed[[enrich_taxon_name_column]] == new_name]
           if(length(fixed) >0){
             return(fixed[1])
           }
@@ -618,6 +625,10 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
     }
   }
 
+  #If we only want to check the typo list return NA for non-matches at this stage.
+  if(typo_method == 'Data frame + Common'){
+    return(NA)
+  }
   ########################
   # 4) More general search of one letter differences.
   ########################
@@ -654,7 +665,7 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
 #' @export
 shorten_message <- function(messages){
   match_short = rep('', length(messages))
-  match_options = c("(matches POWO record with single entry)", 'EXACT',
+  match_options = c("(matches record with single entry)", 'EXACT',
                     "(Exact author match)", 'EXACT',
                     "all point to same accepted plant", 'EXACT',
                     "Partial author", 'PARTIAL',
@@ -664,11 +675,12 @@ shorten_message <- function(messages){
                     "(Cultivar or Indeterminate <Do not attempt matching>)", 'CULT/INDET',
                     "Remove autonym", 'AUTONYM',
                     "(Typo)", 'TYPO',
-                    "(Not in POWO)", 'NO_MATCH',
+                    "(No match found)", 'NO_MATCH',
                     "(Go to accepted name)", 'ACCEPTED',
                     "(Sanitise)", 'SANITISE',
                     "Infrageneric level update", 'INFRA',
-                    "Hybrid fix", 'HYBRID'
+                    "Hybrid fix", 'HYBRID',
+                    'Try Fixing taxomonic name', 'FIX'
   )
   match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
   match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
@@ -1013,7 +1025,7 @@ match_authors <- function(collection_author, enriched_database_authors, partial_
   exact_match = collection_author == enriched_database_authors
   exact_match[is.na(exact_match)] = FALSE # Set NA values to FALSE
   if(any(exact_match)){
-    return(list(wanted = exact_match, message = '(Exact author match) -> '))
+    return(list(wanted = exact_match, message = '(Exact author match)'))
   }
 
   ### 2) Partial matching
@@ -1040,7 +1052,7 @@ match_authors <- function(collection_author, enriched_database_authors, partial_
     if(max_words_found > 0){
       match_author_words = total_match_word_count == max_words_found
       match_author_words[is.na(match_author_words)] = FALSE # Set NA values to FALSE
-      return(list(wanted = match_author_words, message = '(Partial author <most words>) -> '))
+      return(list(wanted = match_author_words, message = '(Partial author <most words>)'))
     }
   }
   else if(partial_method == 'any words'){
@@ -1048,7 +1060,7 @@ match_authors <- function(collection_author, enriched_database_authors, partial_
     if(any(author_checks == 'Partial')){
       partial_authors = author_checks == 'Partial'
       partial_authors[is.na(partial_authors)] = FALSE # Set NA values to FALSE
-      return(list(wanted = partial_authors, message = '(Partial author <any words>) -> '))
+      return(list(wanted = partial_authors, message = '(Partial author <any words>)'))
     }
   }else{
     stop('Invalid partial_method input in match_authors()!')
@@ -1056,6 +1068,6 @@ match_authors <- function(collection_author, enriched_database_authors, partial_
 
 
   ### 3) No matching
-  return(list(wanted = rep(TRUE, length(enriched_database_authors)), message = '(No authors match) ->'))
+  return(list(wanted = rep(TRUE, length(enriched_database_authors)), message = '(No authors match)'))
 }
 

@@ -5,7 +5,7 @@
 #' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
-#' @param typo_method Flag for whether we search for typos.
+#' @param typo_method Either `'All'`, `'Data frame only'`,`'Data frame + common'`, detailing the level of typo finding required.
 #' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
 #' @param do_fix_hybrid Flag (TRUE/FALSE) for whether we search for hybrid issues.
 #' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
@@ -39,7 +39,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      taxon_name_column = 'TaxonName',
                                      taxon_name_full_column = NA,
                                      taxon_author_column = NA,
-                                     typo_method = 'fast',
+                                     typo_method = 'All',
                                      do_add_split = TRUE, do_fix_hybrid = TRUE,
                                      do_rm_autonym = TRUE,
                                      ...,
@@ -49,7 +49,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      matching_criterion = BGSmartR::no_additional_matching,
                                      try_hybrid = FALSE
                                     ){
-  if(!typo_method %in% c('full', 'fast','no')){
+  if(!typo_method %in% c('All', 'Data frame only','Data frame + common')){
     stop('Invalid typo_method input!')
   }
   #Implies collection and iucnRedlist are already in the workspace.
@@ -275,7 +275,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   ################################################
   # 9) Try to find typo and then match.
   ################################################
-  if(typo_method %in%  c('fast','full') & length(index_to_find_matches) > 0){
+  if(typo_method %in%  c('All', 'Data frame only','Data frame + common') & length(index_to_find_matches) > 0){
     cli::cli_h2("Testing and matching typos for {length(index_to_find_matches)} name{?s}")
 
     match_info = match_typos(taxon_names = taxon_name[index_to_find_matches],

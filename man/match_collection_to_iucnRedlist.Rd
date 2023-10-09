@@ -10,7 +10,7 @@ match_collection_to_iucnRedlist(
   taxon_name_column = "TaxonName",
   taxon_name_full_column = NA,
   taxon_author_column = NA,
-  typo_method = "fast",
+  typo_method = "All",
   do_add_split = TRUE,
   do_fix_hybrid = TRUE,
   do_rm_autonym = TRUE,
@@ -33,7 +33,7 @@ match_collection_to_iucnRedlist(
 
 \item{taxon_author_column}{The name of the column in the \code{collection} corresponding to the authors of the taxonomic names.}
 
-\item{typo_method}{Flag for whether we search for typos.}
+\item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
 
 \item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 

@@ -7,7 +7,7 @@
 \format{
 \subsection{\code{typo_list}}{
 
-A data frame with 7,394 rows and 2 columns:
+A data frame with 8,253 rows and 2 columns:
 \describe{
 \item{Original}{Original Taxon name with typo}
 \item{Fixed}{Fixed Taxon name}

@@ -41,6 +41,7 @@ match_all_issue(
   taxon_names,
   taxon_authors = rep(NA, length(taxon_names)),
   enrich_database,
+  matching_authors = BGSmartR::match_authors,
   matching_criterion = BGSmartR::additional_wcvp_matching,
   do_add_split = TRUE,
   do_fix_hybrid = TRUE,
@@ -48,6 +49,7 @@ match_all_issue(
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
   enrich_plant_identifier_column = "plant_name_id",
+  enrich_display_in_message_column = "powo_id",
   ...
 )
 
@@ -58,7 +60,7 @@ match_typos(
   enrich_taxon_name_column = "taxon_name",
   single_indices = NA,
   mult_indices = NA,
-  typo_method = "fast",
+  typo_method = "Data frame only",
   ...
 )
 
@@ -67,7 +69,8 @@ no_match_cultivar_indet(taxon_names)
 get_match_from_multiple(
   taxon_name_and_author,
   enrich_database_mult,
-  matching_criterion = BGSmartR::additional_wcvp_matching,
+  matching_authors = BGSmartR::match_authors,
+  matching_criterion = BGSmartR::no_additional_matching,
   enrich_plant_identifier_column = "plant_name_id",
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
@@ -80,7 +83,7 @@ check_taxon_typo(
   enrich_database = NA,
   enrich_taxon_name_column = "taxon_name",
   typo_df = BGSmartR::typo_list,
-  typo_method = "fast",
+  typo_method = "Data frame only",
   ...
 )
 
@@ -130,6 +133,8 @@ try_fix_hybrid(
 
 \item{show_progress}{Flag (TRUE/FALSE) for whether we show progress bar.}
 
+\item{matching_authors}{The function used to find the best match using the author of taxonomic names. By default the function \code{BGSmartR::match_authors()} is used.}
+
 \item{matching_criterion}{The function used to find the best match when we have 'non-unique' taxonomic names. By default the function \code{BGSmartR::get_match_from_multiple()} is used.}
 
 \item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
@@ -144,7 +149,7 @@ try_fix_hybrid(
 
 \item{mult_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'non-unique' taxonomic names.}
 
-\item{typo_method}{Either \code{full} or \code{fast}, the method used for finding typos.}
+\item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
 
 \item{taxon_name_and_author}{the pair of taxonomic name and combined taxonomic name and author}
 

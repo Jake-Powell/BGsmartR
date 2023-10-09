@@ -10,7 +10,8 @@ match_collection_to_wcvp(
   taxon_name_column = "TaxonName",
   taxon_name_full_column = NA,
   taxon_author_column = NA,
-  typo_method = "fast",
+  enrich_taxon_authors_column = "taxon_authors_simp",
+  typo_method = "All",
   do_add_split = TRUE,
   do_fix_hybrid = TRUE,
   do_rm_autonym = TRUE,
@@ -30,7 +31,9 @@ match_collection_to_wcvp(
 
 \item{taxon_author_column}{The name of the column in the \code{collection} corresponding to the authors of the taxonomic names.}
 
-\item{typo_method}{Flag for whether we search for typos.}
+\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{taxon_authors_simp}.}
+
+\item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
 
 \item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
@@ -38,11 +41,11 @@ match_collection_to_wcvp(
 
 \item{do_rm_autonym}{Flag (TRUE/FALSE) for whether we try removing autonyms.}
 
-\item{do_convert_accepted}{Flag for whether we convert to accepted names in POWO.}
+\item{do_convert_accepted}{Flag for whether we convert to accepted names in wcvp}
 
 \item{matching_criterion}{A function used to chose the best method from extracts of the \code{wcvp$wcvp_names}.}
 
-\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
+\item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 }
 \value{
 A list of length seven containing:
@@ -54,14 +57,10 @@ A list of length seven containing:
 \item \verb{$match_authors} The author/s of the matched record in \code{wcvp$wcvp_names}.
 \item \verb{$author_check} Either \code{Identical}, \code{Partial} or \code{Different}  (\verb{No Match} if a match to wcvp cannot be found). A message informing the similarity of the collection's taxon authors and the authors found in \code{wcvp$wcvp_names}. Author similarity is found using the function  \code{\link[=author_check]{author_check()}}.
 }
-
-match = taxon_match_full,
 }
 \description{
 Match collection to World Checklist of Vascular Plants via taxonomic name
 }
 \details{
-This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see the vignette.
-
-Within the algorithm there exists methods to improve the matching such as trying to change infraspecific levels (e.g var. to subsp.) or adding hybridisation. These methods can be turned on and off using \code{try_add_split}, \code{try_fix_hybrid}, \code{try_rm_autonym} and \code{typo_method}.
+This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see \verb{Method of Matching taxonomic records} vignette (Matching.Rmd).
 }

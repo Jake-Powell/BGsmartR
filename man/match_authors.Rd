@@ -16,7 +16,7 @@ match_authors(
 
 \item{enriched_database_authors}{Author options from the enrich_database.}
 
-\item{partial_method}{Either \verb{'most words} or \code{'any_words'}, defining the method used to find partial matches.}
+\item{partial_method}{Either \verb{'most words} or \code{'any words'}, defining the method used to find partial matches.}
 
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions).}
 }
