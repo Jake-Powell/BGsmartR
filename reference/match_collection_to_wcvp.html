@@ -25,6 +25,7 @@
   <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false" aria-haspopup="true" id="dropdown-articles">Articles</a>
   <div class="dropdown-menu" aria-labelledby="dropdown-articles">
     <a class="dropdown-item" href="../articles/Matching.html">Method of Matching taxonomic records</a>
+    <a class="dropdown-item" href="../articles/Creating_enrich_databases.html">Creating_enrich_databases</a>
   </div>
 </li>
       </ul><form class="form-inline my-2 my-lg-0" role="search">
@@ -61,7 +62,10 @@
 <span>  do_rm_autonym <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  do_convert_accepted <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  matching_criterion <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="va"><a href="no_additional_matching.html">additional_wcvp_matching</a></span>,</span>
-<span>  <span class="va">...</span></span>
+<span>  <span class="va">...</span>,</span>
+<span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">"taxon_name"</span>,</span>
+<span>  enrich_display_in_message_column <span class="op">=</span> <span class="st">"powo_id"</span>,</span>
+<span>  enrich_plant_identifier_column <span class="op">=</span> <span class="st">"plant_name_id"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -117,6 +121,18 @@
 
 <dt>...</dt>
 <dd><p>Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, <code>enrich_display_in_message_column</code> and <code>enrich_plant_identifier_column</code>.</p></dd>
+
+
+<dt>enrich_taxon_name_column</dt>
+<dd><p>The name of the column in the <code>iucnRedlist</code> corresponding to taxonomic names.Default value is <code>scientific_name</code>.</p></dd>
+
+
+<dt>enrich_display_in_message_column</dt>
+<dd><p>The name of the column in <code>iucnRedlist</code> that contains values to show in the matching messages. Default value is <code>taxonid</code>.</p></dd>
+
+
+<dt>enrich_plant_identifier_column</dt>
+<dd><p>The name of the column in <code>iucnRedlist</code> that corresponds to record identifier. Default value is <code>taxonid</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
