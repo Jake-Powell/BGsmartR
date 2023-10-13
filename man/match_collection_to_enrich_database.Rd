@@ -39,7 +39,7 @@ match_collection_to_enrich_database(
 
 \item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names.}
 
-\item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
+\item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, \code{no}; detailing the level of typo finding required.}
 
 \item{do_add_split}{Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.}
 
@@ -74,5 +74,19 @@ A list of length seven containing:
 Match collection to an enrichment database via taxonomic names
 }
 \details{
-This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see \verb{Method of Matching taxonomic records} vignette (Matching.Rmd).
+This function allows matching of a collection's database to an enrichment database.
+
+By default the function uses all the steps of our matching algorithm, for details of this see the vignette \code{Matching.Rmd} (Method of Matching taxonomic records). If parts of the algorithm are not required these can be switched off using  \code{typo_method}, \code{do_add_split}, \code{do_fix_hybrid}, \code{do_rm_autonym}, \code{do_rm_cultivar_indeterminates}, \code{do_match_single}, \code{do_match_multiple} and \code{do_fix_taxon_name.} Moreover, by default no custom matching if performed. A user inputted custom matching criterion (function) can be added via the input \code{matching_criterion}.
+
+To perform the matching you must specify the columns name of the taxon name in the enrichment database (\code{enrich_taxon_name_column}). If author matching is required then this column must also be specified for the enrichment database (\code{enrich_taxon_authors_column}).
+
+The enrichment database must have some columns required for matching (\code{single_entry}, \code{taxon_length}, etc), we advice using \code{\link[=prepare_enrich_database]{prepare_enrich_database()}} to add these columns.
+
+Similarly, you must specify the columns name of the taxon name in the collection database (\code{taxon_name_column}). If author matching is desired then you have two choices:
+\itemize{
+\item specify the taxon author column \code{taxon_author_column}.
+\item Specify the combined taxon name and author column, \code{taxon_name_full_column} which removes words found in the taxon names from taxon names full to extract the authors.
+}
+
+Note if both are specified then the authors from \code{taxon_author_column} are used.
 }

@@ -22,7 +22,7 @@ enrich_collection_from_enrich_database(
 
 \item{columns_to_enrich}{Column names of \code{enrich_database} that are enriched to \code{collection}.}
 
-\item{add_to_column_name}{A string to prepend to new coluns in \code{collection} created by enrichment.}
+\item{add_to_column_name}{A string to prepend to new columns in \code{collection} created by enrichment.}
 
 \item{add_match_details}{A flag (TRUE/FALSE) for whether the match details also want to be added to the enriched \code{collection}.}
 }
@@ -31,4 +31,9 @@ enrich_collection_from_enrich_database(
 }
 \description{
 Enrich a collection using enrichment database
+}
+\details{
+This function takes a \code{collection} and "enriches" it by adding new information taken from \code{enrich_database} by matching via taxonomic names. The matching is performed by \code{\link[=match_collection_to_enrich_database]{match_collection_to_enrich_database()}}, and inputs can be passed to this function via \code{...}.
+
+The enrichment columns to add can be specified by \code{columns_to_enrich}, and you can include th matching details via \code{add_match_details}. To make sure the enrichment column names don't clash with names already in the collection each is prepended with \code{add_to_column_name}.
 }

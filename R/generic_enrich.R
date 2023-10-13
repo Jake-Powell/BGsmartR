@@ -6,18 +6,19 @@
 #' - `sanitise_name` The sanitised taxonomic name.
 #' - `sanitise_author` The sanitised author of the taxonomic name.
 #' - `require_sanitise` A logical column (TRUE/FALSE) for whether the taxonomic name required sanitising.
+#' = `author_parts` Words found in the taxonomic author (removing initials and punctuation) used when performing partial author matching.
 #' - `taxon_length` The length of the taxonomic name (string length) used if typo searching if performed in the matching algorithm.
 #' - `single_entry` A logical column (TRUE/FALSE) for whether the taxonomic name is unique in `enrich_database`, used to restrict records when performing either single matching or multiple matching.
-#' - `ID` A column of unique identifiers for each record in `enrich_database`.
+#' - `ID` A column of unique identifiers for each record in `enrich_database`. Used for referencing the matches.
 #'
 #' Moreover the function sorts the enrich database in alphabetical order of the taxonomic names.
 #'
-#' These additional column can be switched on/off using the inputs  `do_sanitise`, `do_taxon_length`, `do_single_entry` and `do_sort`.
+#' These additional column can be switched on/off using the inputs  `do_sanitise`, `do_taxon_length`, `do_single_entry`, `do_author_parts` and `do_sort`.
 #'
-#' Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (`enrich_database[[enrich_taxon_name_column]]`).
+#' Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (`enrich_database[[enrich_taxon_name_column]]`). Similarly, sanitised authors will be used when creating author parts.
 #'
 #' @param enrich_database A data frame of enriching information.
-#' @param enrich_taxon_name_column The taxon names taken from `enrich_database`.
+#' @param enrich_taxon_name_column The name of the column in `enrich_database` that corresponds to taxonomic names. Default value is `taxon_names`.
 #' @param enrich_taxon_authors_column The name of the column in `enrich_database` that corresponds to the authors of taxonomic names.
 #' @param enrich_taxon_name_full_column The name of the column in the `enrich_database` corresponding to joined taxonomic names and authors.
 #' @param do_sanitise  Flag (TRUE/FALSE) detailing whether to add the columns `sanitise_name`, `sanitise_author` and  `require_sanitise` corresponding to the sanitised taxonomic name, sanitised author and a flag (TRUE/FALSE) of whether the taxonomic name needed sanitising.
@@ -146,7 +147,7 @@ prepare_enrich_database <- function(enrich_database,
 #' @param taxon_name_column The name of the column in the `collection` corresponding to taxonomic names.
 #' @param taxon_name_full_column The name of the column in the `collection` corresponding to joined taxonomic names and authors.
 #' @param taxon_author_column The name of the column in the `collection` corresponding to the authors of the taxonomic names.
-#' @param typo_method Either `'All'`, `'Data frame only'`,`'Data frame + common'`, detailing the level of typo finding required.
+#' @param typo_method Either `'All'`, `'Data frame only'`,`'Data frame + common'`, `no`; detailing the level of typo finding required.
 #' @param do_rm_cultivar_indeterminates Flag (TRUE/FALSE) for whether we remove cultivars and indeterminates prior to taxonomic name matching.
 #' @param do_match_single Flag (TRUE/FALSE) for whether we do matching to unique taxonomic names in `enrich_database`.
 #' @param do_match_multiple Flag (TRUE/FALSE) for whether we do matching to non-unique taxonomic names in `enrich_database`.
@@ -161,9 +162,20 @@ prepare_enrich_database <- function(enrich_database,
 
 #'
 #' @details
-#' This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see `Method of Matching taxonomic records` vignette (Matching.Rmd).
+#' This function allows matching of a collection's database to an enrichment database.
 #'
+#' By default the function uses all the steps of our matching algorithm, for details of this see the vignette `Matching.Rmd` (Method of Matching taxonomic records). If parts of the algorithm are not required these can be switched off using  `typo_method`, `do_add_split`, `do_fix_hybrid`, `do_rm_autonym`, `do_rm_cultivar_indeterminates`, `do_match_single`, `do_match_multiple` and `do_fix_taxon_name.` Moreover, by default no custom matching if performed. A user inputted custom matching criterion (function) can be added via the input `matching_criterion`.
 #'
+#' To perform the matching you must specify the columns name of the taxon name in the enrichment database (`enrich_taxon_name_column`). If author matching is required then this column must also be specified for the enrichment database (`enrich_taxon_authors_column`).
+#'
+#'  The enrichment database must have some columns required for matching (`single_entry`, `taxon_length`, etc), we advice using [prepare_enrich_database()] to add these columns.
+#'
+#' Similarly, you must specify the columns name of the taxon name in the collection database (`taxon_name_column`). If author matching is desired then you have two choices:
+#'
+#' - specify the taxon author column `taxon_author_column`.
+#' - Specify the combined taxon name and author column, `taxon_name_full_column` which removes words found in the taxon names from taxon names full to extract the authors.
+#'
+#' Note if both are specified then the authors from `taxon_author_column` are used.
 #'
 #' @return A list of length seven containing:
 #' - `$match` the index of the record in `enrich_database` which matches the record in the collection database.
@@ -525,12 +537,17 @@ match_collection_to_enrich_database <- function(collection, enrich_database,
 #' @param enrich_database A data frame of enriching information.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). See [match_collection_to_enrich_database()].
 #' @param columns_to_enrich Column names of `enrich_database` that are enriched to `collection`.
-#' @param add_to_column_name A string to prepend to new coluns in `collection` created by enrichment.
+#' @param add_to_column_name A string to prepend to new columns in `collection` created by enrichment.
 #' @param add_match_details  A flag (TRUE/FALSE) for whether the match details also want to be added to the enriched `collection`.
+#'
+#' @details
+#'
+#' This function takes a `collection` and "enriches" it by adding new information taken from `enrich_database` by matching via taxonomic names. The matching is performed by [match_collection_to_enrich_database()], and inputs can be passed to this function via `...`.
+#'
+#' The enrichment columns to add can be specified by `columns_to_enrich`, and you can include th matching details via `add_match_details`. To make sure the enrichment column names don't clash with names already in the collection each is prepended with `add_to_column_name`.
 #'
 #' @return `collection` enriched with new columns after matching to `enrich_database`
 #' @export
-#'
 enrich_collection_from_enrich_database <- function(collection, enrich_database,
                                                    ...,
                                                    columns_to_enrich = NA,

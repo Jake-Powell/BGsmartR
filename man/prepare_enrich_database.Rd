@@ -21,7 +21,7 @@ prepare_enrich_database(
 \arguments{
 \item{enrich_database}{A data frame of enriching information.}
 
-\item{enrich_taxon_name_column}{The taxon names taken from \code{enrich_database}.}
+\item{enrich_taxon_name_column}{The name of the column in \code{enrich_database} that corresponds to taxonomic names. Default value is \code{taxon_names}.}
 
 \item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names.}
 
@@ -53,16 +53,17 @@ This function adds columns to the enrichment database used when matching to taxo
 \item \code{sanitise_name} The sanitised taxonomic name.
 \item \code{sanitise_author} The sanitised author of the taxonomic name.
 \item \code{require_sanitise} A logical column (TRUE/FALSE) for whether the taxonomic name required sanitising.
+= \code{author_parts} Words found in the taxonomic author (removing initials and punctuation) used when performing partial author matching.
 \item \code{taxon_length} The length of the taxonomic name (string length) used if typo searching if performed in the matching algorithm.
 \item \code{single_entry} A logical column (TRUE/FALSE) for whether the taxonomic name is unique in \code{enrich_database}, used to restrict records when performing either single matching or multiple matching.
-\item \code{ID} A column of unique identifiers for each record in \code{enrich_database}.
+\item \code{ID} A column of unique identifiers for each record in \code{enrich_database}. Used for referencing the matches.
 }
 
 Moreover the function sorts the enrich database in alphabetical order of the taxonomic names.
 
-These additional column can be switched on/off using the inputs  \code{do_sanitise}, \code{do_taxon_length}, \code{do_single_entry} and \code{do_sort}.
+These additional column can be switched on/off using the inputs  \code{do_sanitise}, \code{do_taxon_length}, \code{do_single_entry}, \code{do_author_parts} and \code{do_sort}.
 
-Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (\code{enrich_database[[enrich_taxon_name_column]]}).
+Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (\code{enrich_database[[enrich_taxon_name_column]]}). Similarly, sanitised authors will be used when creating author parts.
 }
 \examples{
 taxon_names = c('Abies taxifolia', 'ABIES taxifolia',
