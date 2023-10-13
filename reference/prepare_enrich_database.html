@@ -71,7 +71,7 @@
 
 
 <dt>enrich_taxon_name_column</dt>
-<dd><p>The taxon names taken from <code>enrich_database</code>.</p></dd>
+<dd><p>The name of the column in <code>enrich_database</code> that corresponds to taxonomic names. Default value is <code>taxon_names</code>.</p></dd>
 
 
 <dt>enrich_taxon_authors_column</dt>
@@ -120,13 +120,14 @@
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>This function adds columns to the enrichment database used when matching to taxonomic names. By default this includes:</p><ul><li><p><code>sanitise_name</code> The sanitised taxonomic name.</p></li>
 <li><p><code>sanitise_author</code> The sanitised author of the taxonomic name.</p></li>
-<li><p><code>require_sanitise</code> A logical column (TRUE/FALSE) for whether the taxonomic name required sanitising.</p></li>
+<li><p><code>require_sanitise</code> A logical column (TRUE/FALSE) for whether the taxonomic name required sanitising.
+= <code>author_parts</code> Words found in the taxonomic author (removing initials and punctuation) used when performing partial author matching.</p></li>
 <li><p><code>taxon_length</code> The length of the taxonomic name (string length) used if typo searching if performed in the matching algorithm.</p></li>
 <li><p><code>single_entry</code> A logical column (TRUE/FALSE) for whether the taxonomic name is unique in <code>enrich_database</code>, used to restrict records when performing either single matching or multiple matching.</p></li>
-<li><p><code>ID</code> A column of unique identifiers for each record in <code>enrich_database</code>.</p></li>
+<li><p><code>ID</code> A column of unique identifiers for each record in <code>enrich_database</code>. Used for referencing the matches.</p></li>
 </ul><p>Moreover the function sorts the enrich database in alphabetical order of the taxonomic names.</p>
-<p>These additional column can be switched on/off using the inputs  <code>do_sanitise</code>, <code>do_taxon_length</code>, <code>do_single_entry</code> and <code>do_sort</code>.</p>
-<p>Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (<code>enrich_database[[enrich_taxon_name_column]]</code>).</p>
+<p>These additional column can be switched on/off using the inputs  <code>do_sanitise</code>, <code>do_taxon_length</code>, <code>do_single_entry</code>, <code>do_author_parts</code> and <code>do_sort</code>.</p>
+<p>Note that if sanitising if performed then sorting and single_entry will be performed with the sanitised taxonoic names and not the inputted names (<code>enrich_database[[enrich_taxon_name_column]]</code>). Similarly, sanitised authors will be used when creating author parts.</p>
     </div>
 
     <div class="section level2">
@@ -139,12 +140,12 @@
 <span class="r-in"><span><span class="fu">prepare_enrich_database</span><span class="op">(</span><span class="va">enrich_database</span>,</span></span>
 <span class="r-in"><span>enrich_taxon_name_column <span class="op">=</span> <span class="st">'taxon_names'</span>,</span></span>
 <span class="r-in"><span>enrich_taxon_authors_column <span class="op">=</span> <span class="st">'taxon_authors'</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   ID           taxon_names          taxon_authors     value</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1       Abies taxifolia                Duhamel 0.4102552</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  2       ABIES taxifolia                  Poir. 0.2065154</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  3    Acalypha gracilens                 A.Gray 0.8356058</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5  4        Adina racemosa (Siebold &amp; Zucc.) Miq. 0.7869963</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  5 Eupatorium magdalenae                 Stehlé 0.1740104</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   ID           taxon_names          taxon_authors      value</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1       Abies taxifolia                Duhamel 0.68882298</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  2       ABIES taxifolia                  Poir. 0.69279335</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  3    Acalypha gracilens                 A.Gray 0.05243930</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5  4        Adina racemosa (Siebold &amp; Zucc.) Miq. 0.31720987</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  5 Eupatorium magdalenae                 Stehlé 0.05729587</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           sanitise_name        sanitise_author require_sanitise taxon_length</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1       Abies taxifolia                Duhamel            FALSE           15</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2       Abies taxifolia                  Poir.             TRUE           15</span>

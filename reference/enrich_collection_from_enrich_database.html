@@ -78,7 +78,7 @@
 
 
 <dt>add_to_column_name</dt>
-<dd><p>A string to prepend to new coluns in <code>collection</code> created by enrichment.</p></dd>
+<dd><p>A string to prepend to new columns in <code>collection</code> created by enrichment.</p></dd>
 
 
 <dt>add_match_details</dt>
@@ -92,6 +92,11 @@
 <p><code>collection</code> enriched with new columns after matching to <code>enrich_database</code></p>
 
 
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>This function takes a <code>collection</code> and "enriches" it by adding new information taken from <code>enrich_database</code> by matching via taxonomic names. The matching is performed by <code><a href="match_collection_to_enrich_database.html">match_collection_to_enrich_database()</a></code>, and inputs can be passed to this function via <code>...</code>.</p>
+<p>The enrichment columns to add can be specified by <code>columns_to_enrich</code>, and you can include th matching details via <code>add_match_details</code>. To make sure the enrichment column names don't clash with names already in the collection each is prepended with <code>add_to_column_name</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>

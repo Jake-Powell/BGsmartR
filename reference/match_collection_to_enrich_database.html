@@ -101,7 +101,7 @@
 
 
 <dt>typo_method</dt>
-<dd><p>Either <code>'All'</code>, <code>'Data frame only'</code>,<code>'Data frame + common'</code>, detailing the level of typo finding required.</p></dd>
+<dd><p>Either <code>'All'</code>, <code>'Data frame only'</code>,<code>'Data frame + common'</code>, <code>no</code>; detailing the level of typo finding required.</p></dd>
 
 
 <dt>do_add_split</dt>
@@ -153,7 +153,13 @@
 </ul></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>This function allows matching of a collection's database to World Checklist of Vascular Plants (WCVP) database. For details of how the matching algorithm works see <code>Method of Matching taxonomic records</code> vignette (Matching.Rmd).</p>
+    <p>This function allows matching of a collection's database to an enrichment database.</p>
+<p>By default the function uses all the steps of our matching algorithm, for details of this see the vignette <code>Matching.Rmd</code> (Method of Matching taxonomic records). If parts of the algorithm are not required these can be switched off using  <code>typo_method</code>, <code>do_add_split</code>, <code>do_fix_hybrid</code>, <code>do_rm_autonym</code>, <code>do_rm_cultivar_indeterminates</code>, <code>do_match_single</code>, <code>do_match_multiple</code> and <code>do_fix_taxon_name.</code> Moreover, by default no custom matching if performed. A user inputted custom matching criterion (function) can be added via the input <code>matching_criterion</code>.</p>
+<p>To perform the matching you must specify the columns name of the taxon name in the enrichment database (<code>enrich_taxon_name_column</code>). If author matching is required then this column must also be specified for the enrichment database (<code>enrich_taxon_authors_column</code>).</p>
+<p>The enrichment database must have some columns required for matching (<code>single_entry</code>, <code>taxon_length</code>, etc), we advice using <code><a href="prepare_enrich_database.html">prepare_enrich_database()</a></code> to add these columns.</p>
+<p>Similarly, you must specify the columns name of the taxon name in the collection database (<code>taxon_name_column</code>). If author matching is desired then you have two choices:</p><ul><li><p>specify the taxon author column <code>taxon_author_column</code>.</p></li>
+<li><p>Specify the combined taxon name and author column, <code>taxon_name_full_column</code> which removes words found in the taxon names from taxon names full to extract the authors.</p></li>
+</ul><p>Note if both are specified then the authors from <code>taxon_author_column</code> are used.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
