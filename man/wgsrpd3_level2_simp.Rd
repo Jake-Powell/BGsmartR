@@ -7,10 +7,11 @@
 \format{
 \subsection{\code{wgsrpd3_level2_simp}}{
 
-A data frame with 369 rows and 5 columns:
+A data frame with 52 rows and 3 columns:
 \describe{
-\item{Original}{Original Taxon name with typo}
-\item{Fixed}{Fixed Taxon name}
+\item{code}{The code of the area}
+\item{name}{The name of the area}
+\item{geometry}{The geometry of the area}
 }
 }
 }

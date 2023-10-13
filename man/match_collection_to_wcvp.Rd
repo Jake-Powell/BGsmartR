@@ -17,7 +17,10 @@ match_collection_to_wcvp(
   do_rm_autonym = TRUE,
   do_convert_accepted = TRUE,
   matching_criterion = BGSmartR::additional_wcvp_matching,
-  ...
+  ...,
+  enrich_taxon_name_column = "taxon_name",
+  enrich_display_in_message_column = "powo_id",
+  enrich_plant_identifier_column = "plant_name_id"
 )
 }
 \arguments{
@@ -46,6 +49,12 @@ match_collection_to_wcvp(
 \item{matching_criterion}{A function used to chose the best method from extracts of the \code{wcvp$wcvp_names}.}
 
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
+
+\item{enrich_taxon_name_column}{The name of the column in the \code{iucnRedlist} corresponding to taxonomic names.Default value is \code{scientific_name}.}
+
+\item{enrich_display_in_message_column}{The name of the column in \code{iucnRedlist} that contains values to show in the matching messages. Default value is \code{taxonid}.}
+
+\item{enrich_plant_identifier_column}{The name of the column in \code{iucnRedlist} that corresponds to record identifier. Default value is \code{taxonid}.}
 }
 \value{
 A list of length seven containing:

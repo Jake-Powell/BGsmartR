@@ -11,6 +11,9 @@
 #' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param do_convert_accepted Flag for whether we convert to accepted names in wcvp
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
+#' @param enrich_taxon_name_column The name of the column in the `iucnRedlist` corresponding to taxonomic names.Default value is `scientific_name`.
+#' @param enrich_display_in_message_column The name of the column in `iucnRedlist` that contains values to show in the matching messages. Default value is `taxonid`.
+#' @param enrich_plant_identifier_column The name of the column in `iucnRedlist` that corresponds to record identifier. Default value is `taxonid`.
 #' @param matching_criterion A function used to chose the best method from extracts of the `wcvp$wcvp_names`.
 #' @param enrich_taxon_authors_column The name of the column in `enrich_database` that corresponds to the authors of taxonomic names. Default value is `taxon_authors_simp`.
 
@@ -38,7 +41,10 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                    do_add_split = TRUE, do_fix_hybrid = TRUE,
                                    do_rm_autonym = TRUE, do_convert_accepted=TRUE,
                                    matching_criterion = BGSmartR::additional_wcvp_matching,
-                                   ...){
+                                   ...,
+                                   enrich_taxon_name_column = 'taxon_name',
+                                   enrich_display_in_message_column = 'powo_id',
+                                   enrich_plant_identifier_column = 'plant_name_id'){
   if(!typo_method %in% c('All', 'Data frame only','Data frame + common')){
     stop('Invalid typo_method input!')
   }
@@ -112,7 +118,12 @@ match_collection_to_wcvp <- function(collection, wcvp,
   # (Assume all exceptions are single records in POWO, this is the case currently)
   exception_indices = match(wcvp$exceptions$plant_name_id, wcvp$wcvp_names$plant_name_id)
   exception_indices = exception_indices[!is.na(exception_indices)]
-  match_info = match_single(taxon_name[index_to_find_matches], enrich_database =  wcvp$wcvp_names, exception_indices)
+  match_info = match_single(taxon_names = taxon_name[index_to_find_matches],
+                            enrich_database =  wcvp$wcvp_names,
+                            enrich_database_search_index = exception_indices,
+                            enrich_taxon_name_column = enrich_taxon_name_column,
+                            enrich_display_in_message_column = enrich_display_in_message_column,
+                            ...)
   taxon_match[index_to_find_matches] = match_info$match
   taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
   index_complete = c(index_complete, index_to_find_matches[!is.na(match_info$match)])
@@ -140,11 +151,12 @@ match_collection_to_wcvp <- function(collection, wcvp,
   ################################################
   if(length(index_to_find_matches) > 0){
     cli::cli_h2("Matching {length(index_to_find_matches)} name{?s} to unique taxon names")
-
     single_indices = which(wcvp$wcvp_names$single_entry == TRUE)
-    match_info = match_single(taxon_names = taxon_name[index_to_find_matches],
+   match_info = match_single(taxon_names = taxon_name[index_to_find_matches],
                               enrich_database = wcvp$wcvp_names,
                               enrich_database_search_index = single_indices,
+                              enrich_taxon_name_column = enrich_taxon_name_column,
+                              enrich_display_in_message_column = enrich_display_in_message_column,
                               ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -169,6 +181,9 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                 enrich_database = wcvp$wcvp_names,
                                 enrich_database_search_index = mult_indices,
                                 enrich_taxon_authors_column = enrich_taxon_authors_column,
+                                enrich_taxon_name_column = enrich_taxon_name_column,
+                                enrich_display_in_message_column = enrich_display_in_message_column,
+                                enrich_plant_identifier_column = enrich_plant_identifier_column,
                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -213,7 +228,11 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                      do_fix_hybrid = do_fix_hybrid,
                                      do_rm_autonym = do_rm_autonym,
                                      matching_criterion = matching_criterion,
-                                     enrich_taxon_authors_column = enrich_taxon_authors_column)
+                                     enrich_taxon_authors_column = enrich_taxon_authors_column,
+                                     enrich_taxon_name_column = enrich_taxon_name_column,
+                                     enrich_display_in_message_column = enrich_display_in_message_column,
+                                     enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                     ...)
 
         proposed_authors = rep(NA, length(taxon_author[diff_index]))
         current_match = match_info$match
@@ -254,7 +273,11 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                  do_fix_hybrid = do_fix_hybrid,
                                  do_rm_autonym = do_rm_autonym,
                                  matching_criterion = matching_criterion,
-                                 enrich_taxon_authors_column = enrich_taxon_authors_column)
+                                 enrich_taxon_authors_column = enrich_taxon_authors_column,
+                                 enrich_taxon_name_column = enrich_taxon_name_column,
+                                 enrich_display_in_message_column = enrich_display_in_message_column,
+                                 enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match
     taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], match_info$message)
@@ -278,6 +301,9 @@ match_collection_to_wcvp <- function(collection, wcvp,
                              single_indices = single_indices,
                              mult_indices = mult_indices,
                              typo_method = typo_method,
+                             enrich_taxon_name_column = enrich_taxon_name_column,
+                             enrich_display_in_message_column = enrich_display_in_message_column,
+                             enrich_plant_identifier_column = enrich_plant_identifier_column,
                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match

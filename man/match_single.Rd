@@ -19,7 +19,7 @@ match_single(
   enrich_database,
   enrich_database_search_index,
   enrich_taxon_name_column = "taxon_name",
-  enrich_display_in_message_column = "powo_id",
+  enrich_display_in_message_column = "ID",
   match_column = NA,
   ...
 )
@@ -30,8 +30,8 @@ match_multiple(
   enrich_database,
   enrich_database_search_index,
   enrich_taxon_name_column = "taxon_name",
-  enrich_display_in_message_column = "powo_id",
-  enrich_plant_identifier_column = "plant_name_id",
+  enrich_display_in_message_column = "ID",
+  enrich_plant_identifier_column = "ID",
   match_column = NA,
   ...,
   show_progress = TRUE
@@ -48,8 +48,8 @@ match_all_issue(
   do_rm_autonym = TRUE,
   enrich_taxon_name_column = "taxon_name",
   enrich_taxon_authors_column = "taxon_authors_simp",
-  enrich_plant_identifier_column = "plant_name_id",
-  enrich_display_in_message_column = "powo_id",
+  enrich_plant_identifier_column = "ID",
+  enrich_display_in_message_column = "ID",
   ...
 )
 
@@ -163,8 +163,7 @@ try_fix_hybrid(
 
 \item{messages}{messages detailing how a match is obtained.}
 
-\item{enrich_database_taxon_names}{The taxon names taken from \code{enrich_database}.
-enrich_database_taxon_names}
+\item{enrich_database_taxon_names}{The taxon names taken from \code{enrich_database}.}
 
 \item{console_message}{Flag (TRUE/FALSE) detailing whether to show messages in the console.}
 

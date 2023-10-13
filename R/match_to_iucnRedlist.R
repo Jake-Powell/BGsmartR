@@ -49,7 +49,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      matching_criterion = BGSmartR::no_additional_matching,
                                      try_hybrid = FALSE
                                     ){
-  if(!typo_method %in% c('All', 'Data frame only','Data frame + common')){
+  if(!typo_method %in% c('All', 'Data frame only','Data frame + common', 'no')){
     stop('Invalid typo_method input!')
   }
   #Implies collection and iucnRedlist are already in the workspace.

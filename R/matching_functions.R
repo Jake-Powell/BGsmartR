@@ -38,7 +38,6 @@
 #' @param enrich_taxon_authors_column The name of the column in `enrich_database` that corresponds to the authors of taxonomic names. Default value is `taxon_authors_simp`.
 #' @param enrich_taxon_author_words_column The name of the column in `enrich_database` that corresponds to the words contained in the authors of taxonomic names. Default value is `author_parts`.
 #' @param enrich_database_taxon_names The taxon names taken from `enrich_database`.
-#' enrich_database_taxon_names
 #' @param enrich_plant_identifier_column The name of the column in `enrich_database` that corresponds to record identifier. Default value is `plant_name_id`.
 #' @param enrich_database_mult `enrich_database` restricted to the rows that correspond to 'non-unique' taxonomic names.
 #' @param do_add_split Flag (TRUE/FALSE) for whether we search for missing f./var./subsp.
@@ -60,7 +59,7 @@
 #' @export
 match_single <- function(taxon_names, enrich_database, enrich_database_search_index,
                          enrich_taxon_name_column = 'taxon_name',
-                         enrich_display_in_message_column = 'powo_id',
+                         enrich_display_in_message_column = 'ID',
                          match_column = NA,...){
 
   # If no indices given return no match.
@@ -101,8 +100,8 @@ match_single <- function(taxon_names, enrich_database, enrich_database_search_in
 #' @export
 match_multiple <- function(taxon_names,taxon_authors, enrich_database, enrich_database_search_index,
                            enrich_taxon_name_column = 'taxon_name',
-                           enrich_display_in_message_column = 'powo_id',
-                           enrich_plant_identifier_column = 'plant_name_id',
+                           enrich_display_in_message_column = 'ID',
+                           enrich_plant_identifier_column = 'ID',
                            match_column = NA,
                            ...,
                            show_progress = TRUE){
@@ -180,8 +179,8 @@ match_all_issue <- function(taxon_names,
                             do_rm_autonym = TRUE,
                             enrich_taxon_name_column = 'taxon_name',
                             enrich_taxon_authors_column = 'taxon_authors_simp',
-                            enrich_plant_identifier_column = 'plant_name_id',
-                            enrich_display_in_message_column = 'powo_id',
+                            enrich_plant_identifier_column = 'ID',
+                            enrich_display_in_message_column = 'ID',
                             ...){
 
   ##############################
@@ -411,7 +410,8 @@ match_typos <- function(taxon_names, taxon_authors, enrich_database,
   ########################
   # Match to multiple.
   ########################
-  if(length(index_to_find_matches) > 0){
+
+  if(length(index_to_find_matches) > 0 & length(mult_indices) > 0){
     typo_index = typo_indices[index_to_find_matches]
     match_info = match_multiple(name_to_try[index_to_find_matches], taxon_authors[typo_index],  enrich_database, mult_indices, ...)
     out_match[typo_index] = match_info$match
@@ -530,7 +530,7 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
   if(is.null(taxon_name))(return(NA))
   if(is.na(taxon_name)){return(NA)}
   if(taxon_name ==''){return(NA)}
-  if(grepl('\\(|\\)|\\*|\\?|\\$|\\^',taxon_name)){return(NA)} # Since no words in wcvp have '(',')', '?' or '*', '$', '^' we return NA.
+  if(grepl('\\(|\\)|\\*|\\?|\\$|\\^|\\[|//]',taxon_name)){return(NA)} # Since no words in wcvp have '(',')', '?' or '*', '$', '^' we return NA.
 
   ########################
   # 2) Check if the typo is in typo list.
@@ -785,6 +785,10 @@ try_fix_infraspecific_level <- function(taxon_names, enrich_database_taxon_names
   enrich_taxon_names_w_split = enrich_database_taxon_names[grepl(splitters_grepl,enrich_database_taxon_names)]
 
 
+  ### 1.8) If there are no enriched taxon names with infraspecific levels return emply out_fixed_names.
+  if(length(enrich_taxon_names_w_split) == 0){
+    return(out_fixed_names)
+  }
 
   ##############################
   # 2) Try adding a infraspecific level. (taxon name needs 3 words)

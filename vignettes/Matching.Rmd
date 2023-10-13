@@ -149,7 +149,9 @@ wcvp_search_index_single = which(wcvp$wcvp_names$single_entry == T)
 # Perform the match
 match = match_single(taxon_names = taxon_names,
                      enrich_database = wcvp$wcvp_names,
-                     enrich_database_search_index = wcvp_search_index_single)
+                     enrich_database_search_index = wcvp_search_index_single,
+                     enrich_display_in_message_column = 'powo_id'
+                      )
 match
 ```
 
@@ -158,7 +160,7 @@ We see that `match` is a list that contains:
 - `$match` the corresponding row in `wcvp$wcvp_names`, if no match return `NA`. 
 - `$message` that informs on how the match is obtained, if no match the message is set to `''`.
 
-If we find a match the algorithm by default also provides the `powo_id` (e.g. `108437-3`) which can be used to search for the plant directly on POWO's website. This output code in the message can be changed for any column in `wcvp$wcvp_names` using the input `enrich_display_in_message_column`.
+If we find a match the algorithm  uses `enrich_display_in_message_column`  by default also provides the `powo_id` (e.g. `108437-3`) which can be used to search for the plant directly on POWO's website. This output code in the message can be changed for any column in `wcvp$wcvp_names` using the input `enrich_display_in_message_column`.
 
 ```{r match single 2}
 match_single(taxon_names = taxon_names, enrich_database = wcvp$wcvp_names,
@@ -172,7 +174,8 @@ Moreover, for this function the match can be changed from the row number in `wcv
 ```{r match single 3}
 match_single(taxon_names = taxon_names, enrich_database = wcvp$wcvp_names,
              enrich_database_search_index = wcvp_search_index_single,
-             match_column = 'taxon_status')
+             match_column = 'taxon_status',
+             enrich_display_in_message_column = 'plant_name_id')
 
 ```
 
@@ -210,6 +213,7 @@ match = match_multiple(taxon_names = taxon_names,
                        enrich_database = wcvp$wcvp_names, 
                        enrich_database_search_index = wcvp_search_index_mult,
                        matching_criterion = BGSmartR::additional_wcvp_matching,
+                       enrich_plant_identifier_column = 'plant_name_id',
                        show_progress = FALSE)
 match
 ```
@@ -328,6 +332,7 @@ match = match_multiple(taxon_names = taxon_names,
                        enrich_database = wcvp$wcvp_names, 
                        enrich_database_search_index = wcvp_search_index_mult,
                        matching_criterion = wcvp_publication_matching,
+                       enrich_plant_identifier_column = 'plant_name_id',
                        show_progress = FALSE)
 match
 ```
@@ -422,7 +427,9 @@ taxon_names = c('Salix fragilis', 'Acalypha gracilens f. fraseri', 'Abies alba v
 taxon_authors = c('L.', '(Müll.Arg.) Weath.', 'Mill.')
 match_all_issue(taxon_names = taxon_names,
                 taxon_authors = taxon_authors,
-                enrich_database = wcvp$wcvp_names)
+                enrich_database = wcvp$wcvp_names,
+                enrich_plant_identifier_column = 'plant_name_id'
+)
 ```
 We see that for each taxon name a fixed version is found and it is put forward as a match. 
 
@@ -472,7 +479,8 @@ taxon_authors = c('Giacom. & Pignatti', '(Siebold & Zucc.) Miq.')
 
 match_typos(taxon_names, taxon_authors,
             enrich_database = wcvp$wcvp_names,
-            typo_method = 'All')
+            typo_method = 'All',
+            enrich_display_in_message_column = 'powo_id')
 ```
 This step can be computationally expensive, therefore we include the input `typo_method` which allows 3 different levels of typo checking.`typo_method = "All"` is the maximum level that performs all typo checking. `typo_method = "Data frame + Common"` is the intermediate level that only tries the known typos and common fixes. `typo_method = "Data frame only"` is the minimum level that only checks whether typos are found from in the known typos data frame.
 
@@ -529,7 +537,8 @@ taxon_names = c('Adina nobilis', 'Acalypha gracilens var. fraseri',
                 'Andira zehntneri')
 
 # Get the original match.
-match = match_single(taxon_names,wcvp$wcvp_names,wcvp_search_index_single)
+match = match_single(taxon_names,wcvp$wcvp_names,wcvp_search_index_single,
+                     enrich_display_in_message_column = 'powo_id')
 match
 
 # Try to convert to accepted name.

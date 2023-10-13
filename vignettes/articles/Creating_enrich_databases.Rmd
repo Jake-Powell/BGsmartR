@@ -1,0 +1,28 @@
+---
+title: "Creating_enrich_databases"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(BGSmartR)
+```
+
+This document outlines how to create/modify "enrichment databases" used to enrich collection's databases. In particular, we outline how to create the database for POWO's World Checklist of Vascular Plants (WCVP) and IUCN's red list. We will also discuss how to use a general enrichment database with the matching methods within BGSmartR.
+
+## World Checklist of Vascular Plants
+
+World Checklist of Vascular Plants can be downloaded via POWO's website directly ([click here](http://sftp.kew.org/pub/data-repositories/WCVP/?_gl=1*2u4j7u*_ga*MTMwNzk1NTc2NC4xNjk1MzAwMjQ1*_ga_ZVV2HHW7P6*MTY5Njg1OTQ2OS4xNy4wLjE2OTY4NTk0NjkuMC4wLjA.), or it can be obtained using the package `rWCVPData` ([see here](https://github.com/matildabrown/rWCVPdata) for details). 
+
+WCVP is split into two databases:
+
+- `wcvp_names` 
+- `wcvp_distribution`
+
+## IUCN's red list
+
