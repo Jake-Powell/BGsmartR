@@ -201,7 +201,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
   ################################################
   if(do_taxon_author){
     # Find the records which have disagreeing authors.
-    with_match = index_complete[which(!grepl('Not in POWO',taxon_name_story[index_complete]))]
+    with_match = index_complete[which(!grepl('Do not attempt matching',taxon_name_story[index_complete]))]
 
     # Do we have at least one match.
     if(length(with_match) > 0){

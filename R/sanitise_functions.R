@@ -121,6 +121,9 @@ sanitise_names_authors <- function(taxon_names,
   sanitised = rep(F,length(taxon_names))
   sanitised[taxon_names != clean_taxon_name] = T
 
+  #D) Remove special characters from taxon name.
+  clean_taxon_name = stringi::stri_trans_general(clean_taxon_name, id = "Latin-ASCII") # simplify characters, i.e remove upstroph, tilde.
+
   return(list(taxon_name = clean_taxon_name, author = author, sanitised = sanitised))
 }
 
@@ -131,17 +134,17 @@ sanitise_names_authors_report <- function(collection,
                                        taxon_name_full_column = NA,
                                        taxon_author_column = NA){
   # Get the values out of original report.
-  taxon_names = collection[,match(taxon_name_column, names(collection))]
+  taxon_names = collection[[taxon_name_column]]
   if(is.na(taxon_name_full_column)){
     taxon_name_full = NA
   }else{
-    taxon_name_full = collection[,match(taxon_name_full_column,names(collection))]
+    taxon_name_full = collection[[taxon_name_full_column]]
   }
 
   if(is.na(taxon_author_column)){
     taxon_authors = NA
   }else{
-    taxon_authors = collection[,match(taxon_author_column,names(collection))]
+    taxon_authors = collection[[taxon_author_column]]
   }
 
   return(sanitise_names_authors(taxon_names = taxon_names, taxon_names_full = taxon_name_full, taxon_authors = taxon_authors))

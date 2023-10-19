@@ -435,8 +435,17 @@ no_match_cultivar_indet <- function(taxon_names){
   out_match = rep(NA,length(taxon_names))
   out_message = rep('',length(taxon_names))
 
-  #Find indices of those known to be cultivars or indeterminates.
-  not_in_wcvp = which(grepl(" sp\\.| gx |'.*?'|\\[|^Indet| gx|indet$|CV|cv$|cv\\.|Group|unkn|hybrid$|Hybrid |Unknown",taxon_names))
+  #Find indices of those known to be cultivars or indeterminates
+  not_in_wcvp = which(grepl(" sp\\.| gx |'.*?'|\\[|\\(|^Indet| gx|indet$|CV|cv$|cv\\.|Group|unkn|hybrid$|Hybrid |Unknown|[0-9]|\\#",taxon_names))
+
+  # Those that end with "grex" with > 2 words.
+  words = stringr::str_count(taxon_names, ' ') +1
+  with_grex = which(words > 2 & grepl(' grex$| series$', taxon_names))
+
+  # Those that end with a colour. (checked not in wcvp)
+  end_in_colour = which(grepl(' blue$| green$| red$| orange$| pink$| yellow$| white$| purple$| black$| brown$| tall$| short$| dwarf$| form$| mix$| mixture$| mixed$|cultivar| group$|selection|indet\\.$| hort$|hort\\.$| aggr$| aggr\\.$|varient$|varient | sp$|unidentified|yield| hybrids$|strain| male$| female$|variegated',taxon_names))
+
+  not_in_wcvp = unique(c(not_in_wcvp, with_grex, end_in_colour))
 
   # For cultivars and indeterminates set the match to -1 and create message.
   out_match[not_in_wcvp] = -1
@@ -833,7 +842,7 @@ try_fix_infraspecific_level <- function(taxon_names, enrich_database_taxon_names
     ### 3.1) Get the indices of taxon_names with 4 words and hybrid in the best position.
     index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
     hybrid_position = unlist(lapply(stringr::str_split(taxon_names[index_words_4], ' '),function(x){which(grepl('\u00D7|\\+',x))}))
-    index_words_4 = index_words_4[hybrid_position %in% c(1,2)]
+    index_words_4 = index_words_4[which(hybrid_position %in% c(1,2))]
 
     if(length(index_words_4)>0){
       if(console_message){

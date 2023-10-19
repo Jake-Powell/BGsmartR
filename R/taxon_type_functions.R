@@ -41,6 +41,7 @@
 #' add_taxon_type(collection, taxon_name_column = 'name', POWO_taxon_name_column = 'POWO')
 taxon_type <- function(taxon_name){
 
+  if(is.na(taxon_name)){return(NA)}
   if(taxon_name ==''){return(NA)}
   # A) Split the taxon name into individual words.
   no_words = stringr::str_count(stringr::str_squish(taxon_name),' ') +1
@@ -143,12 +144,12 @@ add_taxon_type <- function(collection, taxon_name_column = 'TaxonName', POWO_tax
   ####
   #A) we DON'T have POWO_taxon_name_column.
   if(is.na(POWO_taxon_name_column)){
-    taxon_names = collection[,match(taxon_name_column, names(collection))]
+    taxon_names = collection[[taxon_name_column]]
   }
   #B) we DO have POWO_taxon_name_column.
   else{
-    taxon_names = collection[,match(POWO_taxon_name_column, names(collection))]
-    original_taxon_names = collection[,match(taxon_name_column, names(collection))]
+    taxon_names = collection[[POWO_taxon_name_column]]
+    original_taxon_names = collection[[taxon_name_column]]
     taxon_names[is.na(taxon_names)] = original_taxon_names[is.na(taxon_names)]
   }
 

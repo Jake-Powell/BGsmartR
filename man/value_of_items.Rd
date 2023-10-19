@@ -14,7 +14,7 @@ value_of_items(collection, dependents = NA)
 \item \verb{$column} the column in the \code{collection} we are generating a score from.
 \item \verb{$weight} the weight of this score (multiplier), relative to other columns.
 \item \verb{$details} a data frame detailing the score for particular values found in the column. Where the values to match to the column are found in \code{names} and the score is contained in \code{value}.
-\item \verb{$type} The method for matching/finding entries in the column. Allowable values are \code{'Exact'}, \code{'Number range (int)'} and \code{'Grepl'}.
+\item \verb{$type} The method for matching/finding entries in the column. Allowable values are \code{'Exact'}, \code{'Grepl'}, \code{'Number range'}  and \code{'Number range (int)'}.
 }}
 }
 \value{
