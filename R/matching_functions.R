@@ -242,7 +242,6 @@ match_all_issue <- function(taxon_names,
   names_to_try = stringr::str_replace_all(names_to_try, pattern = ' OR  OR ', ' OR ') # clean missing values
   names_to_try = stringr::str_replace_all(names_to_try, pattern = '^ OR | OR $', '') # clean missing values
 
-
   ##############################
   # 3) Find best match out of fixed names.
   ##############################
@@ -308,13 +307,13 @@ match_all_issue <- function(taxon_names,
     ### 3.6) Match by method used.(Fix splitter > fix hybrid < remove autonym)
     remaining_taxon_names = enriched_cur[[enrich_taxon_name_column]]
     best_method = unlist(lapply(remaining_taxon_names, function(x){
-      if(grepl(x, fix_splitter[counter])){
+      if(x %in% stringr::str_split(fix_splitter[counter], pattern = ' OR ')[[1]] ){
         return(1)
       }
-      if(grepl(x, fix_hybrid[counter])){
+      if(x %in% stringr::str_split(fix_hybrid[counter], pattern = ' OR ')[[1]] ){
         return(2)
       }
-      if(grepl(x, fix_auto[counter])){
+      if(x %in% stringr::str_split(fix_auto[counter], pattern = ' OR ')[[1]] ){
         return(3)
       }
     }))
@@ -326,10 +325,13 @@ match_all_issue <- function(taxon_names,
       if(min_best_method == 2){message = '(Decide on Method: Fix hybrid) -> '}
       if(min_best_method == 1){message = '(Decide on Method: Fix infraspecific level) -> '}
       current_message = paste0(current_message, message, collapse =' ')
+      current_message = paste0(current_message, ' (',enriched_cur[[enrich_display_in_message_column]],
+                               ', ', enriched_cur[[enrich_taxon_name_column]],
+                               ')',collapse =' ')
       return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
     }
 
-    current_message = paste0(current_message, '(Cannot decide via fixing method) -> ', collapse =' ')
+    current_message = paste0(current_message, '(Cannot decide via fixing method)', collapse =' ')
 
     # No method can find the single best record match.
     return(list(plant_identifer = -2, message = current_message))
