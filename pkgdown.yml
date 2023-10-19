@@ -4,7 +4,8 @@ pkgdown_sha: ~
 articles:
   Matching: Matching.html
   Creating_enrich_databases: Creating_enrich_databases.html
-last_built: 2023-10-18T07:50Z
+  value_of_items: value_of_items.html
+last_built: 2023-10-19T10:38Z
 urls:
   reference: https://jakepowellcubg.github.io/BGR/reference
   article: https://jakepowellcubg.github.io/BGR/articles
