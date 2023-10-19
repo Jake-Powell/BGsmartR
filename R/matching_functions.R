@@ -1037,7 +1037,7 @@ try_fix_hybrid <- function(taxon_names, enrich_database_taxon_names,
 match_authors <- function(collection_author, enriched_database_authors, partial_method = 'most words', ...){
 
   ### 1) Exact matching
-  exact_match = collection_author == enriched_database_authors
+  exact_match = enriched_database_authors  == collection_author
   exact_match[is.na(exact_match)] = FALSE # Set NA values to FALSE
   if(any(exact_match)){
     return(list(wanted = exact_match, message = '(Exact author match)'))

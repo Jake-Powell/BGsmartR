@@ -48,9 +48,32 @@ sanitise_name <- function(taxon_name){
   ## 1) fix x/X/h/H to \u00D7.
   ###########
   if(grepl(' [xXhH] |^[xXhH] | [xXhH]$',taxon_name)){
+    # Change the symbol
     taxon_name = stringr::str_replace(taxon_name,'^[xX] ','\u00D7 ')
     taxon_name = stringr::str_replace(taxon_name,' [xX]$',' \u00D7')
     taxon_name = stringr::str_replace(taxon_name,' [xX] ',' \u00D7 ')
+
+    # Make sure the symbol is preceded by and followed by a space if not at the start or end of the taxon name.
+    length_taxon = stringr::str_length(taxon_name)
+    locations = as.numeric(stringr::str_locate_all(taxon_name, '\u00D7')[[1]][,1])
+    locations = locations[!locations %in% c(1,length_taxon)]
+    if(length(locations) > 0){
+      for(i in 1:length(locations)){
+        # Position before a space?
+        if(stringr::str_sub(taxon_name, locations[i]-1, locations[i]-1) != ' '){
+          taxon_name = paste0(stringr::str_sub(taxon_name, 1, locations[i]-1),
+                              ' ',
+                              stringr::str_sub(taxon_name, locations[i], length_taxon))
+        }
+        # Position after a space?
+        if(stringr::str_sub(taxon_name, locations[i]+1, locations[i]+1) != ' '){
+          taxon_name = paste0(stringr::str_sub(taxon_name, 1, locations[i]),
+                              ' ',
+                              stringr::str_sub(taxon_name, locations[i]+1, length_taxon))
+        }
+      }
+    }
+
   }
 
   ###########
