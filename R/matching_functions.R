@@ -466,6 +466,7 @@ get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
                                     enrich_taxon_authors_column = 'taxon_authors_simp',
                                     enrich_taxon_author_words_column = 'author_parts',...){
 
+
   ##############################
   # 1) Setup
   ##############################

@@ -184,6 +184,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
                                 enrich_taxon_name_column = enrich_taxon_name_column,
                                 enrich_display_in_message_column = enrich_display_in_message_column,
                                 enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                matching_criterion = matching_criterion,
                                 ...)
 
     taxon_match[index_to_find_matches] = match_info$match

@@ -44,18 +44,20 @@
 #' sanitise_names_authors_report(collection, taxon_name_column = 'names',
 #'  taxon_name_full_column = 'full')
 sanitise_name <- function(taxon_name){
-  ###########
-  ## 1) fix x/X/h/H to \u00D7.
-  ###########
+
+  ### 1) fix x/X/h/H to \u00D7.
   if(grepl(' [xXhH] |^[xXhH] | [xXhH]$',taxon_name)){
     # Change the symbol
     taxon_name = stringr::str_replace(taxon_name,'^[xX] ','\u00D7 ')
     taxon_name = stringr::str_replace(taxon_name,' [xX]$',' \u00D7')
     taxon_name = stringr::str_replace(taxon_name,' [xX] ',' \u00D7 ')
+  }
 
+  ### 2) Make sure there are spaces surrounding the hybrid marker
+  if(grepl('\u00D7|\\+', taxon_name)){
     # Make sure the symbol is preceded by and followed by a space if not at the start or end of the taxon name.
     length_taxon = stringr::str_length(taxon_name)
-    locations = as.numeric(stringr::str_locate_all(taxon_name, '\u00D7')[[1]][,1])
+    locations = as.numeric(stringr::str_locate_all(taxon_name, '\u00D7|\\+')[[1]][,1])
     locations = locations[!locations %in% c(1,length_taxon)]
     if(length(locations) > 0){
       for(i in 1:length(locations)){
@@ -64,21 +66,22 @@ sanitise_name <- function(taxon_name){
           taxon_name = paste0(stringr::str_sub(taxon_name, 1, locations[i]-1),
                               ' ',
                               stringr::str_sub(taxon_name, locations[i], length_taxon))
+          locations[i] = locations[i] + 1
+          length_taxon = length_taxon + 1
         }
         # Position after a space?
         if(stringr::str_sub(taxon_name, locations[i]+1, locations[i]+1) != ' '){
           taxon_name = paste0(stringr::str_sub(taxon_name, 1, locations[i]),
                               ' ',
                               stringr::str_sub(taxon_name, locations[i]+1, length_taxon))
+          length_taxon = length_taxon + 1
+
         }
       }
     }
-
   }
 
-  ###########
-  ## 2) Fix casing only first letter of Genus Capital rest lower
-  ###########
+  ### 3) Fix casing only first letter of Genus Capital rest lower
   # If the starting letter means hybrid (x,+,\u00D7)
   if(grepl('^[+\u00D7]',taxon_name)){
     taxon_part = stringr::str_sub(taxon_name,3,-1)
@@ -90,9 +93,7 @@ sanitise_name <- function(taxon_name){
     taxon_name = gsub("(\\D)(\\D+)", "\\U\\1\\L\\2", taxon_name, perl = TRUE)
   }
 
-  ###########
-  ## 3) fix f or var to f. and var.
-  ###########
+  ### 4) fix f or var to f. and var.
   if(grepl(' f | var | subsp | v ',taxon_name)){
     taxon_name = stringr::str_replace(taxon_name,' f ',' f\\. ')
     taxon_name = stringr::str_replace(taxon_name,' var | v ',' var\\. ')
@@ -100,11 +101,18 @@ sanitise_name <- function(taxon_name){
     taxon_name = stringr::str_replace(taxon_name,' nothosubsp ',' nothosubsp\\. ')
 
   }
-  ###########
-  ## 3) Remove excess whitespace.
-  ###########
+
+  ### 5) Remove excess whitespace.
   taxon_name = stringr::str_squish(taxon_name)
 
+  ### 6) Simplify all special characters (except hybrid marker)
+  words = stringr::str_split(taxon_name, ' ')[[1]]
+  taxon_name = paste0(unlist(lapply(words, function(word){
+    if(!grepl('\u00D7|\\+', word)){
+      word = stringi::stri_trans_general(word, id = "Latin-ASCII")
+    }
+    word
+  })), collapse = ' ')
   return(taxon_name)
 }
 
@@ -144,8 +152,6 @@ sanitise_names_authors <- function(taxon_names,
   sanitised = rep(F,length(taxon_names))
   sanitised[taxon_names != clean_taxon_name] = T
 
-  #D) Remove special characters from taxon name.
-  clean_taxon_name = stringi::stri_trans_general(clean_taxon_name, id = "Latin-ASCII") # simplify characters, i.e remove upstroph, tilde.
 
   return(list(taxon_name = clean_taxon_name, author = author, sanitised = sanitised))
 }
