@@ -252,7 +252,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
           taxon_match[diff_index[improved_author_index]] = match_info$match[improved_author_index]
           taxon_name_story[diff_index[improved_author_index]] =
             paste0(taxon_name_story[diff_index[improved_author_index]],
-                   ' -> (Author differ) -> (Try fixing taxon name)',
+                   ' -> (Author differ)',
                    match_info$message[improved_author_index])
         }
       }
@@ -305,6 +305,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
                              enrich_taxon_name_column = enrich_taxon_name_column,
                              enrich_display_in_message_column = enrich_display_in_message_column,
                              enrich_plant_identifier_column = enrich_plant_identifier_column,
+                             matching_criterion = matching_criterion,
                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match

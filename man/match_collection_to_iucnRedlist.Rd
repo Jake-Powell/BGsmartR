@@ -16,6 +16,7 @@ match_collection_to_iucnRedlist(
   do_rm_autonym = TRUE,
   ...,
   enrich_taxon_name_column = "scientific_name",
+  enrich_taxon_authors_column = "sanitise_author",
   enrich_display_in_message_column = "taxonid",
   enrich_plant_identifier_column = "taxonid",
   matching_criterion = BGSmartR::no_additional_matching,
@@ -44,6 +45,8 @@ match_collection_to_iucnRedlist(
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). Examples include \code{enrich_taxon_authors_column}, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 
 \item{enrich_taxon_name_column}{The name of the column in the \code{iucnRedlist} corresponding to taxonomic names.Default value is \code{scientific_name}.}
+
+\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{sanitise_author}.}
 
 \item{enrich_display_in_message_column}{The name of the column in \code{iucnRedlist} that contains values to show in the matching messages. Default value is \code{taxonid}.}
 

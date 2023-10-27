@@ -11,6 +11,7 @@
 #' @param do_rm_autonym Flag (TRUE/FALSE) for whether we try removing autonyms.
 #' @param ... Arguments (i.e., attributes) used in the matching algorithm (passed along to nested functions). Examples include `enrich_taxon_authors_column`, `enrich_display_in_message_column` and `enrich_plant_identifier_column`.
 #' @param enrich_taxon_name_column The name of the column in the `iucnRedlist` corresponding to taxonomic names.Default value is `scientific_name`.
+#' @param enrich_taxon_authors_column The name of the column in `enrich_database` that corresponds to the authors of taxonomic names. Default value is `sanitise_author`.
 #' @param enrich_display_in_message_column The name of the column in `iucnRedlist` that contains values to show in the matching messages. Default value is `taxonid`.
 #' @param enrich_plant_identifier_column The name of the column in `iucnRedlist` that corresponds to record identifier. Default value is `taxonid`.
 #' @param try_hybrid Flag (TRUE/FALSE) whether we want to look at hybrid fixes across all fixing methods.
@@ -44,6 +45,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      do_rm_autonym = TRUE,
                                      ...,
                                      enrich_taxon_name_column = 'scientific_name',
+                                     enrich_taxon_authors_column = 'sanitise_author',
                                      enrich_display_in_message_column = 'taxonid',
                                      enrich_plant_identifier_column = 'taxonid',
                                      matching_criterion = BGSmartR::no_additional_matching,
@@ -169,6 +171,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                 enrich_database = iucnRedlist,
                                 enrich_database_search_index = mult_indices,
                                 enrich_taxon_name_column = enrich_taxon_name_column,
+                                enrich_taxon_authors_column = enrich_taxon_authors_column,
                                 enrich_display_in_message_column = enrich_display_in_message_column,
                                 enrich_plant_identifier_column = enrich_plant_identifier_column,
                                 matching_criterion = matching_criterion,
@@ -189,14 +192,14 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   ################################################
   if(do_taxon_author){
     # Find the records which have disagreeing authors.
-    with_match = index_complete[which(!grepl('Not in POWO',taxon_name_story[index_complete]))]
+    with_match = index_complete[which(!grepl('Do not attempt matching',taxon_name_story[index_complete]))]
 
     # Do we have at least one match.
     if(length(with_match) > 0){
       original_authors = taxon_author[with_match]
       matched_authors = rep(NA,length(original_authors))
       match_bigger_0 = taxon_match[with_match] > 0
-      matched_authors[match_bigger_0] = iucnRedlist$taxon_authors_simp[taxon_match[with_match][match_bigger_0]]
+      matched_authors[match_bigger_0] = iucnRedlist[[enrich_taxon_authors_column]][taxon_match[with_match][match_bigger_0]]
 
       author_checked = rep(NA, length(original_authors))
       for(i in 1:length(author_checked)){
@@ -215,14 +218,17 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                      do_fix_hybrid = do_fix_hybrid,
                                      do_rm_autonym = do_rm_autonym,
                                      matching_criterion = matching_criterion,
+                                     enrich_taxon_name_column = enrich_taxon_name_column,
+                                     enrich_taxon_authors_column = enrich_taxon_authors_column,
                                      enrich_plant_identifier_column = enrich_plant_identifier_column,
+                                     enrich_display_in_message_column = enrich_display_in_message_column,
                                      try_hybrid = try_hybrid,
                                      ...)
 
         proposed_authors = rep(NA, length(taxon_author[diff_index]))
         current_match = match_info$match
         current_match[is.na(current_match)] = -3
-        proposed_authors[current_match > 0] = iucnRedlist$taxon_authors_simp[current_match[current_match >0]]
+        proposed_authors[current_match > 0] = iucnRedlist[[enrich_taxon_authors_column]][current_match[current_match >0]]
 
         # Check if proposed author is same/similar to original.
         compare_author_new = rep(NA, length(proposed_authors))
@@ -236,7 +242,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
           taxon_match[diff_index[improved_author_index]] = match_info$match[improved_author_index]
           taxon_name_story[diff_index[improved_author_index]] =
             paste0(taxon_name_story[diff_index[improved_author_index]],
-                   ' -> (Author differ) -> (Try fixing taxon name)',
+                   ' -> (Author differ)',
                    match_info$message[improved_author_index])
         }
       }
@@ -258,6 +264,9 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                                  do_fix_hybrid = do_fix_hybrid,
                                  do_rm_autonym = do_rm_autonym,
                                  matching_criterion = matching_criterion,
+                                 enrich_taxon_name_column = enrich_taxon_name_column,
+                                 enrich_taxon_authors_column = enrich_taxon_authors_column,
+                                 enrich_display_in_message_column = enrich_display_in_message_column,
                                  enrich_plant_identifier_column = enrich_plant_identifier_column,
                                  try_hybrid = try_hybrid,
                                  ...)
@@ -285,7 +294,10 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
                              mult_indices = mult_indices,
                              typo_method = typo_method,
                              enrich_taxon_name_column = enrich_taxon_name_column,
+                             enrich_taxon_authors_column = enrich_taxon_authors_column,
                              enrich_display_in_message_column = enrich_display_in_message_column,
+                             enrich_plant_identifier_column = enrich_plant_identifier_column,
+                             matching_criterion = matching_criterion,
                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match
@@ -306,9 +318,9 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   proposed_authors = rep(NA, length(taxon_author))
   current_match = taxon_match
   current_match[is.na(current_match)] = -3
-  proposed_authors[current_match > 0] = iucnRedlist$taxon_authors_simp[current_match[current_match >0]]
+  proposed_authors[current_match > 0] = iucnRedlist[[enrich_taxon_authors_column]][current_match[current_match >0]]
   matched_name = rep(NA, length(taxon_author))
-  matched_name[current_match > 0] = iucnRedlist$taxon_name[current_match[current_match >0]]
+  matched_name[current_match > 0] = iucnRedlist[[enrich_taxon_name_column]][current_match[current_match >0]]
 
   # Check if proposed author is same/similar to original.
   author_checked = rep(NA, length(proposed_authors))
@@ -322,7 +334,7 @@ match_collection_to_iucnRedlist <- function(collection, iucnRedlist,
   ################################################
   taxon_match[index_to_find_matches] = -3
   author_checked[index_to_find_matches] = 'No Match'
-  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (Not in POWO)')
+  taxon_name_story[index_to_find_matches] = paste0(taxon_name_story[index_to_find_matches], ' -> (No match found)')
 
   ################################################
   # 13) Create a shortened version on the match details

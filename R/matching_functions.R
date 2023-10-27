@@ -289,6 +289,9 @@ match_all_issue <- function(taxon_names,
 
       # If enriched_cur only has one row then we have found the best match and no further matching required.
       if(nrow(enriched_cur) == 1){
+        current_message = paste0(current_message, ' -> (',enriched_cur[[enrich_display_in_message_column]],
+                                 ', ', enriched_cur[[enrich_taxon_name_column]],
+                                 ')',collapse =' ')
         return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
       }
     }
@@ -301,6 +304,9 @@ match_all_issue <- function(taxon_names,
     enriched_cur = enriched_cur[match_by_criterion$row,]
     current_message = paste0(current_message, match_by_criterion$message, collapse =' ')
     if(nrow(enriched_cur) == 1){
+      current_message = paste0(current_message, ' (',enriched_cur[[enrich_display_in_message_column]],
+                               ', ', enriched_cur[[enrich_taxon_name_column]],
+                               ')',collapse =' ')
       return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
     }
 
@@ -676,38 +682,61 @@ check_taxon_typo <- function(taxon_name, enrich_database = NA,
 #' @rdname match_single
 #' @export
 shorten_message <- function(messages){
-  match_short = rep('', length(messages))
-  match_options = c("(matches record with single entry)", 'EXACT',
-                    "(Exact author match)", 'EXACT',
-                    "all point to same accepted plant", 'EXACT',
+  ### 1) Create Match options with phrases found in match_detail and how we want to shorten the message.
+  match_options = c("(Sanitise)", 'SANITISE',
+                    'Try Fixing taxomonic name', 'FIX',
+                    "(Typo)", 'TYPO',
+                    "Multiple records in enriched database", 'MULTIPLE',
+                    "(matches record with single entry)", 'SINGLE',
+                    "Author differ", "AUTHOR_DIFF",
+                    "(Exact author match)", 'AUTHOR',
+                    "all point to same accepted plant", 'SAME_ACC',
                     "Partial author", 'PARTIAL',
                     "choose via taxon_status", "TAXON_STATUS",
-                    "multiple best taxon status, do not match", "UNCLEAR",
-                    "no accepted or synonym", "UNCLEAR",
+                    # "multiple best taxon status, do not match", "UNCLEAR",
+                    # "no accepted or synonym", "UNCLEAR",
+                    "Decide on Method", 'METHOD',
                     "(Cultivar or Indeterminate <Do not attempt matching>)", 'CULT/INDET',
                     "Remove autonym", 'AUTONYM',
-                    "(Typo)", 'TYPO',
                     "(No match found)", 'NO_MATCH',
+                    "single fixed record", 'SINGLE',
                     "(Go to accepted name)", 'ACCEPTED',
-                    "(Sanitise)", 'SANITISE',
                     "Infrageneric level update", 'INFRA',
-                    "Hybrid fix", 'HYBRID',
-                    'Try Fixing taxomonic name', 'FIX'
+                    "Hybrid fix", 'HYBRID'
   )
   match_options = stringr::str_replace_all(match_options, '\\(', '\\\\(')
   match_options = stringr::str_replace_all(match_options, '\\)', '\\\\)')
   match_options = matrix(match_options, byrow = T, ncol=2)
+
+  ### 2) For each phrase location the position in the message.
+  locations = matrix(NA, nrow = length(messages), ncol = nrow(match_options))
   for(i in 1:nrow(match_options)){
-    indices = grepl(match_options[i,1], messages)
-    match_short[indices] = paste0(match_short[indices],', ', match_options[i,2])
+    loc = stringr::str_locate(messages, match_options[i,1])[,1]
+    locations[,i] = loc
   }
-  match_short = stringr::str_remove(match_short, '^, ')
+
+  ### 3) Use locations to decide the order of the shortened message.
+  match_short = apply(locations, 1, function(x){
+    has_value_index = which(!is.na(x))
+    order_index = has_value_index[order(x[has_value_index])]
+    paste0(match_options[order_index,2], collapse = ', ')
+  })
 
   #If we have multiple of EXACT, PARTIAL, TAXON_STATUS only keep the worst level of matching.
   match_short = stringr::str_replace_all(match_short,'EXACT, PARTIAL','PARTIAL')
   match_short = stringr::str_replace_all(match_short,'PARTIAL, TAXON_STATUS','TAXON_STATUS')
+  match_short = stringr::str_replace_all(match_short,'AUTHOR, TAXON_STATUS','TAXON_STATUS')
+  match_short = stringr::str_replace_all(match_short,'PARTIAL, SAME_ACC','SAME_ACC')
+  match_short = stringr::str_replace_all(match_short,'AUTHOR, SAME_ACC','SAME_ACC')
   match_short = stringr::str_replace_all(match_short,'EXACT, UNCLEAR','UNCLEAR')
+  match_short = stringr::str_replace_all(match_short,'PARTIAL, UNCLEAR','UNCLEAR')
+  match_short = stringr::str_replace_all(match_short,'AUTHOR, METHOD','METHOD')
+  match_short = stringr::str_replace_all(match_short,'PARTIAL, METHOD','METHOD')
 
+  # Find the unclear matches, these are when we don't have NO_MATCH or CULT/INDET but we do not point to a matched record.
+  possible_index = which(!match_short %in% c('NO_MATCH', 'CULT/INDET'))
+  no_code = !grepl('[0-9][0-9\\-]+',messages[possible_index])
+  match_short[possible_index[no_code]] = paste0(match_short[possible_index[no_code]], ', ', 'UNCLEAR')
   return(match_short)
 }
 

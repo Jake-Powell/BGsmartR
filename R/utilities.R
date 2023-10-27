@@ -36,7 +36,7 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
     if(is.na(taxon_names_full[i])){
       authors[i] = ''
     }
-    else if(taxon_names_full[i] != ''){
+    else if(taxon_names_full[i] != '' | taxon_name_words_grepl[i] != ''){
       auth_cur = stringr::str_replace_all(taxon_names_full[i],taxon_name_words_grepl[i],'')
       authors[i] = stringr::str_squish(auth_cur)
     }

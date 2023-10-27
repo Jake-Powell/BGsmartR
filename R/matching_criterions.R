@@ -73,7 +73,7 @@ additional_wcvp_matching <- function(enrich_database_extract, message = ''){
       }
       else if(length(chosen_record) >1){
         matched = chosen_record
-        message = paste0('(', message, 'multiple best taxon status, do not match',')',collapse = '')
+        message = paste0('(', message, 'multiple best taxon status',')',collapse = '')
         match_flag = TRUE
       }
     }
