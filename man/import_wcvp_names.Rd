@@ -20,10 +20,10 @@ import_wcvp_names(
 \item{wanted_columns}{specify extra columns to extract from \code{wcvp_names.csv}.}
 }
 \value{
-Data frame of ddesired information from wcvp_names
+Data frame of desired information from wcvp_names
 }
 \description{
-We allow three methods for uploading the information from wcvp_names:
+We allow four three for uploading the information from wcvp_names:
 \itemize{
 \item By choosing a file path to a csv file containing the information using \code{filepath}.
 \item By loading an R save (file type \code{.RData}, \code{.rdata}, \code{.rda} or \code{.rds}) via \code{filepath}.

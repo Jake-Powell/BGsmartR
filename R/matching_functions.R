@@ -304,7 +304,7 @@ match_all_issue <- function(taxon_names,
     enriched_cur = enriched_cur[match_by_criterion$row,]
     current_message = paste0(current_message, match_by_criterion$message, collapse =' ')
     if(nrow(enriched_cur) == 1){
-      current_message = paste0(current_message, ' (',enriched_cur[[enrich_display_in_message_column]],
+      current_message = paste0(current_message, ' -> (',enriched_cur[[enrich_display_in_message_column]],
                                ', ', enriched_cur[[enrich_taxon_name_column]],
                                ')',collapse =' ')
       return(list(plant_identifer = enriched_cur[[enrich_plant_identifier_column]], message = current_message))
@@ -451,7 +451,7 @@ no_match_cultivar_indet <- function(taxon_names){
   with_grex = which(words > 2 & grepl(' grex$| series$', taxon_names))
 
   # Those that end with a colour. (checked not in wcvp)
-  end_in_colour = which(grepl(' blue$| green$| red$| orange$| pink$| yellow$| white$| purple$| black$| brown$| tall$| short$| dwarf$| form$| mix$| mixture$| mixed$|cultivar| group$|selection|indet\\.$| hort$|hort\\.$| aggr$| aggr\\.$|varient$|varient | sp$|unidentified|yield| hybrids$|strain| male$| female$|variegated',taxon_names))
+  end_in_colour = which(grepl(' blue$| green$| red$| orange$| pink$| yellow$| white$| purple$| black$| brown$| tall$| short$| dwarf$| form$| mix$| mixture$| mixed$|cultivar| group$|selection|indet\\.$| aggr$| aggr\\.$|varient$|varient | sp$|unidentified|yield| hybrids$|strain| male$| female$|variegated|".*?"',taxon_names))
 
   not_in_wcvp = unique(c(not_in_wcvp, with_grex, end_in_colour))
 
@@ -518,7 +518,7 @@ get_match_from_multiple <- function(taxon_name_and_author, enrich_database_mult,
     }
   }
   else{
-    current_message = paste0(current_message, '(No authors) ->', collapse =' ')
+    current_message = paste0(current_message, '(No authors)', collapse =' ')
   }
 
   ##############################

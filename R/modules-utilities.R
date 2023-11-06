@@ -32,9 +32,9 @@ exist_at_date <- function(date, AccessionYear, ItemStatusDate, ItemStatusType){
   # use the current day, unless not existing then use the date of that entry.
   post_date = rep(as.character(Sys.Date()),length(AccessionYear))
   post_date[ItemStatusType == 'NotExisting'] = ItemStatusDate[ItemStatusType == 'NotExisting']
-  # If only a year is given assume it occurs on the 1st of Jan.
+  # If only a year is given assume it occurs on the 31st of Dec
   post_date[stringr::str_length(post_date) == 4] = paste( post_date[stringr::str_length(post_date) == 4], '12', '31', sep = "-")
-  # If only a year and month is given assume the day is the 1st.
+  # If only a year and month is given assume the day is the 28th.
   post_date[stringr::str_length(post_date) == 7] = paste( post_date[stringr::str_length(post_date) == 7], '28', sep = "-")
   dates = data.frame(pre = pre_date_char, post = post_date, pre_date = pre_date, post_date = as.Date(post_date, "%Y-%m-%d"))
 

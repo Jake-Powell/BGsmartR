@@ -57,7 +57,7 @@ prepare_enrich_database <- function(enrich_database,
   ### A) Sanitising taxonomic names and authors.
   if(do_sanitise){
     if(console_message){
-      print('Sanitising taxonomic names and author')
+      cli::cli_h1("Sanitising taxonomic names and author")
     }
     sanitised = BGSmartR::sanitise_names_authors_report(
       enrich_database,
@@ -73,7 +73,7 @@ prepare_enrich_database <- function(enrich_database,
   ### B) Add taxon name length column.
   if(do_taxon_length){
     if(console_message){
-      print('Add taxon name length column')
+      cli::cli_h1("Add taxon name length column")
       taxon_length = unlist(pbapply::pblapply(enrich_database[[enrich_taxon_name_column]], stringr::str_length))
     }else{
       taxon_length = unlist(lapply(enrich_database[[enrich_taxon_name_column]], stringr::str_length))
@@ -86,7 +86,7 @@ prepare_enrich_database <- function(enrich_database,
   ### C)  Add column detailing whether the taxonomic name is a single entry.
   if(do_single_entry){
     if(console_message){
-      print('Add single entry column')
+      cli::cli_h1("Add single entry column")
     }
     ### Decide whether to use the taxonomic name column or the sanitised name column.
     if('sanitise_name' %in% names(enrich_database)){
@@ -114,7 +114,7 @@ prepare_enrich_database <- function(enrich_database,
 
     ### D.2) Use author words to get the words from each author.
     if(console_message){
-      print('Add single entry column')
+      cli::cli_h1("Add author words column")
       author_word = unlist(pbapply::pblapply(enrich_database[[wanted_author_column]],function(x){paste0(BGSmartR::author_words(x),collapse =', ')}))
 
     }else{
@@ -128,7 +128,7 @@ prepare_enrich_database <- function(enrich_database,
   ### E) sort the records into alphabetical order.
   if(do_sort){
     if(console_message){
-      print('Sort the records into alphabetical order.')
+      cli::cli_h1("Sort the records into alphabetical order")
     }
     enrich_database = enrich_database[order(enrich_database[[wanted_column]]),]
   }

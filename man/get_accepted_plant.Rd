@@ -7,7 +7,7 @@
 get_accepted_plant(powo_id)
 }
 \arguments{
-\item{powo_id}{Plants of the World Online identifier}
+\item{powo_id}{Plants of the World Online identifier.}
 }
 \value{
 A vector of length two containing the accepted name and accepted powo_id.
