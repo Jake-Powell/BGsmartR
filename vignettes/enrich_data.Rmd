@@ -264,23 +264,225 @@ One way of performing the scraping is by utilising the `RSelenium` package. For 
 Below we provide an example of scraping information for three families from BGCI plant search:
 
 ```{r, eval = F}
+## choose some families we want to extract the records for.
+families = c('Canellaceae', 'Phyllanthaceae', 'Phytolaccaceae')
+
+# Function to web scrape from BGCI plant search with a variety of search elements allowed.
+extract_search_BGCI_plant_search <- function(family = NA,
+                                             genus = NA,
+                                             specific_epithet = NA,
+                                             infraspecific_epithet = NA,
+                                             exclude_synonyms = FALSE,
+                                             hybrid_status = '',
+                                             cultivar_status = '',
+                                             cultivar = NA,
+                                             grex = NA,
+                                             germplasm_type = NA,
+                                             RSelenium_server = NA,
+                                             try_over_1000 = TRUE){
+  # Function to try and find the number of gardens from the webpage.
+  try_find_no_gardens <- function(){
+    out <- tryCatch(
+      {
+        no_found = rmDr$findElement(using = 'xpath', '//*[@id="app"]/div/div/main/div/div/div[2]/div/div/div/div[1]/div[1]/div[1]/div/p')
+        number_found = as.numeric(stringr::str_remove(stringr::str_split(no_found$getElementText()[[1]], ' ')[[1]][1], ','))
+      },
+      error=function(cond) {
+        message(paste("doesn't need closing:"))
+        return(NA)
+      },
+      warning=function(cond) {
+        message("Here's the original warning message:")
+        message(cond)
+        return(NULL)
+      },
+      finally={
+      }
+    )    
+    return(out)
+  }
+  
+  
+  ### The function will only work is an RSelenium server is already active.
+  suppressWarnings(
+    if(is.na(RSelenium_server)){
+      stop('Require active RSelenium server!')
+    }
+  )
+  # assume browser is already open
+  rmDr = RSelenium_server
+  
+  
+  #### 1) We first need to create the web address with the search.
+  address = 'https://plantsearch.bgci.org/search?'
+  
+  if(!is.na(genus)){
+    address = paste0(address,'filter[genus]=',genus,'&', collapse ='')
+  }
+  if(!is.na(specific_epithet)){
+    address = paste0(address,'filter[specific_epithet]=',specific_epithet,'&', collapse ='')
+  }
+  if(!is.na(infraspecific_epithet)){
+    address = paste0(address,'filter[infraspecific_epithet]=',infraspecific_epithet,'&', collapse ='')
+  }
+  if(!is.na(family)){
+    address = paste0(address,'filter[family]=',family,'&', collapse ='')
+  }
+  if(exclude_synonyms == T){
+    address = paste0(address,'filter[exclude_synonyms]=exclude&', collapse ='')
+  }
+  if(hybrid_status == 'show only'){
+    address = paste0(address,'filter[hybrid_status]=only&', collapse ='')
+  }
+  if(hybrid_status == 'exclude'){
+    address = paste0(address,'filter[hybrid_status]=exclude&', collapse ='')
+  }
+  if(cultivar_status == 'show only'){
+    address = paste0(address,'filter[cultivar_status]=only&', collapse ='')
+  }
+  if(cultivar_status == 'exclude'){
+    address = paste0(address,'filter[cultivar_status]=exclude&', collapse ='')
+  }
+  if(!is.na(cultivar)){
+    address = paste0(address,'filter[cultivar]=',cultivar,'&', collapse ='')
+  }
+  if(!is.na(grex)){
+    address = paste0(address,'filter[grex]=',grex,'&', collapse ='')
+  }
+  if(!is.na(germplasm_type)){
+    address = paste0(address,'filter[germplasm_type]=',germplasm_type,'&', collapse ='')
+  }
+  address = paste0(address, 'sort=name')
+  
+  # navigate to the webpage.
+  rmDr$navigate(address)
+  
+  
+  # Find out how mant records the search yields, by keep trying to use try_find_no_gardens().
+  Sys.sleep(2)
+  found_number_of_gardens = FALSE
+  while(!found_number_of_gardens){
+    number_found = try_find_no_gardens()
+    if(!is.na(number_found)){
+      found_number_of_gardens = TRUE
+    }else{
+      Sys.sleep(1)
+    }
+  }
+  
+  # Extract the table dependent on the number of items found.
+  if(number_found == 0){
+    df = data.frame(t(data.frame(row.names = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites'))))
+    names(df) = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites')
+    
+    return(list(number_found = number_found, table = df))
+    
+  }
+  if(number_found >= 1000 & !try_over_1000){
+    df = data.frame(t(data.frame(row.names = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites'))))
+    names(df) = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites')
+    
+    return(list(number_found = number_found, table = df))
+  }
+  if(number_found <= 500 & number_found > 0){
+    
+    # if we have 101-500 records we need to scroll down the table.
+    if(number_found > 100 & number_found < 501){
+      # First we need to scroll to the bottom of the table to load all the values.
+      to_load = c(101,201,301,401)
+      for(number in to_load[to_load <= number_found]){
+        last_element_table = rmDr$findElement(using = 'xpath', paste0('//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr[',number,']'))
+        Sys.sleep(2)
+        last_element_table$clickElement()
+        Sys.sleep(4)
+      }
+      
+    }
+    
+    # Get the table from the website (for all locations)
+    data_table = rmDr$findElement(using = 'xpath','//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table')
+    
+    # Extract table into R.
+    data_table_html <- data_table$getPageSource()
+    page <- rvest::read_html(data_table_html |> unlist())
+    df <- as.data.frame(rvest::html_table(page)[[1]])
+    names(df) = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites')
+    
+  }
+  if(number_found > 500){
+    
+    
+    #Sort via taxon name and rip out the data twice.
+    
+    address_sortAZ = address
+    address_sortZA = stringr::str_replace(address, '&sort=name', '&sort=-name')
+    
+    rmDr$navigate(address_sortAZ)
+    
+    # Go to sleep to allow the table to load.
+    Sys.sleep(8)
+    
+    # First we need to scroll to the bottom of the table to load all the values.
+    to_load = c(101,201,301,401)
+    for(number in to_load){
+      last_element_table = rmDr$findElement(using = 'xpath', paste0('//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr[',number,']'))
+      Sys.sleep(2)
+      last_element_table$clickElement()
+      Sys.sleep(6)
+    }
+    
+    # Get the table from the website (for all locations)
+    data_table = rmDr$findElement(using = 'xpath','//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table')
+    
+    # Extract table into R.
+    data_table_html <- data_table$getPageSource()
+    page <- rvest::read_html(data_table_html |> unlist())
+    df1 <- as.data.frame(rvest::html_table(page)[[1]])
+    df1 = df1[-nrow(df1),1:4]
+    names(df1) = letters[1:4]
+    
+    # 2) Extract table alphabetical decreasing
+    rmDr$navigate(address_sortZA)
+    
+    # Go to sleep to allow the table to load.
+    Sys.sleep(8)
+    
+    # First we need to scroll to the bottom of the table to load all the values.
+    to_load = c(101,201,301,401)
+    for(number in to_load){
+      last_element_table = rmDr$findElement(using = 'xpath', paste0('//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr[',number,']'))
+      Sys.sleep(2)
+      last_element_table$clickElement()
+      Sys.sleep(6)
+    }
+    
+    # Get the table from the website (for all locations)
+    data_table = rmDr$findElement(using = 'xpath','//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table')
+    
+    # Extract table into R.
+    data_table_html <- data_table$getPageSource()
+    page <- rvest::read_html(data_table_html |> unlist())
+    df2 <- as.data.frame(rvest::html_table(page)[[1]])
+    df2 = df2[-nrow(df2),1:4]
+    names(df2) = letters[1:4]
+    
+    
+    df = rbind(df1, df2)
+    df = unique(df)
+    names(df) = c('Taxonomic Name and Autority', 'Family','Name Status', '# of Ex Situ Sites')
+  }
+  
+  
+  # return a list of the number of items found and the table (of max 1000 items).
+  
+  return(list(number_found = number_found, table = df))
+}
+
 # Load some libraries.
 library(RSelenium)
 library(wdman)
 library(netstat)
 
-## choose some families we want to extract the records for.
-families = c('Canellaceae', 'Phyllanthaceae', 'Phytolaccaceae')
-
-# plant search url with germplasm_type = plant and excluding cultivars.
-# We split this into two sections so we can add the family search in the middle.
-web_address = c('https://plantsearch.bgci.org/search?','filter[germplasm_type]=plant&filter[cultivar_status]=exclude&sort=name')
-
-# Get the urls of searching each family.
-family_search_urls = paste0(web_address[1], 'filter[family]=',families,'&', web_address[2])
-
-# store for the output
-output = NULL
 
 # Open Selenium server (change to whatever chrome version you're using)
 remote_driver = rsDriver(browser = 'chrome',
@@ -292,72 +494,148 @@ rmDr = remote_driver$client
 
 # open a browser
 rmDr$open()
-rmDr$maxWindowSize()
+rmDr$maxWindowSize() # set to max window size so that the table shows.
 
+# Create stores for the web scraping.
+BGCI_plant_search = NULL 
+family_size = NULL
+
+### Need to loop over all families and extract the records we want. 
 for(i in 1:length(families)){
-  
-  # navigate to the current family search.
-  rmDr$navigate(family_search_urls[i])
-  
-  # Go to sleep to allow the table to load.
-  Sys.sleep(5)
-  
-  # Retrieve how many matches we found. Be getting the text at the top of the table "XX Taxa Found". And stripping out the number XX. (use google chrome inspect to get the xpath of this element)
-  no_found = rmDr$findElement(using = 'xpath', '//*[@id="app"]/div/div/main/div/div/div[2]/div/div/div/div[1]/div[1]/div[1]/div/p')
-  number_found = as.numeric(stringr::str_remove(stringr::str_split(no_found$getElementText()[[1]], ' ')[[1]][1], ','))
-  
-  # Depending on the number found we have to do different things:
-  
-  # if there are no records we don't need to add anything to the output
-  if(number_found == 0){
+  family = families[i]
+  print(paste0(i, ': ', family))
+  save(BGCI_plant_search, file = 'data_current.rda')
+
+  # First let's try and get the whole family in one go.
+  family_data = extract_search_BGCI_plant_search(family = family, RSelenium_server = rmDr, try_over_1000 = FALSE,
+                                                 cultivar_status = 'exclude', germplasm_type = 'plant')
+  print(paste0(i, ': ', family, '   found = ', family_data$number_found))
+  family_size = rbind(family_size, c(family,family_data$number_found))
+  if(family_data$number_found <= 1000){
+    BGCI_plant_search = rbind(BGCI_plant_search, family_data$table)
     next
-   }
-  # if there are greater then 500 records we can't extract them all. So we won't extract any.
-  if(number_found > 500){
-     warning(paste0('More than 500 found for family = ', families[i]))
-    next
-   }
-  # If we have between 101 and 500 records we need to load all the records before downloading the table
-  # (only 100 are originally loaded)
-  if(number_found > 100 & number_found < 501){
-    
-    # First we need to scroll to the bottom of the table to load all the values.
-    to_load = c(101,201,301,401)
-    for(number in to_load[to_load < number_found]){
-      last_element_table = rmDr$findElement(using = 'xpath', paste0('//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr[',number,']'))
-      Sys.sleep(1)
-      last_element_table$clickElement()
-      Sys.sleep(4)
+  }
+  
+  if(family_data$number_found > 1000){
+    #Loop over each letter of the alpha bet.
+    current_family_data = NULL
+    issue_letters = NULL
+    for(letter in LETTERS){
+      data_cur = extract_search_BGCI_plant_search(family = family, genus = letter, RSelenium_server = rmDr, try_over_1000 = FALSE, cultivar_status = 'exclude')
+      print(paste0(letter,': ', data_cur$number_found))
+      if(data_cur$number_found > 1000){
+        issue_letters = c(issue_letters, letter)
+      }
+      else{
+        current_family_data = rbind(current_family_data, data_cur$table)
+      }
     }
     
+    issue_letters2 = NULL
+    if(length(issue_letters) > 0){
+      for(issue_letter in issue_letters){
+        for(letter in LETTERS){
+          data_cur = extract_search_BGCI_plant_search(family = family, genus = issue_letter, specific_epithet = letter, RSelenium_server = rmDr, try_over_1000 = FALSE, cultivar_status = 'exclude')
+          print(paste0(issue_letter,' and ',letter, ':  ', data_cur$number_found))
+          if(data_cur$number_found > 1000){
+            issue_letters2 = c(issue_letters2, paste0(issue_letter, ' ', letter))
+          }
+          else{
+            current_family_data = rbind(current_family_data, data_cur$table)
+          }
+        }
+      }
+      if(length(issue_letters2) > 0){
+        warnings(paste0('For ', family, ' we have more than 1000 for ', issue_letters2))
+        
+      }
+    }
+   
+    
+    BGCI_plant_search = rbind(BGCI_plant_search, current_family_data)
+    
   }
-  # If we have between 1 and 100 records we can just carry on...
-
-  # Get the table from the website (for all locations)
-  data_table = rmDr$findElement(using = 'xpath','//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table')
-  
-  # Extract table into R.
-  data_table_html <- data_table$getPageSource()
-  page <- rvest::read_html(data_table_html |> unlist())
-  df <- as.data.frame(rvest::html_table(page)[[1]])
-  names(df) = letters[1:4]
-  
-  # add to output
-  output <- rbind(output, df)
-  
-  Sys.sleep(3)
-
 }
 
-# We have finished and can close the Selenium server.
 remote_driver$server$stop()
 
-# format the output.
-output = data.frame(output)
-names(output) = c('Taxon name', 'Family', 'Name Accepted', '# of Ex Situ Sites')
-rownames(output) = 1:nrow(output)
+# We have now web scraped the families we want into the variable `BGCI_plant_search`.
+```
 
+**_NOTE:_** web scraping can be used for creating enrichment data from many online taxonomic resources. 
 
+Once we have obtained the data we want to format it ready to be matched via BGSmartR. 
+
+We can do this by running the following:
+
+```{r, eval = FALSE}
+# Want to split taxonomic name and authority up into parts.  We do this via the spacing between words and capital letter search.
+taxon_parts = data.frame(t(data.frame(pbapply::pblapply(BGCI_plant_search$`Taxonomic Name and Autority`, function(x){
+  # 1) If we can split on 5 space or 4 space and get two parts take the first part.
+  split_5space = stringr::str_split(x, '     ')[[1]] |> stringr::str_squish()
+  if(length(split_5space) == 2){
+    return(split_5space)
+  }
+  if(length(split_5space) > 2){
+    # find the words with capital letters
+    start_authority =which(grepl('[A-Z]', split_5space))[-1][1]
+    taxon_name = paste0(split_5space[1:(start_authority-1)], collapse = ' ') |> stringr::str_squish()
+    taxon_author = paste0(split_5space[start_authority:length(split_5space)], collapse = ' ') |> stringr::str_squish()
+    return(c(taxon_name, taxon_author))
+  }
+  
+  split_4space = stringr::str_split(x, '    ')[[1]]
+  if(length(split_4space) == 2){
+    return(split_4space)
+  }
+  if(length(split_4space) > 2){
+    # find the words with capital letters
+    start_authority =which(grepl('[A-Z]', split_4space))[-1][1]
+    taxon_name = paste0(split_4space[1:(start_authority-1)], collapse = ' ') |> stringr::str_squish()
+    taxon_author = paste0(split_4space[start_authority:length(split_4space)], collapse = ' ') |> stringr::str_squish()
+    return(c(taxon_name, taxon_author))
+  }
+  
+  split_3space = stringr::str_split(x, '   ')[[1]]
+  if(length(split_3space) == 2){
+    return(split_3space)
+  }
+  if(length(split_3space) > 2){
+    # find the words with capital letters
+    start_authority =which(grepl('[A-Z]', split_3space))[-1][1]
+    taxon_name = paste0(split_3space[1:(start_authority-1)], collapse = ' ') |> stringr::str_squish()
+    taxon_author = paste0(split_3space[start_authority:length(split_3space)], collapse = ' ') |> stringr::str_squish()
+    return(c(taxon_name, taxon_author))
+  }
+  
+  
+  # If we get to this stage we assume there are no authors and therefore return (x,'')
+  
+  return(c(x,''))
+    }))))
+rownames(taxon_parts) = 1:nrow(taxon_parts)
+
+# squish the taxon name and author to remove excess whitespace.
+names(taxon_parts) = c('taxon_name', 'taxon_author')
+taxon_parts$taxon_name = stringr::str_squish(taxon_parts$taxon_name)
+taxon_parts$taxon_author = stringr::str_squish(taxon_parts$taxon_author)
+
+# Join the taxonomic name and author to the extracted BGCI plant search and rename/reorder columns.
+BGCI_plant_search = data.frame(BGCI_plant_search,taxon_parts)
+names(BGCI_plant_search) = c('taxon_name_full', 'family', 'name_status', 'no_gardens', 'taxon_names', 'taxon_authors')
+BGCI_plant_search = BGCI_plant_search[,c(1,5,6,2,3,4)]
+# Remove excess whitespace from the extracted combined taxonomic name and author.
+BGCI_plant_search$taxon_name_full = BGCI_plant_search$taxon_name_full |> stringr::str_squish()
+
+# Run enrichement database preparation on BGCI plant search data set.
+BGCI_plant_search = BGSmartR::prepare_enrich_database(BGCI_plant_search,
+                                  enrich_taxon_name_column = 'taxon_names',
+                                  enrich_taxon_authors_column = 'taxon_authors',
+                                  do_sort = FALSE,
+                                  console_message = T
+                                  )
+
+# We now have `BGCI_plant_search` ready to be matched.
 ```
 
 

@@ -248,7 +248,7 @@ match_all_issue <- function(taxon_names,
   to_try = data.frame(taxon_names = names_to_try, authors = taxon_authors)
   ### 3.1) Loop over all names_to_try.
   counter = 0
-  matches = apply(to_try, 1, function(name_author){
+  matches = pbapply::pbapply(to_try, 1, function(name_author){
     counter <<- counter +1
     tax_names = name_author[1]
     tax_author = name_author[2]

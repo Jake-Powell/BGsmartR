@@ -6,7 +6,7 @@
 #'
 #'If the connection to POWO doesn't work (or exist) then the function returns (NA, NA).
 #'
-#' @param powo_id Plants of the World Online identifier
+#' @param powo_id Plants of the World Online identifier.
 #'
 #' @return A vector of length two containing the accepted name and accepted powo_id.
 #' @export
@@ -17,35 +17,20 @@
 get_accepted_plant <- function(powo_id) {
   out <- tryCatch(
     {
-      # Just to highlight: if you want to use more than one
-      # R expression in the "try" part then you'll have to
-      # use curly brackets.
-      # 'tryCatch()' will return the last evaluated expression
-      # in case the "try" part was completed successfully
       powo_info = taxize::pow_lookup(paste0('urn:lsid:ipni.org:names:',powo_id))
       new_accepted_name = powo_info$meta$accepted$name
       new_accepted_id = stringr::str_remove(powo_info$meta$accepted$fqId, 'urn:lsid:ipni.org:names:')
       return(c(new_accepted_name, new_accepted_id))
 
-      # The return value of `readLines()` is the actual value
-      # that will be returned in case there is no condition
-      # (e.g. warning or error).
-      # You don't need to state the return value via `return()` as code
-      # in the "try" part is not wrapped inside a function (unlike that
-      # for the condition handlers for warnings and error below)
     },
     error=function(cond) {
-      # message(paste("URL does not seem to exist for powo:", powo_id))
-      # message("Here's the original error message:")
-      # message(cond)
-      # Choose a return value in case of error
+
       return(c(NA,NA))
     },
     warning=function(cond) {
       message(paste("URL caused a warning for powo:", powo_id))
       message("Here's the original warning message:")
       message(cond)
-      # Choose a return value in case of warning
       return(NULL)
     }
 
@@ -57,7 +42,7 @@ get_accepted_plant <- function(powo_id) {
 
 #' Information from wcvp_names
 #'
-#' We allow three methods for uploading the information from wcvp_names:
+#' We allow four three for uploading the information from wcvp_names:
 #' - By choosing a file path to a csv file containing the information using `filepath`.
 #' - By loading an R save (file type `.RData`, `.rdata`, `.rda` or `.rds`) via `filepath`.
 #' - By using the package  `rWCVPData`, by setting `use_rWCVPData` = TRUE.
@@ -77,7 +62,7 @@ get_accepted_plant <- function(powo_id) {
 #' @param use_rWCVPdata Flag for whether we use rWCVPdata to get wcvp_names
 #' @param wanted_columns specify extra columns to extract from `wcvp_names.csv`.
 #'
-#' @return Data frame of ddesired information from wcvp_names
+#' @return Data frame of desired information from wcvp_names
 #' @export
 #'
 import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_columns = c("plant_name_id", "taxon_rank", "taxon_status", "family", "genus", "species", "lifeform_description", "climate_description", "taxon_name", "taxon_authors", "accepted_plant_name_id", "powo_id")){
@@ -109,7 +94,10 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
     if(system.file(package='rWCVPdata') == ''){
       stop('Package rWCVPdata is not installed please use another method to load wcvp_names or install the package')
     }
-    # wcvp_names <- rWCVPdata::wcvp_names
+      if(requireNamespace('rWCVPdata', quietly = T)){
+        wcvp_names <- rWCVPdata::wcvp_names
+
+      }
 
   }
   if(!exists('wcvp_names')){
@@ -125,6 +113,21 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
 
   # Change the taxon name for one special case.
   wcvp_names$taxon_name[wcvp_names$taxon_name == 'xx viridissimus var. viridissimus'] = 'Trigonostemon viridissimus var. viridissimus'
+
+
+  #################################
+  # 2) Prepare wcvp_names.
+  #################################
+  wcvp_names <- prepare_enrich_database(wcvp_names,
+                          enrich_taxon_name_column = 'taxon_name',
+                          enrich_taxon_authors_column = 'taxon_authors',
+                          do_sanitise = TRUE,
+                          do_taxon_length = TRUE,
+                          do_single_entry = TRUE,
+                          do_author_parts = TRUE,
+                          do_add_id = FALSE,
+                          do_sort = FALSE,
+                          console_message = TRUE)
 
   #################################
   # 2) Sanitise taxon names.
