@@ -64,6 +64,7 @@ match_collection_to_wcvp <- function(collection, wcvp,
     taxon_author = collection[,match(taxon_author_column, names(collection))]
     if(all(taxon_author == '')){
       do_taxon_author = FALSE
+      taxon_author = rep(NA, length(taxon_author))
     }
   }
   else if(!is.na(taxon_name_full_column)){

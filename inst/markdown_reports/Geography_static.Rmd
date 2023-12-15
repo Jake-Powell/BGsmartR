@@ -5,7 +5,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(ggplot2)
 library(sf)
 
@@ -46,6 +46,11 @@ scale_fill_discrete <- scale_fill_discrete
 scale_fill_binned <- scale_fill_binned
 
 exporting_data_store = list()
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
 
 ```
 
@@ -223,6 +228,10 @@ fig = ggplot(plot_info)+
   guides(fill=guide_legend(title="Species \nRepresented \nin LC"),
          col = "none")
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_representation_of_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+
 fig
 ```
 
@@ -251,6 +260,10 @@ fig = ggplot(plot_info)+
                        name="Number of Species")+
   coord_sf(expand=FALSE)
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_number_of_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+  
 fig
 ```
 
@@ -292,6 +305,9 @@ fig = ggplot(plot_info)+
   guides(fill=guide_legend(title="Species \nRepresented \nin LC"),
          col = "none")
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_representation_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
 fig
 ```
 
@@ -320,6 +336,9 @@ fig = ggplot(plot_info)+
                        name="Number of Species")+
   coord_sf(expand=FALSE)
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_number_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
 
 fig
 ```
@@ -362,6 +381,9 @@ fig = ggplot(plot_info)+
   guides(fill=guide_legend(title="Species \nRepresented \nin LC"),
          col = "none")
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_representation_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
 fig
 ```
 
@@ -389,6 +411,11 @@ fig = ggplot(plot_info)+
   scale_fill_distiller(direction=1,
                        name="Number of Species")+
   coord_sf(expand=FALSE)
+
+
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_number_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
 
 fig
 ```

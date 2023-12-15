@@ -48,3 +48,10 @@
 #'   \item{geometry}{The geometry of the area}
 #' }
 "wgsrpd3_level3_simp"
+
+#' Diversity_classification
+#'
+#' A list containing two dataframes:
+#'  - Classification: containing how families link to higher order groups.
+#'  - synomym_families: containing family names that are synomym and which to use within Classificiation.
+"Diversity_classification"

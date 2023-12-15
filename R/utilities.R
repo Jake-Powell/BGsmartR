@@ -15,7 +15,11 @@
 #' taxon_names_full = c('Achatocarpus praecox Griseb.', 'Anthurium affine Schott')
 #' author_from_taxon_name_full(taxon_names, taxon_names_full)
 author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
-  #As we're using grepl need to add escape for special characters
+  # Remove all backslashes
+  taxon_names = stringr::str_remove_all(taxon_names, pattern = '\\\\')
+  taxon_names_full = stringr::str_remove_all(taxon_names_full, pattern = '\\\\')
+
+  #As we're using grepl need to add escape for special characters.
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\.', '\\\\.')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\[', '\\\\[')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\]', '\\\\]')
@@ -23,6 +27,8 @@ author_from_taxon_name_full <- function(taxon_names, taxon_names_full){
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\?', '\\\\?')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\(', '\\\\(')
   taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\)', '\\\\)')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\*', '\\\\*')
+  taxon_names = stringr::str_replace_all(taxon_names,pattern = '\\*', '\\\\*')
 
   # Convert taxon name to a grepl statement, where AA BB goes to AA|BB.
   taxon_name_words_grepl = unlist(lapply(taxon_names, function(x){

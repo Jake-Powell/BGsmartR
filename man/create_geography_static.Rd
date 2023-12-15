@@ -13,9 +13,10 @@ create_geography_static(
   doubtful_locations = FALSE,
   export_data = FALSE,
   output_file = NULL,
+  output_dir = NULL,
   table_font_size = 10,
   ggtheme = NULL,
-  separate_plot_folder = TRUE,
+  separate_figure_folder = TRUE,
   scale_colour_distiller = function(...) ggplot2::scale_colour_distiller(palette =
     "Greens", ...),
   scale_fill_distiller = function(...) ggplot2::scale_fill_distiller(palette = "Greens",
@@ -42,11 +43,13 @@ create_geography_static(
 
 \item{output_file}{The file path of the native report.}
 
+\item{output_dir}{The output directory}
+
 \item{table_font_size}{Font size for tables.}
 
 \item{ggtheme}{gg plot theme to be applied to all ggplots, see \code{ggthemes} package for pre-set themes.}
 
-\item{separate_plot_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
+\item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
 
 \item{scale_colour_distiller, scale_fill_distiller, scale_fill_discrete, scale_colour_discrete}{scales for ggplot. Default is to use viridis for discrete and greens for distiller.}
 

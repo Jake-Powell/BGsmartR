@@ -45,6 +45,9 @@
 #'  taxon_name_full_column = 'full')
 sanitise_name <- function(taxon_name){
 
+  if(is.na(taxon_name)){
+    return('NA')
+  }
   ### 1) fix x/X/h/H to \u00D7.
   if(grepl(' [xXhH] |^[xXhH] | [xXhH]$',taxon_name)){
     # Change the symbol

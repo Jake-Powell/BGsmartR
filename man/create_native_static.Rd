@@ -16,9 +16,10 @@ create_native_static(
   min_year = 1970,
   export_data = FALSE,
   output_file = NULL,
+  output_dir = NULL,
   table_font_size = 10,
   ggtheme = NULL,
-  separate_plot_folder = TRUE,
+  separate_figure_folder = TRUE,
   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
   scale_colour_binned = ggplot2::scale_colour_viridis_b,
@@ -51,11 +52,13 @@ create_native_static(
 
 \item{output_file}{The file path of the native report.}
 
+\item{output_dir}{The output directory}
+
 \item{table_font_size}{Font size for tables.}
 
 \item{ggtheme}{gg plot theme to be applied to all ggplots, see \code{ggthemes} package for pre-set themes.}
 
-\item{separate_plot_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
+\item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
 
 \item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
 

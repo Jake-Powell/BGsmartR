@@ -23,9 +23,10 @@
 #' @param output_file The file path of the native report.
 #' @param table_font_size Font size for tables.
 #' @param ggtheme gg plot theme to be applied to all ggplots, see `ggthemes` package for pre-set themes.
-#' @param separate_plot_folder  Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.
+#' @param separate_figure_folder  Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.
 #' @param scale_colour_continuous,scale_colour_discrete,scale_colour_binned,scale_fill_continuous,scale_fill_discrete,scale_fill_binned  scales for ggplot. Default is to use viridis.
 #' @param reference_docx path to a .docx file whose style (design) the report copies.
+#' @param output_dir The output directory
 #'
 #' @return renders the native report (word document)
 #' @export
@@ -41,9 +42,10 @@ create_native_static <- function(enriched_report,
                                  min_year = 1970,
                                  export_data = FALSE,
                                  output_file = NULL,
+                                 output_dir = NULL,
                                  table_font_size = 10,
                                  ggtheme = NULL,
-                                 separate_plot_folder = TRUE,
+                                 separate_figure_folder = TRUE,
                                  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
                                  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
                                  scale_colour_binned = ggplot2::scale_colour_viridis_b,
@@ -80,6 +82,11 @@ create_native_static <- function(enriched_report,
   else if(is.null(output_file) & collection != 'LC'){
     output_file = paste0(collection, '_native_static.docx')
   }
+  # Set the output directory if not specified.
+  if(is.null(output_dir)){
+    output_dir = getwd()
+  }
+
 
   # 2) Render basic stats_static document.
   if(!is.null(reference_docx)){
@@ -102,9 +109,10 @@ create_native_static <- function(enriched_report,
                                     scale_fill_continuous = scale_fill_continuous,
                                     scale_fill_discrete = scale_fill_discrete,
                                     scale_fill_binned = scale_fill_binned,
-                                    separate_plot_folder = separate_plot_folder),
+                                    separate_figure_folder = separate_figure_folder,
+                                    output_dir = output_dir),
                       output_file = output_file,
-                      output_dir = getwd(),
+                      output_dir = output_dir,
                       output_format = rmarkdown::word_document(reference_docx = reference_docx))
   }else{
     rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_static.Rmd"),
@@ -126,14 +134,15 @@ create_native_static <- function(enriched_report,
                                     scale_fill_continuous = scale_fill_continuous,
                                     scale_fill_discrete = scale_fill_discrete,
                                     scale_fill_binned = scale_fill_binned,
-                                    separate_plot_folder = separate_plot_folder),
+                                    separate_figure_folder = separate_figure_folder,
+                                    output_dir = output_dir),
                       output_file = output_file,
-                      output_dir = getwd(),
+                      output_dir = output_dir,
                       output_format = rmarkdown::word_document())
   }
 
 
-  if(separate_plot_folder){
+  if(separate_figure_folder){
     unlink('native_static_cache', recursive = T)
   }
 }

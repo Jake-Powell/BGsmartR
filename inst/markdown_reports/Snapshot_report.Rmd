@@ -1,0 +1,2094 @@
+---
+title: "Overview of Existing taxa in the LC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+```
+
+```{r, imported parameters, echo = F}
+# Inputs
+# As an input we get 
+# - Enriched report
+# - collection the name to be printed in the report.
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+# coordinates = c(0.128305,52.193403)
+# collection = 'CUBG'
+# 
+# separate_figure_folder = FALSE
+# output_dir = getwd()
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# # load('/Users/jakepowell/Cambridge/Modules/Basic Stats/wgsrpd3.rda)
+# report_kind = 'static'
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# ggtheme = NULL
+# value_on_fig = TRUE
+```
+
+
+```{r theme_ggplot2, echo = FALSE}
+library(ggplot2)
+# Changing the default theme
+if(is.null(ggtheme)){
+   ggtheme <- function(base_size = 16) {
+      ggplot2::theme_bw(base_size = base_size) %+replace%
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+          panel.grid.minor = ggplot2::element_blank(),
+          panel.background = element_rect(fill = 'transparent', color = NA),
+          panel.border = ggplot2::element_blank(),
+          axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          axis.line = ggplot2::element_line(color = "black"),
+          legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+          legend.key.size = ggplot2::unit(1.5, "lines"),
+          legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+          strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+          strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+        )
+    }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+```{r, onRender text, echo = F}
+render_barplot ="
+    function(el) { 
+    console.log(el)
+      el.on('plotly_hover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '#31a354';
+    
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+      el.on('plotly_unhover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '#addd8e';
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+    }
+  "
+```
+
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: Each item is assumed to be a unique accession.\n"}`
+`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to POWO will be used (No non-vascular families). \n"}`
+`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to POWO will be used."}`
+`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in POWO will be used."}`
+`r if(!'AccYear' %in% names(enriched_report)){"- AccYear: All Accession years set to missing. \n"}`
+`r if(!'ItemStatusDate' %in% names(enriched_report)){"- ItemStatusDate: All set to missing. \n"}`
+`r if(!'ItemStatusType' %in% names(enriched_report)){"- ItemStatusType: All set to exisiting. \n"}`
+
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
+
+```{r, Extracting information from enriched report, echo = F}
+# Add required columns if missing.
+needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'Family' %in% names(enriched_report)){
+  enriched_report$Family =rep(NA, nrow(enriched_report))
+}
+if(!'Genus' %in% names(enriched_report)){
+  enriched_report$Genus = rep(NA, nrow(enriched_report))
+}
+if(!'GenusSpecies' %in% names(enriched_report)){
+  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
+}
+if(!'AccYear' %in% names(enriched_report)){
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+
+do_coord = !is.na(coordinates[1])
+# Set report to only the existing items.
+report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+
+#Extract endemic information from report
+endemic = rep('Not Endemic', nrow(report))
+endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(report))
+threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
+report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
+report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
+report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Create a sanitised taxonomic name.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+report_original = report
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+# Extract the location of the collection.
+pnts <- data.frame(x = coordinates[1], y = coordinates[2])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+level3_name = collection_geog_details$LEVEL3_NAM
+level3_code = collection_geog_details$LEVEL3_COD
+
+```
+
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+ location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+   location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+   location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+This report uses data from **`r collection`**.
+
+`r if(do_coord){"With the provided coordinates and using [World Geographical Scheme for Recording Plant Distributions](https://www.tdwg.org/standards/wgsrpd/) (wgsrpd), the collection is found in "}``r if(do_coord){paste0("**",level3_name,"**", collapse = '')}``r if(do_coord){"."}`
+
+
+```{r, Anaylsis, echo = F}
+# Restrict to existing plants.
+report = report[report$ItemStatusType == 'Existing',]
+
+# Number of Items.
+no_items = nrow(report)
+
+# Number of Accessions.
+no_accessions = length(unique(report$AccNoFull))
+
+# Number of taxa
+no_taxa = length(unique(paste0(report$sanitised_taxon, ' ', report$extracted_author)))
+
+#No families.
+# = Use POWO family if available if not use the original.
+families = data.frame(original = report$Family, POWO = report$POWO_family)
+use_family = families$POWO
+use_family[is.na(use_family)] = families$original[is.na(use_family)]
+report$use_family = use_family
+no_families <- length(unique(use_family))
+
+#No genus
+# = Use POWO genus if available if not use the original.
+genus = data.frame(original = report$Genus, POWO = report$POWO_genus)
+use_genus = genus$POWO
+use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+report$use_genus = use_genus
+no_genus <- length(unique(use_genus))
+
+
+#No species
+POWO_GenusSpecies = rep(NA, nrow(report))
+POWO_GenusSpecies[!is.na(report$POWO_plant_name_id)] = paste0(report$POWO_genus[!is.na(report$POWO_plant_name_id)],
+                                                              ' ',
+                                                              report$POWO_species[!is.na(report$POWO_plant_name_id)])
+species_data = data.frame(original = report$GenusSpecies, POWO = POWO_GenusSpecies, infra = report$taxon_type)
+use_genus_species = species_data$POWO
+use_genus_species[is.na(use_genus_species)] = species_data$original[is.na(use_genus_species)]
+report$use_genus_species= use_genus_species
+
+#remove cultivars, indeterminants, hybrids and those without infrageneric level
+species_only = species_data[!grepl('5|6|0',species_data$infra),]
+species_only = species_only[!is.na(species_only$infra),]
+
+use_species = species_only$POWO
+use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
+no_species = length(unique(use_species))
+species_later = no_species
+
+
+species_powo = unique(species_only$POWO[!is.na(species_only$POWO)])
+species_notpowo = unique(species_only$original[is.na(species_only$POWO)])
+species_notpowo = species_notpowo[!species_notpowo %in% species_powo]
+```
+
+This report provides a summary of the diversity and distribution of taxa currently present in the collection. We do this by restricting the database to only items that are `Existing`.
+
+From `What are the ratios of provenance types in the collection?` onwards we only consider 'non-horticultural' taxa. Therefore, from that point onwards the number of taxa is defined to be to the total taxa in the report in the species and infraspecific categories excluding cultivars and hybrids.
+
+#### How many elements? (accessions, items, taxa, species)
+
+```{r, Creating How many elements, echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+basics = data.frame(count = c(no_items,no_accessions, no_taxa, species_later), objects = factor(x = c("Items", "Accessions", "Taxa", "Species"), levels = c("Items", "Accessions", "Taxa","Species")) )
+basics$colors = rep('#addd8e', nrow(basics))
+basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
+
+if(report_kind == 'interactive'){
+  fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text')
+fig <- fig %>% layout(title = "",
+         xaxis = list(title = ""),
+         yaxis = list (title = "Number")) 
+
+fig = fig %>% htmlwidgets::onRender(render_barplot)
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar_how_many_elements.html'))
+}
+
+fig
+}
+
+if(report_kind == 'static'){
+  p<-ggplot(data=basics, aes(x=objects, y=count)) +
+  geom_bar(stat="identity") +
+     labs(title=paste0(""),
+        x ="",
+        y = "Number")
+  if(value_on_fig){
+    p = p +geom_text(aes(label = count),vjust=-0.2)
+  }
+  
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar_how_many_elements.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+  
+  p
+}
+```
+
+In the above:
+
+- Items: The number of records in the report.
+- Accessions: The number of accessions in the report.
+- Taxa: The number of taxa in the report. 
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
+
+***
+
+#### How many of each taxonomic units? (family, genera, species)
+
+```{r, Creating How many of each taxonomic units,  echo = F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+taxa = data.frame(count = c(no_species,no_genus,no_families), TaxonomicCategory = c(c("Species", "Genera", "Families")))
+taxa$colors = rep('#addd8e', nrow(taxa))
+taxa$text = paste0(format(taxa$count,big.mark=','), ' ', taxa$TaxonomicCategory)
+
+if(report_kind == 'interactive'){
+  fig <- plot_ly(taxa, x = ~TaxonomicCategory, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text')
+  fig <- fig %>% layout(title = "",
+           xaxis = list(title = "Taxonomic Category"),
+           yaxis = list (title = "Number")) 
+  
+  fig = fig %>% htmlwidgets::onRender(render_barplot)
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar:how_many_each_taxonomic_unit.html'))
+  }
+  
+  fig
+}
+if(report_kind == 'static'){
+    p<-ggplot(taxa, aes(x=TaxonomicCategory, y=count)) +
+  geom_bar(stat="identity") +
+     labs(title=paste0(""),
+        x ="",
+        y = "Number")
+    
+      if(value_on_fig){
+    p = p +geom_text(aes(label = count),vjust=-0.2)
+  }
+      if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar_how_many_each_taxonomic_unit.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+    
+  p
+}
+
+
+```
+
+In the above:
+
+- Families: The number of families found in the report.
+- Genera: The number of genera found in the report.
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example `Tephrosia longipes var. drummondii` would be condensed to the species `Tephrosia longipes`.
+
+
+***
+
+#### How many species, infraspecific, and cultivars?
+
+```{r, Generating data for How many species, infraspecific, and cultivars}
+########################################
+### Infraspecific diversity pie chart.
+########################################
+# First get POWO taxon name if it exists, if not use sanitised name.
+taxon_names = report$POWO_taxon_name
+taxon_names[is.na(taxon_names)] = report$sanitised_taxon[is.na(taxon_names)]
+
+indet = taxon_names[grepl('0',report$taxon_type)]
+no_indet = length(indet)
+no_unique_indet = length(unique(indet))
+  
+hort = taxon_names[grepl('5|6',report$taxon_type)]
+no_hort = length(hort)
+no_unique_hort = length(unique(hort))
+
+taxon_rank = taxon_names[grepl('2|3|4',report$taxon_type)]
+no_taxon_rank = length(taxon_rank)
+no_unique_taxon_rank = length(unique(taxon_rank))
+
+species = taxon_names[grepl('1',report$taxon_type)]
+no_species = length(species)
+no_unique_species = length(unique(species))
+
+taxa_infra_unique = data.frame(number = c(no_unique_species, no_unique_taxon_rank, no_unique_hort),
+                        InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
+taxa_infra_unique$percent = paste0(round(taxa_infra_unique$number / sum(taxa_infra_unique$number)*100,digits = 1),'%')
+taxa_infra_unique <- taxa_infra_unique %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+
+taxa_infra = data.frame(number = c(no_species, no_taxon_rank, no_hort),
+                        InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
+taxa_infra$percent = paste0(round(taxa_infra$number / sum(taxa_infra$number)*100,digits = 1),'%')
+taxa_infra <- taxa_infra %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+
+
+colors = viridis::viridis(nrow(taxa_infra))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(taxa_infra))
+```
+
+```{r, Creating (interactive) figure for How many species, infraspecific, and cultivars, fig.show="hold", out.width="40%"}
+
+if(report_kind == 'interactive'){
+  fig1 <- plot_ly(taxa_infra, labels = ~InfragenericLevel, values = ~number,
+                type = 'pie',
+                marker = list(colors = colors_alpha),
+                pull = rep(0,nrow(taxa_infra)),
+                hole =.4) %>% layout(title = 'All Items')
+
+
+fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+fig2 <- plot_ly(taxa_infra_unique, labels = ~InfragenericLevel, values = ~number,
+                type = 'pie',
+                marker = list(colors = colors_alpha),
+                pull = rep(0,nrow(taxa_infra)),
+                hole =.4) %>% layout(title = 'Taxa in Collection')
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig1, file = paste0(figures_dir, '/','Pie_how_many_species_hort_infra_all_items.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','Pie_how_many_species_hort_infra_taxa_in_collection.html'))  
+}
+
+
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
+}
+```
+
+```{r, Creating (static) figure for How many species, infraspecific, and cultivars, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+
+if(report_kind == 'static'){
+  pie1 = ggplot(taxa_infra, aes(x="", y=number, fill=forcats::fct_inorder(InfragenericLevel))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('All Items') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5)) +
+    guides(fill=guide_legend(title="Type of taxa"))
+
+pie2 = ggplot(taxa_infra_unique, aes(x="", y=number, fill=forcats::fct_inorder(InfragenericLevel))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('Taxa in LC') + 
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))+
+    guides(fill=guide_legend(title="Type of taxa"))
+
+    if(value_on_fig){
+      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+      
+      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+  }
+
+p =ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+ if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie_how_many_species_hort_infra.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+ }
+
+p
+}
+
+```
+
+where:
+
+- Horticultural taxa: consists of hybrids and cultivars.
+- Infraspecific taxa: includes subspecies (subsp.), varieties (var.) and forma (f.).
+- Species: consists of species names that are not further divided into infraspecific categories
+
+The collection also contains `r no_indet` indeterminate taxa which were removed prior to creating chart. Indeterminate taxa include those such as `Solanum sp.`, `Solanaceae Indet` and `Octomeria aff. serrana`. 
+
+***
+
+#### What are the ratios of provenance types in the collection?
+
+In this section we consider the provenance over accessions (not items).
+
+```{r, remove hort from report}
+report = report[!grepl('5|6',report$taxon_type),]
+```
+
+```{r, Creating What are the ratios of provenance types in the collection, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+########################################
+### provenance pie chart.
+########################################
+# First get POWO taxon name if it exists, if not use sanitised name.
+ accessions = unlist(lapply(stringr::str_split(report$ItemAccNoFull,pattern = '\\*'),function(x){x[1]} ))
+      unique_accessions = unique(accessions)
+      wanted_index = match(unique(accessions), accessions)
+      report_cur = report[wanted_index,]
+      word='Accessions'
+
+prov_table = table(report_cur$ProvenanceCode)
+provenance = data.frame(Provenance = names(prov_table), number = as.numeric(prov_table))
+provenance$text = paste0(provenance$Provenance, '<br>', provenance$number, ' Accessions<br>',
+                         round(provenance$number/sum(provenance$number)*100,digits=2), '%')
+provenance$percent = paste0(round(provenance$number / sum(provenance$number)*100,digits = 1),'%')
+provenance <- provenance %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+########################################
+
+colors = viridis::viridis(nrow(provenance))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(provenance))
+
+if(report_kind == 'interactive'){
+  fig <- plot_ly(provenance, labels = ~Provenance, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(provenance)),
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text)
+
+fig =  fig %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','pie:provenance.html'))
+}
+
+fig
+}
+
+if(report_kind == 'static'){
+  p = ggplot(provenance, aes(x="", y=number, fill=forcats::fct_inorder(Provenance))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('') +
+  scale_fill_discrete() +
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))+
+    guides(fill=guide_legend(title="Provenance"))
+  
+   if(value_on_fig){
+       p = p + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+   }
+
+  
+   if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie_provenance.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+ }
+  
+  p
+}
+```
+
+
+***
+
+#### What is the geographical origin of the collection?
+
+
+```{r, Formatting geography data - interactive}
+if(report_kind == 'interactive'){
+  report_with_geography = report[!is.na(report$geography_codes),]
+
+  # Due to the high level of detail in wgsrpd3 we need to go to a simplified geometry for the interactive geometry plots. 
+    
+  # load all geo areas
+  wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+  
+  details = data.frame(name = wgsrpd3_level3_simp$name, code = wgsrpd3_level3_simp$code)
+  plants = rep('', nrow(details))
+  no_plants = rep(NA,nrow(details))
+  no_unique_plants = rep(NA,nrow(details))
+  plant_ex = rep('',nrow(details))
+  for(i in 1:length(details$code)){
+    index = grepl(pattern = details$code[i], x = report_with_geography$geography_codes) 
+    if(any(index)){
+      plants[i] = paste0(unique(report_with_geography$good_name[index]), collapse =', ')
+      plant_ex[i] = unique(report_with_geography$good_name[index])[1]
+      no_plants[i] = sum(index)
+      no_unique_plants[i] = length(unique(report_with_geography$good_name[index]))
+    }
+  }
+  
+  details = data.frame(details, plants = plants, plant_ex = plant_ex,  no_plants = no_plants, no_unique_plants = no_unique_plants)
+  details$no_unique_plants[is.na(details$no_unique_plants)] = 0
+  details$no_plants[is.na(details$no_plants)] = 0
+  
+  text = paste0('Region: ', details$name, '<br />', 
+                'Number of Items: ', details$no_plants,  '<br />',
+                'Number of Taxa: ', details$no_unique_plants,  '<br />')
+  details$hover = text
+  
+  
+  # Convert geometry into a format accepted by plotly
+  mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+  geo_sf = geojsonsf::sf_geojson(mapp)
+  data = rjson::fromJSON(geo_sf)
+  feat = data$features
+  for(i in 1:length(feat)){
+    feat[[i]]$id = feat[[i]]$properties$code
+  }
+  data$features = feat
+  
+  index = seq(0,1,0.01)
+  colours = c("#FFFFFF",rev(viridis::viridis(100)))
+  counter = 1:length(index)
+  col_scale = lapply(counter, function(i){return(c(index[i], colours[i]))})
+  
+  if(do_coord){
+    coords = coordinates
+  }else{
+    coords = c(0,0)
+  }
+  fig = plot_ly(details,  text = details$hover, hoverinfo = 'text') %>% add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=wgsrpd3_level3_simp$code,
+     z=details$no_unique_plants,
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black'),
+     text = details$hover,
+     hoverinfo = 'text',
+     zmin=0,
+     zmax=max(details$no_unique_plants, na.rm = T)
+    )
+  )%>% layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46, 
+      lataxis = list(range = c(-59, 90)))
+  ) %>% colorbar(title = "Number<br> of Taxa")
+  if(do_coord){
+    fig <- fig %>% add_trace(type='scattermapbox',
+                           mode = 'markers',
+                           lon = coords[1],
+                           lat = coords[2],
+                          text = 'Collection',
+                          color = I('red'),
+                           size = I(30),
+     hoverinfo = 'text')
+  }
+  
+  
+  
+  fig <- fig   %>% config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography.html'))
+  }
+}
+```
+
+```{r, Formatting geography data - static}
+if(report_kind %in% c('interactive', 'static')){
+  # Since it is static we can work with the detailed geometry.
+    
+  # we use the inputted wgsrpd3.
+  
+# Restrict to only those matched to WCVP.
+wanted_info = report[!is.na(report$POWO_plant_name_id),]
+
+no_matched_to_WCVP = nrow(wanted_info)
+
+# Add species by combining taxonomic name and authors
+wanted_info$species = paste0(wanted_info$POWO_taxon_name, ' ', wanted_info$POWO_taxon_authors)
+#Restrict to only unique species.
+wanted_info = wanted_info[match(unique(wanted_info$species), wanted_info$species),]
+
+no_matched_to_WCVP_unique_species = nrow(wanted_info)
+
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+# All_locations = wgsrpd3_level3_simp$code
+
+#Get the number of speices for each location.
+no_species = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info$geography_codes))
+}))
+
+#Get the number of endemic species for each location.
+endemic_info = wanted_info[stringr::str_length(wanted_info$geography_codes) == 3,]
+no_endemic = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, endemic_info$geography_codes))
+}))
+
+#Get the number of threatened species for each location.
+indicesA = which(wanted_info$POWO_Red_category %in%  c('EN', 'VU', 'CR', 'EW', 'EX'))
+indicesB = which(wanted_info$redList_category %in%  c('EN', 'VU', 'CR', 'EW', 'EX'))
+indices = unique(c(indicesA, indicesB))
+threatened_info = wanted_info[indices,]
+no_threatened = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, threatened_info$geography_codes))
+}))
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           no_species = no_species,
+                           rep_species = no_species > 0,
+                           no_endemic = no_endemic,
+                           rep_endemic = no_endemic > 0,
+                           no_threatened = no_threatened,
+                           rep_threatened = no_threatened > 0
+                           )
+plot_info <- wgsrpd3 |>
+  #add the location data to the geometry data
+  dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
+}
+```
+
+
+To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
+
+- Native / introduced,
+- Extinct / Not extinct,
+- Location is doubtful / otherwise.
+
+This document considers locations that are : `r location_type_text` 
+ 
+ Within `r collection`'s LC  **`r format(no_matched_to_WCVP, big.mark=',')`** items were successfully matched to POWO. This corresponding to **`r format(no_matched_to_WCVP_unique_species,big.mark=',')`** taxa in the LC that we have geographic information.
+ 
+ Below we produce a choropleth map, which visualises how many taxa in the collection are from each geographic region (note that plants often belong to multiple regions). Since some of the regions are small (islands) we also add a point to the centre of each region to highlight them. 
+
+```{r, Creating geography figure - interactive, echo =F, fig.dim = c(10, 6), eval = T}
+if(report_kind == 'interactive') fig
+```
+
+```{r, Creating geography figure - static, echo =F, fig.dim = c(10, 6), fig.fullwidth=TRUE}
+if(report_kind == 'static'){
+  plot_info$no_species[plot_info$no_species == 0] = NA
+ p = ggplot(plot_info)+
+  geom_sf(aes(fill=no_species),  col="transparent")+
+  stat_sf_coordinates(aes(col=no_species))+
+  scale_colour_distiller(direction=1, 
+                         name="Number of Taxa") +
+  scale_fill_distiller(direction=1,
+                       name="Number of Taxa")+
+  coord_sf(expand=FALSE) + 
+  theme(axis.line=element_blank(),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank())
+
+ if(!is.na(coordinates[1])){
+   # Add the collection location.
+   coord_data = data.frame(x=coordinates[1], y = coordinates[2])
+   p = p + geom_point(data = coord_data, aes(x = x, y = y),col="red", size=2)
+ }
+ 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Geography.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+ }
+
+p
+}
+```
+
+`r if(report_kind == 'interactive'){"Hover over these regions for:\n\n - Name of the region\n - Number of items in the report that are native to the region\n - Number of Taxa in the report that are native to the region."} ` 
+
+`r if(!is.na(coordinates[1])){"The location of the collection is shown by the red circle on the map."}`
+
+
+***
+
+#### How many endemic species are in the collection?
+
+See `What is the geographical origin of the collection?` section for how we find the geographic distribution of taxa. Herein, a taxa is defined as endemic if its geographic distribution is comprised of a single region.  
+
+```{r, Creating Number and/or proportion of endemic species, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+########################################
+### Endemic pie chart.
+########################################
+# First get POWO taxon name if it exists, if not use sanitised name.
+species = report$good_name[which(!grepl('0|5|6',report$taxon_type))]
+wanted_index = match(unique(species), species)
+report_cur = report[wanted_index,]
+
+endemic_table = table(report_cur$endemic)
+endemic = data.frame(Endemic = names(endemic_table), number = as.numeric(endemic_table))
+endemic$text = paste0(endemic$Endemic, '<br>', endemic$number, ' Species<br>',
+                         round(endemic$number/sum(endemic$number)*100,digits=2), '%')
+endemic$percent = paste0(round(endemic$number / sum(endemic$number)*100,digits = 1),'%')
+endemic <- endemic %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+
+colors = viridis::viridis(nrow(endemic))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(endemic))
+
+if(report_kind == 'interactive'){
+  fig <- plot_ly(endemic, labels = ~Endemic, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(endemic)),
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text)
+
+fig =  fig %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie_endemic.html'))
+}
+
+fig
+}
+
+if(report_kind == 'static'){
+   p = ggplot(endemic, aes(x="", y=number, fill=forcats::fct_inorder(Endemic))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('') +
+  scale_fill_discrete() +
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))+
+    guides(fill=guide_legend(title="Endemic Status"))
+  
+      if(value_on_fig){
+       p = p + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+   }
+   
+     if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie_endemic.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+ }
+  p
+}
+```
+
+```{r, native endemic, echo=F}
+if(!is.na(do_coord[1])){
+endemic_report = report_cur[report_cur$endemic == 'Endemic',]
+total_endemic_native = sum(endemic_report$geography_codes == level3_code)
+prop_endemic_native = round(total_endemic_native/nrow(endemic_report)*100,digits=2)
+}
+```
+
+`r if(!is.na(do_coord[1])){paste0("Of the endemic taxa in the LC ", total_endemic_native, " are native to ",level3_name,". Therefore, ", prop_endemic_native, "% of endemic Taxa in in the LC are native." , collapse ='')}`
+
+
+***
+
+#### How many threatened species are in the collection?
+
+Within the enriching process it is possible to find threatened taxa in two ways. We can match the original name found in the LC directly to IUCN's redlist or we can can try and match the accepted name found in POWO. Due to discrepancies between the two databases the accepted name from POWO and the original name may give rise to different red list categories in IUCN's red list. Therefore, here we use the most threatened  red list category when the two methods disagree.
+
+```{r, Geneating data for threatened figure}
+########################################
+### threatened pie chart.
+########################################
+# First get POWO taxon name if it exists, if not use sanitised name.
+species = report$good_name[which(!grepl('0|5|6',report$taxon_type))]
+wanted_index = match(unique(species), species)
+report_cur = report[wanted_index,]
+
+threat = data.frame(table(report_cur$threatened))
+names(threat) = c('threat', 'number')
+
+# threat_total = sum(red_table[names(red_table) %in% c('VU','EN','CR','EW','EX')])
+# threat = data.frame(threat = c('Threatened', 'Not Threatened'), number = c(threat_total, nrow(report_cur) - threat_total))
+threat$text = paste0(threat$threat, '<br>', threat$number, ' Species<br>',
+                         round(threat$number/sum(threat$number)*100,digits=2), '%')
+threat$percent = paste0(round(threat$number / sum(threat$number)*100,digits = 1),'%')
+threat <- threat %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+
+
+# First get POWO taxon name if it exists, if not use sanitised name.
+threat_type = data.frame(table(report_cur$threatened_category))
+names(threat_type) = c('threat', 'number')
+order_threat = match(c('VU','EN','CR','EW','EX'), threat_type$threat)
+order_threat = order_threat[!is.na(order_threat)]
+threat_type = threat_type[order_threat,]
+threat_type$threat = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(threat_type$threat, c('VU','EN','CR','EW','EX'))]
+
+threat_type$text = paste0(threat_type$threat, '<br>', threat_type$number, ' Species<br>',
+                         round(threat_type$number/sum(threat_type$number)*100,digits=2), '%')
+
+threat_type$threat = factor(threat_type$threat, levels = threat_type$threat)
+threat_type$percent = paste0(round(threat_type$number / sum(threat_type$number)*100,digits = 1),'%')
+threat_type <- threat_type %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+
+
+colors = viridis::viridis(nrow(threat))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(threat))
+```
+
+```{r, Producing (interactive) plot for  threatened figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+if(report_kind == 'interactive'){
+  fig1 <- plot_ly(threat, labels = ~threat, values = ~number,
+               type = 'pie',
+               marker = list(colors = colors_alpha),
+               pull = rep(0,nrow(threat)),
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text) %>% layout(title = 'All records')
+
+fig1 =  fig1 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+
+# colours taken from 'https://royalsocietypublishing.org/doi/10.1098/rstb.2014.0003'.
+colors = c('#fdf851', '#f4a540', '#ed3833', '#808080', '#000000')
+colors = colors[match(threat_type$threat, c('Vulnerable', 'Endangered', 'Critically Endangered',
+                                            'Extinct in the Wild', 'Extinct'))]
+
+# colors = viridis::viridis(nrow(threat_type))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(threat_type))
+fig2 <- plot_ly(threat_type, labels = ~threat, values = ~number,sort = FALSE,
+               type = 'pie',
+               marker = list(colors = colors),
+               pull = rep(0,nrow(threat_type)),
+               hole =.4,
+               hoverinfo = 'text',
+               hovertext = ~text) %>% layout(title = "Breakdown by risk categories")
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig1, file = paste0(figures_dir, '/','Pie_threatened.html'))
+    htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','Pie_threatened_category.html'))
+
+}
+
+
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
+}
+```
+
+```{r, Producing static threatened figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+if(report_kind == 'static'){
+  # Basic piechart
+pie1 = ggplot(threat, aes(x="", y=number, fill=forcats::fct_inorder(threat))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('All Records') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))+
+    guides(fill=guide_legend(title="Threat Status"))
+
+# colours taken from 'https://royalsocietypublishing.org/doi/10.1098/rstb.2014.0003'.
+colors = c('#fdf851', '#f4a540', '#ed3833', '#808080', '#000000')
+colors = colors[match(threat_type$threat, c('Vulnerable', 'Endangered', 'Critically Endangered',
+                                            'Extinct in the Wild', 'Extinct'))]
+
+# colors = viridis::viridis(nrow(threat_type))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.8)
+zeros = rep(0,nrow(threat_type))
+
+pie2 = ggplot(threat_type, aes(x="", y=number, fill=forcats::fct_inorder(threat))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('By  Category') + 
+  scale_fill_manual(values = as.character(colors_alpha)) +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))+
+    guides(fill=guide_legend(title="Threat Category"))
+
+
+      if(value_on_fig){
+       pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")
+       pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")
+   }
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = FALSE, legend="right")
+
+     if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pies_threatened.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+     }
+
+p
+}
+```
+
+
+***
+
+#### What is the rarity of the extant collection?
+
+In this section we use BGCI's plant search to find the number of ex-situ sites each taxa is found in. Below we plot the number of number of taxa in the collection against the number of ex-situ sites. We also group the number of taxa in the LC that are found between: 0 and 10, 11 and 50, 51 and 100 or more ex-situ sites.
+
+```{r, Generating data for rarity figure}
+########################################
+### Rareity pie chart.
+########################################
+# First get POWO taxon name if it exists, if not use sanitised name.
+
+unique_taxa = unique(report$good_name)
+report_unique = report[match(unique_taxa, report$good_name),]
+report_unique = report_unique[grepl('1|2|3|4',report_unique$taxon_type),]
+
+those_with_no_gardens = sum(!is.na(report_unique$no_gardens))
+those_without_no_gardens = nrow(report_unique) - those_with_no_gardens
+
+no_gardens_table = table(report_unique$no_gardens)
+extant_gardens = data.frame(in_collection = as.numeric(no_gardens_table) , extant = as.numeric(names(no_gardens_table)))
+
+# For those with less than 5 species in the collection retrieve them. 
+extant_numbers = extant_gardens$extant[extant_gardens$in_collection <= 5]
+plants = unlist(lapply(extant_numbers, function(x){
+  return(paste0(report_unique$sanitised_taxon[which(report_unique$no_gardens == x)], collapse = '<br />'))
+}))
+
+
+```
+
+```{r, Producing (interactive) rarity figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+if(report_kind == 'interactive'){
+  text = paste0('Taxa In Collection: ', extant_gardens$in_collection, '<br />', 
+              'Global Collections Holding Taxa: ', extant_gardens$extant,  '<br />')
+index = match(extant_numbers, extant_gardens$extant) 
+text[index] = paste0(text[index], 'Taxa: ', plants, '<br />')
+extant_gardens$hover = text
+
+# Scatter plot of species in collection against collections holding a species worldwide.
+fig1 <- plot_ly(extant_gardens, x = ~extant, y = ~in_collection, 
+         type = 'scatter',
+         mode = 'markers',
+         text = extant_gardens$hover,
+         hoverinfo = 'text')
+fig1 <- fig1 %>% layout(title = "",
+  xaxis = list(title = "Number of Collections Holding a Taxon Worldwide"),
+  yaxis = list (title = "Number of Taxa Grown at the Collection")) 
+fig1 <- layout(fig1,
+             shapes = list(
+               list(type = "rect",
+                    fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
+                    x0 = 0, x1 = 15.5, xref = "x",
+                    y0 = 0, y1 = max(extant_gardens$in_collection), yref = "y"),
+                list(type = "rect",
+                    fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
+                    x0 = 15.5, x1 = 50.5, xref = "x",
+                    y0 = 0, y1 = max(extant_gardens$in_collection), yref = "y"),
+               list(type = "rect",
+                    fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
+                    x0 = 50.5, x1 = 100.5, xref = "x",
+                    y0 = 0, y1 = max(extant_gardens$in_collection), yref = "y"),
+                list(type = "rect",
+                    fillcolor = "#d9f0a3", line = list(color = "#d9f0a3"), opacity = 0.3,
+                    x0 = 100.5, x1 = max(extant_gardens$extant), xref = "x",
+                    y0 = 0, y1 = max(extant_gardens$in_collection), yref = "y")               
+              ))
+
+
+# Pie chart of grouped extant number of collections.
+breaks = c(0,10,50,100)
+grouped = table(cut(report_unique$no_gardens, breaks = c(breaks, max(report_unique$no_gardens, na.rm=T))))
+grouped_extant = data.frame(group = names(grouped), number = as.numeric(grouped))
+
+fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number, type = 'pie')
+
+colors = c('#41ab5d', '#78c679', '#addd8e', '#d9f0a3')
+# colors = viridis::viridis(nrow(threat_type))
+colors_alpha = BGSmartR::add_alpha(colors, alpha = 0.5)
+zeros = rep(0,nrow(grouped_extant))
+fig2 <- plot_ly(grouped_extant, labels = ~group, values = ~number, sort = FALSE,
+               type = 'pie',
+               marker = list(colors = colors),
+               pull = rep(0,nrow(grouped_extant)),
+               hole =.4)
+
+fig2 =  fig2 %>% htmlwidgets::onRender(paste0("function(el, x) {
+            el.on('plotly_hover', function(d){
+              var pn;
+              var oCol = [",
+            paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+            "];
+              var nCol = [",
+              paste0("'",paste(colors_alpha, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull = [", paste0(zeros, collapse =', '), "];
+              pn = d.points[0].pointNumber;
+              nCol[pn] = oCol[pn];
+              pull[pn] = 0.1;
+              var update = {marker:{colors: nCol}, pull:[pull]};
+              Plotly.restyle(el.id, update);
+            });
+            el.on('plotly_unhover', function(d){
+              var oCol = [",
+              paste0("'",paste(colors, collapse = "', '"),"'",collapse=''),
+              "];
+              var pull =[", paste0(zeros, collapse =', '), "];
+              var update = {marker:{colors: oCol}, pull:pull};
+              Plotly.restyle(el.id, update);
+            });}", collapse =''))
+
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig1, file = paste0(figures_dir, '/','Scatter_rareity.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','Pie_rareity.html'))
+  
+}
+
+htmltools::browsable(
+  tagList(list(
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig1
+    ),
+    tags$div(
+      style = 'width:50%;display:block;float:left;',
+      fig2
+    )
+  ))
+)
+
+}
+
+```
+
+```{r, Producing static rarity figure, echo=F, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+if(report_kind == 'static'){
+  colors = c('#41ab5d', '#78c679', '#addd8e', '#d9f0a3')
+  xstart = c(0,10,50,100)
+  xend = c(10,50,100, max(extant_gardens$extant))
+    # Pie chart of grouped extant number of collections.
+  breaks = xstart
+  grouped = table(cut(report_unique$no_gardens, breaks = c(breaks, max(report_unique$no_gardens, na.rm=T))))
+  names(grouped) =  c('0 to 10', '11 to 50', '51 to 100', 'Over 100')
+  grouped_extant = data.frame(group = names(grouped), number = as.numeric(grouped))
+  grouped_extant$percent = paste0(round(grouped_extant$number / sum(grouped_extant$number)*100,digits = 1),'%')
+grouped_extant <- grouped_extant %>% 
+  mutate(csum = rev(cumsum(rev(number))), 
+         pos = number/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), number/2, pos))
+  
+  
+  rects <- data.frame(xstart = xstart, xend = xend, col = colors, Grouped = names(grouped))
+  rects$Grouped = factor(rects$Grouped , levels = rects$Grouped)
+
+  p1 = ggplot() + 
+  geom_rect(data = rects, 
+            aes(xmin = xstart, xmax = xend, ymin = -Inf, ymax = Inf, fill = Grouped), alpha = 1) +
+    scale_fill_manual(values = colors) +
+  geom_point(data = extant_gardens, aes(x=extant, y=in_collection)) +
+  labs(title=paste0(""),
+       x ="Number of LC's holding \n the taxa worldwide",
+       y = paste0('Number of taxa grown \n at the collection')) +
+    theme(legend.position = "none")
+
+ p2 = ggplot(grouped_extant, aes(x="", y=number, fill=forcats::fct_inorder(group))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  # ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('') +
+  scale_fill_manual(values= colors) +
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+  
+       if(value_on_fig){
+       p2 = p2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")
+   }
+ 
+
+  p = ggpubr::ggarrange(p1, p2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+  
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Rarity.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+  
+  p
+
+
+}
+
+```
+
+`r if(report_kind == 'interactive'){"In the scatter plot above we show the taxa in the case there are 5 or fewer grown at the collection."}`
+
+***
+
+
+#### What is the taxonomic diversity of the collection?
+
+Below we produce a sunburst and treemap charts showing the taxonomic diversity of the collection. Hovering over any segment shows the number of the taxa in the collection within the group (family, genera, etc).
+
+```{r, Create taxonomic diversity, echo = FALSE, message = FALSE}
+PlantClassification_filepath = '/Users/jakepowell/Desktop/snapshot_app/PlantClassification.xlsx'
+report_div  = report
+#restrict to only matched to POWO.
+report_div = report_div[!is.na(report_div$POWO_plant_name_id),]
+report_div = report_div[report_div$ItemStatusType == 'Existing',]
+
+
+
+# Add higher taxonomic information.
+if(is.null(PlantClassification_filepath)){
+  Diversity_class = BGSmartR::Diversity_classification
+  Classification <- as.data.frame(Diversity_class$Classification)
+  synomym_families <- as.data.frame(Diversity_class$synomym_families)
+
+}else{
+  Classification = readxl::read_excel(PlantClassification_filepath, sheet = 1)
+  synomym_families = readxl::read_excel(PlantClassification_filepath, sheet = 2)
+}
+
+fam = report_div$POWO_family
+
+# Convert from conserved family name to family name where applicable. 
+AA = apply(synomym_families, 2, function(x){
+  fam[fam == as.character(x[2])] = as.character(x[1])
+  })
+report_div$family = fam
+
+matched_families = match(fam, Classification$family)
+order = Classification$order[matched_families]
+major_Eudicot_lineage = Classification$`major Eudicot lineage`[matched_families]
+major_Angiosperm_lineage = Classification$`major Angiosperm lineage`[matched_families]
+major_Land_Plants_lineage = Classification$`major Land Plants lineage`[matched_families]
+
+
+report_div$order = order
+report_div$major_Eudicot_lineage = major_Eudicot_lineage
+report_div$major_Angiosperm_lineage = major_Angiosperm_lineage
+report_div$major_Land_Plants_lineage = major_Land_Plants_lineage
+
+use_species = report_div$use_genus_species |> stringr::str_split(' ')
+use_species = unlist(lapply(use_species, function(x)x[2]))
+report_div$use_species = use_species
+
+report_cur = report_div
+
+combined_taxo = paste0(report_cur$use_species,'---',
+                                       report_cur$use_genus,'---',
+                                       report_cur$use_family,'---',
+                                       report_cur$order,'---',
+                                       report_cur$major_Eudicot_lineage,'---',
+                                       report_cur$major_Angiosperm_lineage,'---',
+                                       report_cur$major_Land_Plants_lineage)
+
+with_issue = sum(which(grepl('---NA$',combined_taxo)))
+
+#remove those without major land plants lineage. (i.e ends in ---NA).
+if(with_issue > 0){
+  combined_taxo = combined_taxo[-which(grepl('---NA$',combined_taxo))]
+}
+# Convert NA in species to Indet.
+combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+
+table_species = table(combined_taxo)
+data = data.frame(ID = names(table_species), count = as.numeric(table_species))
+non_combined  = data.frame(t(data.frame(stringr::str_split(data$ID,pattern = '---'))))
+names(non_combined) = c('species', 'genus', 'family', 'order', 'major_Eudicot_lineage',
+                        'major_Angiosperm_lineage', 'major_Land_Plants_lineage')
+rownames(non_combined) = 1:nrow(non_combined)
+
+data = data.frame(data, non_combined)
+
+# push species names to genus species (otherwise issues with repeated species names with different genera)
+data$species = paste0(data$species,'---',data$genus)
+
+labels = c(unique(data$major_Land_Plants_lineage), unique(data$major_Angiosperm_lineage), unique(data$major_Eudicot_lineage),
+           unique(data$order), unique(data$family), unique(data$genus), unique(data$species))
+major_Land_Plants_lineage_index = 1:length(unique(data$major_Land_Plants_lineage))
+major_Angiosperm_lineage_index = (max(major_Land_Plants_lineage_index)+1):(max(major_Land_Plants_lineage_index)+length(unique(data$major_Angiosperm_lineage)))
+major_Eudicot_lineage_index = (max(major_Angiosperm_lineage_index)+1):(max(major_Angiosperm_lineage_index)+length(unique(data$major_Eudicot_lineage)))
+order_index = (max(major_Eudicot_lineage_index)+1):(max(major_Eudicot_lineage_index)+length(unique(data$order)))
+family_index = (max(order_index)+1):(max(order_index)+length(unique(data$family)))
+genus_index = (max(family_index)+1):(max(family_index)+length(unique(data$genus)))
+species_index = (max(genus_index)+1):(max(genus_index)+length(unique(data$species)))
+
+parents = rep('', length(labels))
+parents[major_Angiosperm_lineage_index] = data$major_Land_Plants_lineage[match(labels[major_Angiosperm_lineage_index], data$major_Angiosperm_lineage)]
+parents[major_Eudicot_lineage_index] = data$major_Angiosperm_lineage[match(labels[major_Eudicot_lineage_index], data$major_Eudicot_lineage)]
+parents[order_index] = data$major_Eudicot_lineage[match(labels[order_index], data$order)]
+parents[family_index] = data$order[match(labels[family_index], data$family)]
+parents[genus_index] = data$family[match(labels[genus_index], data$genus)]
+parents[species_index] = data$genus[match(labels[species_index], data$species)]
+
+values = rep(NA, length(labels))
+values[species_index] = data$count[match(labels[species_index], data$species)]
+total_for_genus <-  aggregate(. ~genus, data[,c(4,2)], sum, na.rm = TRUE)
+values[genus_index] = total_for_genus$count[match(labels[genus_index], total_for_genus$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,2)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,2)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,2)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,2)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,2)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+
+
+data_formatted = data.frame(ID = labels, labels=labels, parents = parents, values = values)
+
+#Go back to just species names.
+data_formatted$labels[grepl('---', data_formatted$labels)] = unlist(lapply(stringr::str_split(data_formatted$labels[grepl('---', data_formatted$labels)], pattern = '---'), function(x){x[1]}))
+data_formatted$ID[grepl('---', data_formatted$ID)] = unlist(lapply(stringr::str_split(data_formatted$ID[grepl('---', data_formatted$ID)], pattern = '---'), function(x){x[1]}))
+# data_formatted$labels=unlist(lapply(stringr::str_split(data_formatted$labels, ' '),function(x){x[length(x)]}))
+data_formatted$ID = paste0(data_formatted$labels, '---', data_formatted$parents)
+
+data_formatted$parents = paste0(data_formatted$parents,'---',data_formatted$parents[match(data_formatted$parents, data_formatted$labels)])
+data_formatted$parents[data_formatted$parents == "---NA"] =''
+
+# Collapse levels.
+data_formatted$labels[data_formatted$labels == 'None_Eudicots'] = 'Other'
+data_formatted$labels[data_formatted$labels == 'None_Angiosperms'] = 'Other'
+
+# Remove Intermediate levels.
+remove_nodes = c('None_Monocots', 'None_Ferns', 'None_Ferns_Eudicot',"None_Gymnosperms", 'None_Lycophytes',   'None_Liverworts', 'None_Hornworts', 'None_Gymnosperms_Eudicot', 'None_Lycophytes_Eudicot', 'None_Liverworts_Eudicot', 'None_Hornworts_Eudicot', 'No_Mosses_Angiosperm_lineage', 'No_Mosses_Eudicot_lineage', 'None_Angiosperms_Eudicot_lineage')
+AA = lapply(remove_nodes, function(node){
+  # Select the row to remove (begining with "*node*---")
+  to_remove = which(grepl(paste0('^',node,'---'), data_formatted$ID))
+  if(length(to_remove)> 0 ){
+    #Get new parent id and new label from the node to remove.
+    new_parent = data_formatted[to_remove,]$parents
+    new_label =  unlist(stringr::str_split(new_parent,'---'))[1]
+    # Remove the row.
+    data_formatted = data_formatted[-to_remove,]
+    # Update End of the ID for the new parent
+    data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)] = unlist(stringr::str_replace(data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)],paste0('---',node), paste0('---',new_label)))
+    # Update the parents for each node who originally has 'node' as the value. 
+    data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
+    # Update the parents for each node who originally has 'node' as the parent. 
+    data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
+    data_formatted <<- data_formatted
+  }
+ 
+  return()
+})
+
+
+# Add header of 'Collection'
+data_formatted$ID[grepl('---$', data_formatted$ID)] = paste0(data_formatted$ID[grepl('---$', data_formatted$ID)] , 'Collection')
+data_formatted$parents[grepl('---$', data_formatted$parents)] = paste0(data_formatted$parents[grepl('---$', data_formatted$parents)] , 'Collection')
+data_formatted$parents[data_formatted$parents == ''] = 'Collection'
+
+data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(data_formatted$values[data_formatted$parents == 'Collection']))
+
+```
+
+```{r, Create interactive taxonomic diversity figure, echo = F}
+if(report_kind == 'interactive'){
+ fig <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'sunburst',
+                             insidetextorientation='radial',
+                             branchvalues = 'total',
+                             maxdepth = 5)
+
+ fig2 <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'treemap',
+                             branchvalues = 'total',
+                             maxdepth = 5)
+                        
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','sunburst:taxonomic_diversity.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','treemap:taxonomic_diversity.html'))
+}
+
+ fig
+}
+```
+```{r treemap of taxonomic diversity,echo = FALSE}
+if(report_kind == 'interactive'){fig2}
+```
+
+```{r, Create static taxonomic diversity, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+
+if(report_kind == 'static'){
+  data = data.frame(x = 5,y=5, text = 'Only available in \n interactive report')
+  p = ggplot(data, aes(x,y,label = text)) + geom_text()+ theme_void()
+ p
+}
+```
+
+
+***
+
+#### How has the LC changed in the last 5 years?
+
+```{r, formatting data for 5 years ago, echo = F}
+###
+# Data from 5 years ago.
+###
+year_cur = as.numeric(format(Sys.Date(),'%Y'))
+years = year_cur-5
+
+bad_accession = length(which(report_original$AccYear < 1750 | report_original$AccYear> year_cur | is.na(report_original$AccYear)))
+
+history_index = BGSmartR::exist_at_date(c(Sys.Date()-1, paste0(years, '-01-01')),
+                                        AccessionYear = report_original$AccYear,
+                       ItemStatusDate = report_original$ItemStatusDate,
+                       ItemStatusType = report_original$ItemStatusType)
+ 
+historic_details = lapply(history_index, function(year_index){
+  report_cur = report_original[year_index,]
+  
+# Number of Items.
+no_items = nrow(report_cur)
+
+# Number of Accessions.
+no_accessions = length(unique(report_cur$AccNoFull))
+
+# Number of taxa
+no_taxa = length(unique(paste0(report_cur$sanitised_taxon, ' ', report_cur$extracted_author)))
+
+#No families.
+# = Use POWO family if available if not use the original.
+families = data.frame(original = report_cur$Family, POWO = report_cur$POWO_family)
+use_family = families$POWO
+use_family[is.na(use_family)] = families$original[is.na(use_family)]
+no_families <- length(unique(use_family))
+
+#No genus
+# = Use POWO genus if available if not use the original.
+genus = data.frame(original = report_cur$Genus, POWO = report_cur$POWO_genus)
+use_genus = genus$POWO
+use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+no_genus <- length(unique(use_genus))
+
+
+#No species
+POWO_GenusSpecies = rep(NA, nrow(report_cur))
+POWO_GenusSpecies[!is.na(report_cur$POWO_plant_name_id)] = paste0(report_cur$POWO_genus[!is.na(report_cur$POWO_plant_name_id)],
+                                                              ' ',
+                                                              report_cur$POWO_species[!is.na(report_cur$POWO_plant_name_id)])
+species_data = data.frame(original = report_cur$GenusSpecies, POWO = POWO_GenusSpecies, infra = report_cur$taxon_type)
+
+#remove cultivars, indeterminants, hybrids and those without infrageneric level
+species_only = species_data[!grepl('5|6|0',species_data$infra),]
+species_only = species_only[!is.na(species_only$infra),]
+
+use_species = species_only$POWO
+use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
+no_species = length(unique(use_species))
+species_later = no_species
+
+species_powo = unique(species_only$POWO[!is.na(species_only$POWO)])
+species_notpowo = unique(species_only$original[is.na(species_only$POWO)])
+species_notpowo = species_notpowo[!species_notpowo %in% species_powo]
+  
+# Get infra info
+hort_info = table(report_cur$taxon_type)
+
+# Get provenance
+prov_info = table(report_cur$ProvenanceCode)
+
+# Get endemic
+endemic_info = table(report_cur$endemic)
+
+# Get threatened
+threatened_info = table(report_cur$threatened)
+
+# Get threatened category
+threatened_category_info = table(report_cur$threatened_category)
+
+return(list(no_items =  no_items,
+            no_accessions = no_accessions,
+            no_taxa = no_taxa,
+            no_families = no_families,
+            no_genus =  no_genus,
+            no_species = no_species,
+            hort_info = hort_info,
+            prov_info = prov_info,
+            endemic_info = endemic_info,
+            threatened_info = threatened_info,
+            threatened_category_info = threatened_category_info
+            ))
+})
+names(historic_details) = c('Current',paste0('Year: ', years))
+```
+
+
+In this section we will compare the composition of the collection to 5 years ago (**`r  as.numeric(format(Sys.Date(),'%Y'))-5`**). To make this possible we use a combination of the accession year and item status date to calculate which plants are existing at each time point. This approach assumes that plants only die when their record is updated to reflect this. 
+
+Your collection contains **`r bad_accession`** items that have either a missing/incorrect accession year such as `0000`, `1000` or `9999`.  As we cannot accurately describe if these plants existed 5 years ago we remove the records prior to the comparison between **`r  as.numeric(format(Sys.Date(),'%Y'))-5`** and **`r year_cur`**. 
+
+```{r, Creating 5 year comparison data, echo = FALSE}
+summary_numbers = data.frame(lapply(historic_details, function(x){
+  endemic =  as.numeric(x$endemic_info[match('Endemic', names(x$endemic_info))])
+  threatened = as.numeric(x$threatened_info[match('Threatened', names(x$threatened_info))])
+  return(c(x$no_items, 
+           x$no_accessions,
+           x$no_taxa,
+           x$no_families,
+           x$no_genus,
+           x$no_species, 
+           endemic,
+           threatened
+         ))
+}))
+nice_names = c('Number of Items', 
+           'Number of Accessions',
+           'Number of Taxa',
+           'Number of Families',
+           'Number of Genus',
+           'Number of Species',
+           'Number of Endemic Items',
+           'Number of Threatened Items')
+summary_numbers = data.frame(Category = nice_names, summary_numbers)
+diff = as.character(summary_numbers[,2] - summary_numbers[,3])
+diff[which(!grepl('-',diff))] = paste0('+',diff)
+summary_numbers$difference = diff
+prop_change = round((summary_numbers[,2] - summary_numbers[,3])/summary_numbers[,3]*100,digits = 1)
+prop_change = paste0(prop_change, '%')
+prop_change[which(!grepl('-',prop_change))] = paste0('+',prop_change)
+summary_numbers$prop_change = prop_change
+
+names(summary_numbers) = c('Category', 'Current', years, 'Net difference', paste0('Proportion change since ', years) )
+
+
+# Provenance
+prov_types = c('Garden', 'Unknown', 'Wild', 'Wild-derived')
+summary_provenance <- lapply(historic_details, function(x){
+  prov = data.frame(x$prov_info)
+  names(prov) = c('type', 'number')
+  
+  count = rep(0,length(prov_types))
+  match_info = match(prov_types, prov$type)
+  count[which(!is.na(match_info))] = prov$number[match_info[which(!is.na(match_info))]]
+  return(count)
+}) |>
+  data.frame()
+summary_provenance = data.frame(prov =prov_types, summary_provenance )
+diff = as.character(summary_provenance[,2] - summary_provenance[,3])
+diff[which(!grepl('-',diff))] = paste0('+',diff)
+summary_provenance$difference = diff
+prop_change = round((summary_provenance[,2] - summary_provenance[,3])/summary_provenance[,3]*100,digits = 1)
+prop_change = paste0(prop_change, '%')
+prop_change[which(!grepl('-',prop_change))] = paste0('+',prop_change)
+summary_provenance$prop_change = prop_change
+summary_provenance[[2]] = paste0(summary_provenance[[2]], ' (', round(summary_provenance[[2]] / sum(summary_provenance[[2]])*100, digits = 1),  '%)')
+summary_provenance[[3]] = paste0(summary_provenance[[3]], ' (', round(summary_provenance[[3]] / sum(summary_provenance[[3]])*100, digits = 1),  '%)')
+names(summary_provenance) = c('Category', 'Current', years, 'Net difference', paste0('Proportion change since ', years) )
+
+# Threatened
+threat_types = c('Threatened', 'Not Threatened')
+summary_threat <- lapply(historic_details, function(x){
+  threat = data.frame(x$threatened_info)
+  names(threat) = c('type', 'number')
+  
+  count = rep(0,length(threat_types))
+  match_info = match(threat_types, threat$type)
+  count[which(!is.na(match_info))] = threat$number[match_info[which(!is.na(match_info))]]
+  return(count)
+}) |>
+  data.frame()
+summary_threat = data.frame(threat =threat_types, summary_threat )
+diff = as.character(summary_threat[,2] - summary_threat[,3])
+diff[which(!grepl('-',diff))] = paste0('+',diff)
+summary_threat$difference = diff
+prop_change = round((summary_threat[,2] - summary_threat[,3])/summary_threat[,3]*100,digits = 1)
+prop_change = paste0(prop_change, '%')
+prop_change[which(!grepl('-',prop_change))] = paste0('+',prop_change)
+summary_threat$prop_change = prop_change
+summary_threat[[2]] = paste0(summary_threat[[2]], ' (', round(summary_threat[[2]] / sum(summary_threat[[2]])*100, digits = 1),  '%)')
+summary_threat[[3]] = paste0(summary_threat[[3]], ' (', round(summary_threat[[3]] / sum(summary_threat[[3]])*100, digits = 1),  '%)')
+names(summary_threat) = c('Category', 'Current', years, 'Net difference', paste0('Proportion change since ', years) )
+
+# Endemic
+endemic_types = c('Endemic', 'Not Endemic')
+summary_endemic <- lapply(historic_details, function(x){
+  endemic = data.frame(x$endemic_info)
+  names(endemic) = c('type', 'number')
+  
+  count = rep(0,length(endemic_types))
+  match_info = match(endemic_types, endemic$type)
+  count[which(!is.na(match_info))] = endemic$number[match_info[which(!is.na(match_info))]]
+  return(count)
+}) |>
+  data.frame()
+summary_endemic = data.frame(endemic =endemic_types, summary_endemic )
+diff = as.character(summary_endemic[,2] - summary_endemic[,3])
+diff[which(!grepl('-',diff))] = paste0('+',diff)
+summary_endemic$difference = diff
+prop_change = round((summary_endemic[,2] - summary_endemic[,3])/summary_endemic[,3]*100,digits = 1)
+prop_change = paste0(prop_change, '%')
+prop_change[which(!grepl('-',prop_change))] = paste0('+',prop_change)
+summary_endemic$prop_change = prop_change
+summary_endemic[[2]] = paste0(summary_endemic[[2]], ' (', round(summary_endemic[[2]] / sum(summary_endemic[[2]])*100, digits = 1),  '%)')
+summary_endemic[[3]] = paste0(summary_endemic[[3]], ' (', round(summary_endemic[[3]] / sum(summary_endemic[[3]])*100, digits = 1),  '%)')
+names(summary_endemic) = c('Category', 'Current', years, 'Net difference', paste0('Proportion change since ', years) )
+
+
+# threatened cat
+threatened_cat_types =c('VU','EN','CR','EW','EX')
+threat_cat_word = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+summary_threatened_cat <- lapply(historic_details, function(x){
+  threatened_cat = data.frame(x$threatened_category_info)
+  names(threatened_cat) = c('type', 'number')
+  
+  count = rep(0,length(threatened_cat_types))
+  match_info = match(threatened_cat_types, threatened_cat$type)
+  count[which(!is.na(match_info))] = threatened_cat$number[match_info[which(!is.na(match_info))]]
+  return(count)
+}) |>
+  data.frame()
+summary_threatened_cat = data.frame(threatened_cat =threat_cat_word, summary_threatened_cat )
+diff = as.character(summary_threatened_cat[,2] - summary_threatened_cat[,3])
+diff[which(!grepl('-',diff))] = paste0('+',diff)
+summary_threatened_cat$difference = diff
+prop_change = round((summary_threatened_cat[,2] - summary_threatened_cat[,3])/summary_threatened_cat[,3]*100,digits = 1)
+prop_change = paste0(prop_change, '%')
+prop_change[which(!grepl('-',prop_change))] = paste0('+',prop_change)
+summary_threatened_cat$prop_change = prop_change
+summary_threatened_cat[[2]] = paste0(summary_threatened_cat[[2]], ' (', round(summary_threatened_cat[[2]] / sum(summary_threatened_cat[[2]])*100, digits = 1),  '%)')
+summary_threatened_cat[[3]] = paste0(summary_threatened_cat[[3]], ' (', round(summary_threatened_cat[[3]] / sum(summary_threatened_cat[[3]])*100, digits = 1),  '%)')
+names(summary_threatened_cat) = c('Category', 'Current', years, 'Net difference', paste0('Proportion change since ', years) )
+
+```
+
+```{r, creating interactive summary tables}
+if(report_kind == 'interactive'){
+  
+  numbers_table = DT::datatable(summary_numbers)
+  
+  prov_table = DT::datatable(summary_provenance)
+  
+  endemic_table = DT::datatable(summary_endemic)
+  
+  threatened_table = DT::datatable(summary_threat)
+  
+  threatened_category_table = DT::datatable(summary_threatened_cat)
+
+
+}
+```
+
+```{r, creating static summary tables}
+if(report_kind == 'static'){
+  
+  numbers_table = summary_numbers |>
+  flextable() |>
+  set_caption(caption = paste0('Change in common categories')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = 10, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+  
+  prov_table = summary_provenance |>
+  flextable() |>
+  set_caption(caption = paste0('Change in Provenance')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = 10, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+  
+  endemic_table = summary_endemic |>
+  flextable() |>
+  set_caption(caption = paste0('Change in Endemic')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = 10, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+  
+  
+   threatened_table = summary_threat |>
+  flextable() |>
+  set_caption(caption = paste0('Change in Threatened')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = 10, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+  
+  threatened_category_table = summary_threatened_cat |>
+  flextable() |>
+  set_caption(caption = paste0('Change in Threatened Cateogries')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = 10, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+}
+```
+
+Below we produce a table of the how the number of elements and taxonomic units have changed in the last 5 years.
+
+`r numbers_table`
+
+Next we produce a list of tables showing how the provenance and number of endemic/threatened items have changed over the last 5 years in the LC. Each table has the same format where each row shows a subset of the collection. Columns that have a percentage in brackets represents the proportion of the items in the collection within that subset.
+
+`r prov_table`
+
+`r endemic_table`
+
+`r threatened_table`
+
+`r threatened_category_table`
+
+***
+
+```{r, creating excel output, echo=F}
+# Return excel workbook with data for each figure and table
+if(export_data){
+  snapshot_data = list(basics = basics[,rev(1:2)],
+                       taxa = taxa[,rev(1:2)],
+                       taxa_infra = taxa_infra[,rev(1:ncol(taxa_infra))],
+                       provenance = provenance[,1:2],
+                       geography = location_data,
+                       endemic = endemic[,1:2],
+                       threat = threat[,1:2],
+                       threatened_category = threat_type[,1:2],
+                       ex_stitu_locations = extant_gardens[,1:2],
+                       taxonomic_diversity = data_formatted[,c(1,3)],
+                       compare_5_yr_ago = summary_numbers)
+  
+  save(snapshot_data, file = paste0(output_dir,'/',collection,'_snapshot_data.rda'))
+  
+  library(xlsx)
+wb = xlsx::createWorkbook()
+sh1 = xlsx::createSheet(wb, 'How many elements')
+xlsx::addDataFrame(basics[,rev(1:2)], sh1, startRow = 1,row.names = F)
+sh2 = xlsx::createSheet(wb, 'How many of each taxonomic units')
+xlsx::addDataFrame(taxa[,rev(1:2)], sh2, startRow = 1,row.names = F)
+sh3 = xlsx::createSheet(wb, 'Species, Horticultral, infraspecific')
+xlsx::addDataFrame(taxa_infra[,rev(1:ncol(taxa_infra))], sh3, startRow = 1,row.names = F)
+sh4 = xlsx::createSheet(wb, 'Provenance')
+xlsx::addDataFrame(provenance[,1:2], sh4, startRow = 1,row.names = F)
+sh5 = xlsx::createSheet(wb, 'Geography')
+xlsx::addDataFrame(location_data, sh5, startRow = 1,row.names = F)
+sh6 = xlsx::createSheet(wb, 'Endemic')
+xlsx::addDataFrame(endemic[,1:2], sh6, startRow = 1,row.names = F)
+sh7 = xlsx::createSheet(wb, 'Threatened')
+xlsx::addDataFrame(threat[,1:2], sh7, startRow = 1,row.names = F)
+sh8 = xlsx::createSheet(wb, 'Red list category')
+xlsx::addDataFrame(threat_type[,1:2], sh8, startRow = 1,row.names = F)
+sh9 = xlsx::createSheet(wb, 'Global collections')
+xlsx::addDataFrame(extant_gardens[,1:2], sh9, startRow = 1,row.names = F)
+sh10 = xlsx::createSheet(wb, 'Taxonomic diversity')
+xlsx::addDataFrame(data_formatted[,c(1,3)], sh10, startRow = 1)
+sh11 = xlsx::createSheet(wb, 'Compare to 5 year ago')
+xlsx::addDataFrame(summary_numbers, sh11, startRow = 1)
+xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_data_for_figures.xlsx'))
+}
+
+```

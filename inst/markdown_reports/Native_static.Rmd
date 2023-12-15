@@ -8,7 +8,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(sf)
 library(flextable)
 ```
@@ -81,6 +81,11 @@ scale_fill_binned <- scale_fill_binned
 # export_data = T
 # table_font_size = 14
 
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
 exporting_data_store = list()
 
 location_type_text = ''
@@ -106,7 +111,7 @@ if(doubtful_locations){
 ```
 
 
-```{r, Find LC location, echo = FALSE, cache=separate_plot_folder}
+```{r, Find LC location, echo = FALSE}
 # Extract the location of the collection.
 pnts <- data.frame( x = coordinates[2], y = coordinates[1])
 
@@ -151,6 +156,11 @@ p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=TRUE) +
         axis.title.x=element_blank(),
         axis.title.y=element_blank(),
         plot.title = element_text(hjust = 0.5))
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_LC_location_and_native region.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
 p
 ```
 
@@ -324,6 +334,10 @@ for(i in 1:length(to_do)){
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
     scale_fill_discrete()
+  
+  if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_species_are_in_the_LC', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
   print(p)
 }
  
@@ -428,6 +442,10 @@ for(i in 1:length(to_do)){
     # guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
     # theme(text = element_text(size=table_font_size))
   
+    if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','number_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+  
   print(p)
 }
 ```
@@ -499,6 +517,11 @@ for(i in 1:length(to_do)){
     guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
    scale_fill_discrete() # +
     # theme(text = element_text(size=table_font_size))
+    
+      if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','proportion_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
   print(p)
 }
  
@@ -551,6 +574,10 @@ draw.pairwise.venn(
   ext.line.lwd = 2,
   ext.line.lty = "dashed"
 )
+
+      if(separate_figure_folder){
+ggplot2::ggsave(filename = paste0(figures_dir, '/','Native_threatened_endemic_Venn_diagram.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
 ```
 
 
@@ -688,7 +715,15 @@ pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
         plot.background=element_blank(),
         plot.title = element_text(hjust = 0.5))
 
-ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+
+p
+
 ```
 
 
@@ -789,6 +824,10 @@ for(i in 1:length(to_do)){
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0('Provenance')))# +
     # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
   print(p)
 
 }
@@ -906,8 +945,13 @@ pie2 = ggplot(redlistcat_accessions, aes(x="", y=Accessions, fill=RedListCategor
         plot.background=element_blank(),
         plot.title = element_text(hjust = 0.5))
 
-ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom",
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom",
                   font.label = list(size = table_font_size))
+
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','native_threatened.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+p
 }
 
 ```
@@ -948,6 +992,10 @@ for(i in 1:length(to_do)){
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0('RedList Category')))# +
     # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
   print(p)
 
 }
@@ -985,6 +1033,11 @@ for(i in 1:length(to_do)){
         y = paste0('Number of ',to_do[i])) +
     guides(color=guide_legend(title=paste0('RedList Category'))) #+
     # theme(text = element_text(size=table_font_size))
+  
+      if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Number_of_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+      }
+  
   print(p)
 }
 }
@@ -1060,6 +1113,11 @@ p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
   scale_color_manual(values=c("blue", "red"))
   print(p)
   
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+  
 # Color based on value
 color <- ifelse(items$`Net number of items` < 0, "pink", "lightblue")
 
@@ -1075,6 +1133,9 @@ p = ggplot(items, aes(x = Year, y = `Net number of items`)) +
   # theme(text = element_text(size=table_font_size))
 print(p)  
 
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_net_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
 ```
 
 Now do the same with accessions
@@ -1152,6 +1213,11 @@ p = ggplot(data=accessions_data, aes(x=A, y=B, group=C)) +
   scale_color_manual(values=c("blue", "red"))
   print(p)
   
+  
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_turnover_accessions.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+  
 # Color based on value
 color <- ifelse(accessions$`Net number of accessions` < 0, "pink", "lightblue")
 
@@ -1167,6 +1233,9 @@ p = ggplot(accessions, aes(x = Year, y = `Net number of accessions`)) +
   # theme(text = element_text(size=table_font_size))
 print(p)  
 
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_net_turnover_accessions.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
 ```
 
 We can also view the gain/loss of native items/accessions as a proportion of all gained/lost items each year. This will show if the incoming proportion of native plants was more or less than the proportion of native plants in the collection. 
@@ -1228,6 +1297,9 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
       labs(caption = "Black points are proportion of items in the LC that are native each year.")
   print(p)
   
+      if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_gain_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
   
 ### Plot of proportion of lost items being native.
 
@@ -1251,6 +1323,9 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
       labs(caption = "Black points are proportion of items in the LC that are native each year.")
   print(p)
 
+        if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_loss_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
 ```
 
 Accessions:
@@ -1317,6 +1392,9 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
       labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
   print(p)
   
+          if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_gain_accessions_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
   
 ### Plot of proportion of lost accessions being native.
 
@@ -1340,6 +1418,9 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
       labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
   print(p)
 
+          if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_loss_accessions_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
 ```
 
 
@@ -1437,6 +1518,9 @@ ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = dat
   labs(caption = "Shaded region represents 95% confidence interval.") +
   ggtheme() + scale_colour_discrete()
 
+          if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','native_notnative_survival.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
 ```
 
 Next we give the survival probability for 10-year intervals. 

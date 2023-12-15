@@ -871,8 +871,8 @@ try_fix_infraspecific_level <- function(taxon_names, enrich_database_taxon_names
   # 3) Try adding a infraspecific level when hybrid marker exists. (taxon name needs 4 words)
   ##############################
   if(try_hybrid){
-    ### 3.1) Get the indices of taxon_names with 4 words and hybrid in the best position.
-    index_words_4 = which(no_words == 4 & grepl('\u00D7|\\+',taxon_names))
+    ### 3.1) Get the indices of taxon_names with 4 words and a single hybrid marker in the best position.
+    index_words_4 = which(no_words == 4 & stringr::str_count(taxon_names, '\u00D7|\\+') == 1)
     hybrid_position = unlist(lapply(stringr::str_split(taxon_names[index_words_4], ' '),function(x){which(grepl('\u00D7|\\+',x))}))
     index_words_4 = index_words_4[which(hybrid_position %in% c(1,2))]
 
@@ -884,11 +884,10 @@ try_fix_infraspecific_level <- function(taxon_names, enrich_database_taxon_names
       words_4 = stringr::str_split(taxon_names[index_words_4], ' ')
       new_taxon_names = unlist(lapply(words_4, function(x){
         just_splitter = paste(x[1], x[2], x[3], splitters, x[4])
-        new_taxon_names = just_splitter[just_splitter %in% enrich_taxon_names_w_split]
+        taxon_names_with_split = just_splitter[just_splitter %in% enrich_taxon_names_w_split]
 
-        return(paste0(new_taxon_names, collapse = ' OR '))
+        return(paste0(taxon_names_with_split, collapse = ' OR '))
       }))
-
       out_fixed_names[index_words_4] = paste0(out_fixed_names[index_words_4], new_taxon_names, sep = '')
     }
 
@@ -1016,10 +1015,10 @@ try_fix_hybrid <- function(taxon_names, enrich_database_taxon_names,
   }
 
   ########################
-  # 4) Change/remove hybrid
+  # 4) Change/remove hybrid (one hybrid marker in the taxon name)
   ########################
   ### 3.1) Get the indices of taxon_names with hybrid characters.
-  index_words_with_hybrid = which(grepl('\u00D7|\\+',taxon_names))
+  index_words_with_hybrid = which(stringr::str_count(taxon_names, '\u00D7|\\+') == 1)
 
   if(length(index_words_with_hybrid) > 0){
     if(console_message){
