@@ -2,19 +2,42 @@
 title: "Exploration of native taxa in the LC"
 output:
   word_document:
-    toc: true
-    toc_depth: 3
 ---
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
 library(sf)
+library(here)
 library(flextable)
+library(ggrepel)
+```
+
+```{r, imported parameters}
+# collection = 'CUBG'
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+# load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# coordinates = c(52.19378853629289,0.1277234065606053)
+# 
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# min_year = 1970
+# export_data = F
+# table_font_size = 14
+# report_kind = 'static'
+# ggtheme = NULL
+# separate_figure_folder = FALSE
+# value_on_fig = TRUE
+# report_kind = 'static'
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
 library(ggplot2)
+
 # Changing the default theme
 if(is.null(ggtheme)){
    ggtheme <- function(base_size = 16) {
@@ -48,46 +71,41 @@ scale_fill_discrete <- scale_fill_discrete
 scale_fill_binned <- scale_fill_binned
 ```
 
-```{r, inputs, echo = FALSE}
-# Inputs
-# As an input we get 
-# - enriched_report, the LC with enrichment.
-# - location, the BRU level 3 code of the LC.
-# - collection, the name of the LC.
-# - wcvp, BGSmartR version of wcvp.
-# - native, 
-# - extinct, 
-# - doubtful_locations
-# - wgsrpd3, the geography information.
-# - min_year, the year to start change of time figures.
-# - table_font_size, the size input to the ggplots.
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
 
-#Example
-# collection = 'Holden'
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Holden_enriched_report.rda') 
-# coordinates = c(41.61155751645494, -81.30082804984981)
-
-# 
-# collection = 'CUBG'
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
-# native = 'Naturally occurring only'
-# extinct = TRUE
-# doubtful_locations = FALSE
-# load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
-# coordinates = c(51.48383834346519, -0.28925804656565474)
-# load('wgsrpd3.rda')
-# min_year = 1970
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Kew_enriched_report.rda')
-# export_data = T
-# table_font_size = 14
-
-if(separate_figure_folder){
-  figures_dir = paste0(output_dir,'/',collection,'_Figures')
-  dir.create(figures_dir,showWarnings = FALSE)
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
 }
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
 
-exporting_data_store = list()
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
 
+enriched_report$geography_codes = level3codes
+```
+
+```{r, Get location_type_text}
 location_type_text = ''
 if(native == 'Naturally occurring only'){
  location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
@@ -110,6 +128,77 @@ if(doubtful_locations){
 }
 ```
 
+```{r, Extracting information from enriched report, echo = F}
+# Add required columns if missing.
+needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'Family' %in% names(enriched_report)){
+  enriched_report$Family =rep(NA, nrow(enriched_report))
+}
+if(!'Genus' %in% names(enriched_report)){
+  enriched_report$Genus = rep(NA, nrow(enriched_report))
+}
+if(!'GenusSpecies' %in% names(enriched_report)){
+  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
+}
+if(!'AccYear' %in% names(enriched_report)){
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+
+#Extract endemic information from enriched_report
+endemic = rep('Not Endemic', nrow(enriched_report))
+endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+enriched_report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(enriched_report))
+threatened[which(enriched_report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(enriched_report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+enriched_report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(enriched_report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(enriched_report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(enriched_report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+enriched_report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Create a sanitised taxonomic name.
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+
+best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+
+report_original = enriched_report
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+exporting_data_store = list()
+```
 
 ```{r, Find LC location, echo = FALSE}
 # Extract the location of the collection.
@@ -127,6 +216,7 @@ collection_geog_details = wgsrpd3[which(intersect),-5]
 location_name = collection_geog_details$LEVEL3_NAM
 location_code = collection_geog_details$LEVEL3_COD
 ```
+
 This report explores native species existing in `r collection`, and how the representation of native species has varied over time.
 
  To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
@@ -169,9 +259,9 @@ p
 ### How many native species are in the LC?
 
 ```{r, How many native species are in the LC - data, echo = FALSE}
+# Find all the native taxa to the location of the LC in WCVP
 geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
 want = c('000','010','001','011','100','110','101')
-
 #Depending on the values of the options reduce `want` to only the satisfactory values.
 ##A) introduced / naturally occurring only.
 if(native == 'Introduced only'){
@@ -197,8 +287,9 @@ if(length(want) > 1){
 }else{
  level3codes = geography_data
 }
+level3codes_wcvp = level3codes
 
-native_index = grepl(location_code, level3codes)
+native_index = grepl(location_code,level3codes_wcvp)
 native_plant_ids =  wcvp$geography$plant_name_id[native_index]
 native_plant_ids = native_plant_ids[!is.na(native_plant_ids)]
 
@@ -239,7 +330,8 @@ In the LC there are `r format(no_native_items_LC, big.mark=',')` items correspon
 if(export_data){
   exporting_data_store$Representative_of_native_species_in_LC_current = df
 }
-df |>
+if(report_kind == 'static'){
+  df |>
   flextable() |>
   set_caption(caption = "Native plants in the collection compared to WCVP") |> 
   font(fontname = "Calibri (Body)", part = "all") |> 
@@ -249,11 +341,16 @@ df |>
   #                colwidths = 4) |> 
   theme_booktabs() |> # default theme
   autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(df)
+}
+
 ```
 
 Below we produce figures detailing how the representation of native families/genus/species/taxa has changed over time in the LC. 
 
-```{r, How many native species are in the LC - figures, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+```{r, How many native species are in the LC - data, echo = FALSE}
 # LC_native contains, The LC reduced to native plants.
 LC_native_over_time = LC_native
 # The current year.
@@ -299,47 +396,45 @@ if(export_data){
   exporting_data_store$Representative_of_native_species_in_LC_over_time = over_time_info
 }
 
-# DT::datatable(over_time_info, rownames = FALSE, caption = paste0('Native plant to ', location, ' over time'),
-#               options = list(scrollX =  TRUE,
-#                              scrollY = '70vh',
-#                              pageLength =  min(nrow(over_time_info),200),
-#                              columnDefs = list(list(className = 'dt-center', targets = 0:3))
-#                              ),
-#               escape = FALSE)
+```
 
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
-titles  = c('Families', 'Genera', 'Species', 'Taxa')
-# Loop over to_do.
-for(i in 1:length(to_do)){
-  count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+```{r  How many native species are in the LC - static figures, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+if(report_kind == 'static'){
+  to_do = c('Family', 'Genus', 'Species', 'Taxa')
+  titles  = c('Families', 'Genera', 'Species', 'Taxa')
+  # Loop over to_do.
+  for(i in 1:length(to_do)){
+    count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
+    percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+    
+    plot_dataA = data.frame(date =years, 
+                                 percent = percent,
+                                 represented = rep('Represented', length(date)))
+    plot_dataB = data.frame(date =years, 
+                               percent = 100-percent,
+                                represented = rep('Not Represented', length(date)))
+    
+    plot_data = rbind(plot_dataA, plot_dataB)
+    
+    
+    names(plot_data) = c('dates', 'percentage', 'represented')
   
-  plot_dataA = data.frame(date =years, 
-                               percent = percent,
-                               represented = rep('Represented', length(date)))
-  plot_dataB = data.frame(date =years, 
-                             percent = 100-percent,
-                              represented = rep('Not Represented', length(date)))
-  
-  plot_data = rbind(plot_dataA, plot_dataB)
-  
-  
-  names(plot_data) = c('dates', 'percentage', 'represented')
+    p = ggplot(plot_data, aes(fill=represented, y=percentage, x=dates)) + 
+      geom_bar(position="stack", stat="identity", width = 1) +
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Representation of ", titles[i] , " over time"),
+          x ="Year",
+          y = "Percentage (%)") +
+      guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
+      scale_fill_discrete()
+    
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_species_are_in_the_LC', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+    print(p)
+  }
+}
 
-  p = ggplot(plot_data, aes(fill=represented, y=percentage, x=dates)) + 
-    geom_bar(position="stack", stat="identity", width = 1) +
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Representation of ", titles[i] , " over time"),
-        x ="Year",
-        y = "Percentage (%)") +
-    guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
-    scale_fill_discrete()
-  
-  if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_species_are_in_the_LC', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-  print(p)
-}
  
 ```
 
@@ -638,11 +733,21 @@ Below we produce a table of provenance for items and accessions.
 prov_items = data.frame(table(LC_native_exisiting$ProvenanceCode))
 names(prov_items) = c('Provenance', 'Items')
 prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
+prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
+prov_items <- prov_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+         pos = Items/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
 
 prov_accessions = data.frame(table(LC_native_exisiting$ProvenanceCode[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
 names(prov_accessions) = c('Provenance', 'Accessions')
 prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]  
-
+prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
+prov_accessions <- prov_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+         pos = Accessions/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
 
 flex_data = data.frame(prov_items$Provenance,
                        prov_items$Items, 
@@ -714,6 +819,14 @@ pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
         panel.grid.minor=element_blank(),
         plot.background=element_blank(),
         plot.title = element_text(hjust = 0.5))
+
+    if(value_on_fig){
+      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+      
+      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+  }
 
 p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
 
@@ -861,6 +974,12 @@ if(nrow(redlistcat_items) == 0){
 names(redlistcat_items) = c('RedListCategory', 'Items')
 redlistcat_items$RedListCategory = as.character(redlistcat_items$RedListCategory)
 redlistcat_items$RedListCategory  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(redlistcat_items$RedListCategory, c('VU', 'EN', 'CR', 'EW', 'EX'))]  
+redlistcat_items$percent = paste0(round(redlistcat_items$Items / sum(redlistcat_items$Items)*100,digits = 1),'%')
+redlistcat_items <- redlistcat_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+         pos = Items/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
 
 redlistcat_accessions = data.frame(table(LC_native_exisiting$redlist_used[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
 if(nrow(redlistcat_accessions) == 0){
@@ -869,6 +988,12 @@ if(nrow(redlistcat_accessions) == 0){
 names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
 redlistcat_items$RedListCategory = as.character(redlistcat_items$RedListCategory)
 redlistcat_accessions$RedListCategory  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(redlistcat_accessions$RedListCategory, c('VU', 'EN', 'CR', 'EW', 'EX'))]  
+redlistcat_accessions$percent = paste0(round(redlistcat_accessions$Accessions / sum(redlistcat_accessions$Accessions)*100,digits = 1),'%')
+redlistcat_accessions <- redlistcat_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+         pos = Accessions/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
 
 if(nrow(redlistcat_items) > 0){
   flex_data = data.frame(redlistcat_items$RedListCategory,
@@ -944,6 +1069,14 @@ pie2 = ggplot(redlistcat_accessions, aes(x="", y=Accessions, fill=RedListCategor
         panel.grid.minor=element_blank(),
         plot.background=element_blank(),
         plot.title = element_text(hjust = 0.5))
+
+    if(value_on_fig){
+      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+      
+      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+  }
 
 p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom",
                   font.label = list(size = table_font_size))

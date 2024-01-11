@@ -1,0 +1,321 @@
+---
+title: "Taxonomic diversity in the LC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+```
+
+```{r, imported parameters}
+# #Inputs
+load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+collection = 'CUBG'
+PlantClassification_filepath = '/Users/jakepowell/Cambridge/PlantClassification.xlsx'
+
+separate_figure_folder = FALSE
+output_dir = getwd()
+report_kind = 'static'
+ggtheme = NULL
+value_on_fig = TRUE
+min_year = 1970
+join_bigger_than = 4
+```
+
+```{r theme_ggplot2, echo = FALSE}
+library(ggplot2)
+# Changing the default theme
+if(is.null(ggtheme)){
+   ggtheme <- function(base_size = 16) {
+      ggplot2::theme_bw(base_size = base_size) %+replace%
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+          panel.grid.minor = ggplot2::element_blank(),
+          panel.background = element_rect(fill = 'transparent', color = NA),
+          panel.border = ggplot2::element_blank(),
+          axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          axis.line = ggplot2::element_line(color = "black"),
+          legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+          legend.key.size = ggplot2::unit(1.5, "lines"),
+          legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+          strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+          strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+        )
+    }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+`r if(any(!c('no_gardens','AccNoFull') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'no_gardens' %in% names(enriched_report)){"- no_gardens: cannot perform global scale analysis.\n"}`
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: assume each item is its own accession.\n"}`
+
+`r if(any(!c('no_gardens','AccNoFull') %in% names(enriched_report))){"***"}`
+
+```{r, Extracting information from enriched report, echo = F}
+if(!'AccNoFull' %in% names(enriched_report)){enriched_report$AccNoFull = 1:nrow(enriched_report)}
+if(!'no_gardens' %in% names(enriched_report)){do_global = FALSE}
+report = enriched_report
+no_records = nrow(report)
+
+# Reduce the report to existing (non-cultivars or hybrids)
+index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
+no_want = length(index_want)
+report = report[index_want,]
+
+# Get the best name from POWO first o/w original report.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+#Select columns of interest
+interest = report[,match(c('AccNoFull','sanitised_taxon', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'no_gardens'), names(report))]
+
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+```
+
+This report explores taxonomic diversity at `r collection`. In particular this report explores the representation of different clades in the LC (Angiosperms, Monocots, etc). In this analysis we restrict the plants in the collection by removing cultivars. 
+
+***
+
+## What proportion of the plants linearage is represented in a LC?
+
+For this question we need to group all the taxa in the collection into the groups outlined in the drawing above. Therefore for each group above we need to:
+
+A) Work out how many species/genera in the garden they are in each group.
+B) Work out how many species/genera each group contains in total.
+
+Since records in the collection are not tagged with information on the groups above, we will need to use the families of items to decide which group a record in the collection belongs to. I assume here that we want to remove cultivars prior to calculating how many of each group is found in the collection. Moreover, I will reduce all non-cultivar items to their genus species base (i.e I do not take into account infraspecific details).
+
+To acertain how many species or genera each group contains we will also need to use family information as no databases (that I currently know of) contains the information of all the groups outlined above.
+
+We need to be careful of synonymy, since we could over count the number of species/genera in each group if we do not account for it. 
+
+For some of the groups we can use the plant classification we created for the sunburst charts.
+
+```{r, echo = F}
+PlantClassification = readxl::read_xlsx(path = '/Users/jakepowell/Cambridge/PlantClassification.xlsx')
+```
+
+### Total number in each group
+
+Let's first try to obtain the total number of species/genera in each of the groups. If the group is contained within vascular plants then we can use WCVP to obtain the number of species/genera. 
+
+```{r, echo = F}
+# Get the families contained in each group.
+major_groups = c("Angiosperms", "Bryophytes", "Ferns", "Gymnosperms", "Hornworts", "Liverworts", "Lycophytes", "Mosses" )
+Angiosperm_groups = c('Eudicots', 'Monocots')
+Eudicot_groups = c('Asterids', 'Rosids')
+
+fam_major_groups = lapply(major_groups, function(group){
+ PlantClassification$family[PlantClassification$`major Land Plants lineage` == group]
+})
+names(fam_major_groups) = major_groups
+
+fam_Angiosperm_groups = lapply(Angiosperm_groups, function(group){
+PlantClassification$family[PlantClassification$`major Angiosperm lineage` == group]
+})
+names(fam_Angiosperm_groups) = Angiosperm_groups
+
+fam_Eudicot_groups = lapply(Eudicot_groups, function(group){
+PlantClassification$family[PlantClassification$`major Eudicot lineage` == group]
+})
+names(fam_Eudicot_groups) = Eudicot_groups
+
+families_of_groups = c(fam_major_groups, fam_Angiosperm_groups, fam_Eudicot_groups)
+
+# Show a summary of the groups
+str(families_of_groups)
+```
+
+#### Option 1: Use WCVP
+
+We can now get the number of species and genera for the groups above (note that non-vascular plants will have counts of zero) from WCVP.
+
+```{r, echo = F}
+load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
+
+# reduce to only accepted species of wcvp_names
+wcvp = wcvp$wcvp_names
+wcvp = wcvp[which(wcvp$taxon_status == 'Accepted'),]
+wcvp_species = wcvp[which(wcvp$taxon_rank == 'Species'),]
+wcvp_genera = wcvp[which(wcvp$taxon_rank == 'Genus'),]
+
+no_species_genera_wcvp = data.frame(t(data.frame(lapply(families_of_groups, function(group){
+  c(length(which(wcvp_species$family %in% group)),
+    length(which(wcvp_genera$family %in% group)))
+}))))
+no_species_genera_wcvp$group = row.names(no_species_genera_wcvp)
+names(no_species_genera_wcvp) = c('Number of Species', 'Number of Genera', 'Group')
+no_species_genera_wcvp = no_species_genera_wcvp[,c(3,1,2)]
+
+DT::datatable(no_species_genera_wcvp, rownames = FALSE, options = list(scrollX =  TRUE, pageLength =  min(nrow(no_species_genera_wcvp),200)), escape = FALSE)
+```
+
+
+#### Option 2: Using WFO
+
+We could also use WFO to get the number of species/genera from each group. The information can be downloaded from [here](https://zenodo.org/records/8079052).
+
+```{r, echo = F, eval = FALSE}
+#########################
+### Get information from WFO.
+#########################
+# Restricted to species that are accepted. 
+AA=readr::read_delim(file = '/Users/jakepowell/Downloads/_uber/classification.csv',skip = 0,n_max = 1)
+headers = names(AA)
+headers_wanted = c(1:2,4:15,28,30,38)
+flag = T
+counter = 0
+data = NULL
+chunk = 50000
+while(flag){
+  print(counter)
+  current_lines = readr::read_delim(file = '/Users/jakepowell/Downloads/_uber/classification.csv',
+                             skip = 0+counter*chunk,
+                             n_max = chunk)
+  if(nrow(current_lines) == 0){
+    break
+  }
+  names(current_lines) = headers
+ current_lines = current_lines[current_lines$taxonomicStatus == 'Accepted',]
+ current_lines = current_lines[-which(current_lines$taxonRank %in% c('subspecies', 'variety', 'forma', "form",       "prole","subvariety")),]
+ current_lines = current_lines[,headers_wanted]
+
+  data = rbind(data,current_lines)
+  counter = counter+1
+  
+}
+
+data = data[data$taxonRank == 'species',]
+# save(data, file = 'WFO_information_accepted_species_only.rda')
+```
+
+```{r, echo = FALSE}
+load("~/Cambridge/TaxonomicDiversity/WFO_information_accepted_species_only.rda")
+```
+
+```{r, echo = F}
+data_species = data
+data$family_genus = paste0(data$family, '-', data$genus)
+unique_fam_genus = unique(data$family_genus)
+data_genera = data[match(unique_fam_genus, data$family_genus),]
+
+no_species_genera = data.frame(t(data.frame(lapply(families_of_groups, function(group){
+  c(length(which(data_species$family %in% group)),
+    length(which(data_genera$family %in% group)))
+}))))
+no_species_genera$group = row.names(no_species_genera)
+names(no_species_genera) = c('Number of Species', 'Number of Genera', 'Group')
+no_species_genera = no_species_genera[,c(3,1,2)]
+
+DT::datatable(no_species_genera, rownames = FALSE, options = list(scrollX =  TRUE, pageLength =  min(nrow(no_species_genera),200)), escape = FALSE)
+```
+
+
+### Total of each group in the collection.
+
+To create the plot we will use option 1 so we are going to compare the the number of each group in the collection to the number found in WCVP.
+
+Therefore, we will restrict the collection to only items which we were able to match to WCVP.
+
+```{r, echo = F}
+# since we are matching to group counts to WCVP only consider records that we managed to match to WCVP.
+report_existing = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+items_orig = nrow(report_existing)
+report_existing = report_existing[which(!is.na(report_existing$POWO_plant_name_id)),]
+items_in_wcvp = nrow(report_existing)
+
+GenusSpecies = paste0(report_existing$POWO_genus, ' ', report_existing$POWO_species)
+report_existing$GenusSpecies_new = GenusSpecies
+
+report_existing_species = report_existing[match(unique(GenusSpecies), report_existing$GenusSpecies_new ),]
+unique_species = nrow(report_existing_species)
+
+report_existing_genus = report_existing[match(unique(report_existing$POWO_genus), report_existing$POWO_genus ),]
+unique_genera = nrow(report_existing_genus)
+```
+
+In the report we have `r format(items_orig, big.mark =',')` existing items of which `r format(items_in_wcvp, big.mark =',')` were found to be in WCVP Of these items there are `r format(unique_species, big.mark =',')` unique taxa which is composed of `r format(unique_genera, big.mark =',')` genera. 
+
+```{r, echo = F}
+no_species_genera_collection = data.frame(t(data.frame(lapply(families_of_groups, function(group){
+  c(length(which(report_existing_species$POWO_family %in% group)),
+    length(which(report_existing_genus$POWO_family %in% group)))
+}))))
+no_species_genera_collection$group = row.names(no_species_genera_collection)
+names(no_species_genera_collection) = c('Number of Species', 'Number of Genera', 'Group')
+no_species_genera_collection = no_species_genera_collection[,c(3,1,2)]
+DT::datatable(no_species_genera_collection, rownames = FALSE, options = list(scrollX =  TRUE, pageLength =  min(nrow(no_species_genera_collection),200)), escape = FALSE)
+```
+
+```{r, echo = F}
+# As proportion of group.
+prop = no_species_genera_collection
+prop$`Number of Species` = paste0(round(no_species_genera_collection$`Number of Species` / no_species_genera_wcvp$`Number of Species` *100, digits = 3),'%')
+prop$`Number of Genera` = paste0(round(no_species_genera_collection$`Number of Genera` / no_species_genera_wcvp$`Number of Genera` *100, digits = 3),'%')
+
+DT::datatable(prop, rownames = FALSE, options = list(scrollX =  TRUE, pageLength =  min(nrow(prop),200)), escape = FALSE)
+```
+
+
+Create the plot similar to the original picture with the quantities we have values for.
+
+```{r, echo = F}
+groups = no_species_genera_collection$Group
+prop_species = round(no_species_genera_collection$`Number of Species` / no_species_genera_wcvp$`Number of Species` *100, digits = 3)
+
+plot_data_species = data.frame(groups =groups, 
+                               prop_species = prop_species,
+                               prop_species_NO = 100-prop_species)
+plot_data_species = plot_data_species[!is.nan(plot_data_species$prop_species),]
+
+fig <- plot_ly(plot_data_species, x = ~groups, y = ~prop_species, type = 'bar', name = 'Represented In collection')
+fig <- fig %>% add_trace(y = ~prop_species_NO, name = 'Not Represented In Collection')
+fig <- fig %>% layout(yaxis = list(title = 'Percentage of Species in Group'), barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified')
+
+fig
+
+
+groups = no_species_genera_collection$Group
+prop_genera = round(no_species_genera_collection$`Number of Genera` / no_species_genera_wcvp$`Number of Genera` *100, digits = 3)
+
+plot_data_species = data.frame(groups =groups, 
+                               prop_genera = prop_genera,
+                               prop_genera_NO = 100-prop_genera)
+plot_data_species = plot_data_species[!is.nan(plot_data_species$prop_genera),]
+
+fig <- plot_ly(plot_data_species, x = ~groups, y = ~prop_genera, type = 'bar', name = 'Represented In collection')
+fig <- fig %>% add_trace(y = ~prop_genera_NO, name = 'Not Represented In Collection')
+fig <- fig %>% layout(yaxis = list(title = 'Percentage of Genera in Group'), barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified')
+
+fig
+```
+
+**For other groups I need the families that are contained within each.**

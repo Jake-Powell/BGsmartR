@@ -13,12 +13,12 @@ library(flextable)
 library(ggrepel)
 ```
 
-```{r, imported parameters, echo = F}
+```{r, imported parameters}
 # Inputs
 # As an input we get 
 # - Enriched report
 # - collection the name to be printed in the report.
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+# load("/Users/jakepowell/Cambridge/Enriched_reports_Jake/Bogota_enriched_report.rda")
 # coordinates = c(0.128305,52.193403)
 # collection = 'CUBG'
 # 
@@ -32,6 +32,7 @@ library(ggrepel)
 # doubtful_locations = FALSE
 # ggtheme = NULL
 # value_on_fig = TRUE
+# PlantClassification_filepath = NULL
 ```
 
 
@@ -458,7 +459,7 @@ taxa_infra_unique = data.frame(number = c(no_unique_species, no_unique_taxon_ran
                         InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
 taxa_infra_unique$percent = paste0(round(taxa_infra_unique$number / sum(taxa_infra_unique$number)*100,digits = 1),'%')
 taxa_infra_unique <- taxa_infra_unique %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 
@@ -466,7 +467,7 @@ taxa_infra = data.frame(number = c(no_species, no_taxon_rank, no_hort),
                         InfragenericLevel = c('Species','Infraspecific taxa', 'Horticultral taxa'))
 taxa_infra$percent = paste0(round(taxa_infra$number / sum(taxa_infra$number)*100,digits = 1),'%')
 taxa_infra <- taxa_infra %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 
@@ -663,7 +664,7 @@ provenance$text = paste0(provenance$Provenance, '<br>', provenance$number, ' Acc
                          round(provenance$number/sum(provenance$number)*100,digits=2), '%')
 provenance$percent = paste0(round(provenance$number / sum(provenance$number)*100,digits = 1),'%')
 provenance <- provenance %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 ########################################
@@ -983,7 +984,7 @@ endemic$text = paste0(endemic$Endemic, '<br>', endemic$number, ' Species<br>',
                          round(endemic$number/sum(endemic$number)*100,digits=2), '%')
 endemic$percent = paste0(round(endemic$number / sum(endemic$number)*100,digits = 1),'%')
 endemic <- endemic %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 
@@ -1100,7 +1101,7 @@ threat$text = paste0(threat$threat, '<br>', threat$number, ' Species<br>',
                          round(threat$number/sum(threat$number)*100,digits=2), '%')
 threat$percent = paste0(round(threat$number / sum(threat$number)*100,digits = 1),'%')
 threat <- threat %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 
@@ -1119,7 +1120,7 @@ threat_type$text = paste0(threat_type$threat, '<br>', threat_type$number, ' Spec
 threat_type$threat = factor(threat_type$threat, levels = threat_type$threat)
 threat_type$percent = paste0(round(threat_type$number / sum(threat_type$number)*100,digits = 1),'%')
 threat_type <- threat_type %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
 
@@ -1448,7 +1449,7 @@ if(report_kind == 'static'){
   grouped_extant = data.frame(group = names(grouped), number = as.numeric(grouped))
   grouped_extant$percent = paste0(round(grouped_extant$number / sum(grouped_extant$number)*100,digits = 1),'%')
 grouped_extant <- grouped_extant %>% 
-  mutate(csum = rev(cumsum(rev(number))), 
+  dplyr::mutate(csum = rev(cumsum(rev(number))), 
          pos = number/2 + dplyr::lead(csum, 1),
          pos = dplyr::if_else(is.na(pos), number/2, pos))
   
@@ -1514,7 +1515,6 @@ grouped_extant <- grouped_extant %>%
 Below we produce a sunburst and treemap charts showing the taxonomic diversity of the collection. Hovering over any segment shows the number of the taxa in the collection within the group (family, genera, etc).
 
 ```{r, Create taxonomic diversity, echo = FALSE, message = FALSE}
-PlantClassification_filepath = '/Users/jakepowell/Desktop/snapshot_app/PlantClassification.xlsx'
 report_div  = report
 #restrict to only matched to POWO.
 report_div = report_div[!is.na(report_div$POWO_plant_name_id),]
@@ -1852,6 +1852,9 @@ names(summary_numbers) = c('Category', 'Current', years, 'Net difference', paste
 prov_types = c('Garden', 'Unknown', 'Wild', 'Wild-derived')
 summary_provenance <- lapply(historic_details, function(x){
   prov = data.frame(x$prov_info)
+  if(nrow(prov) == 0){
+    return(rep(0,length(prov_types)))
+  }
   names(prov) = c('type', 'number')
   
   count = rep(0,length(prov_types))
@@ -1876,6 +1879,9 @@ names(summary_provenance) = c('Category', 'Current', years, 'Net difference', pa
 threat_types = c('Threatened', 'Not Threatened')
 summary_threat <- lapply(historic_details, function(x){
   threat = data.frame(x$threatened_info)
+  if(nrow(threat) == 0){
+    return(rep(0,length(threat_types)))
+  }
   names(threat) = c('type', 'number')
   
   count = rep(0,length(threat_types))
@@ -1900,6 +1906,9 @@ names(summary_threat) = c('Category', 'Current', years, 'Net difference', paste0
 endemic_types = c('Endemic', 'Not Endemic')
 summary_endemic <- lapply(historic_details, function(x){
   endemic = data.frame(x$endemic_info)
+  if(nrow(endemic) == 0){
+    return(rep(0,length(endemic_types)))
+  }
   names(endemic) = c('type', 'number')
   
   count = rep(0,length(endemic_types))
@@ -1926,8 +1935,10 @@ threatened_cat_types =c('VU','EN','CR','EW','EX')
 threat_cat_word = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
 summary_threatened_cat <- lapply(historic_details, function(x){
   threatened_cat = data.frame(x$threatened_category_info)
+  if(nrow(threatened_cat) == 0){
+    return( rep(0,length(threatened_cat_types)))
+  }
   names(threatened_cat) = c('type', 'number')
-  
   count = rep(0,length(threatened_cat_types))
   match_info = match(threatened_cat_types, threatened_cat$type)
   count[which(!is.na(match_info))] = threatened_cat$number[match_info[which(!is.na(match_info))]]
@@ -2064,7 +2075,7 @@ if(export_data){
   
   save(snapshot_data, file = paste0(output_dir,'/',collection,'_snapshot_data.rda'))
   
-  library(xlsx)
+library(xlsx)
 wb = xlsx::createWorkbook()
 sh1 = xlsx::createSheet(wb, 'How many elements')
 xlsx::addDataFrame(basics[,rev(1:2)], sh1, startRow = 1,row.names = F)

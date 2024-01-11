@@ -27,15 +27,18 @@
 #' @param scale_colour_continuous,scale_colour_discrete,scale_colour_binned,scale_fill_continuous,scale_fill_discrete,scale_fill_binned  scales for ggplot. Default is to use viridis.
 #' @param reference_docx path to a .docx file whose style (design) the report copies.
 #' @param output_dir The output directory
+#' @param value_on_fig Flag (TRUE/FALSE) for whether to include values of static plots.
+#' @param report_kind The find of report to create, either `static` or `interactive`.
 #'
 #' @return renders the native report (word document)
 #' @export
 #'
-create_native_static <- function(enriched_report,
+create_native_report <- function(enriched_report,
                                  coordinates = NULL,
                                  wgsrpd3 = NULL,
                                  wcvp = NULL,
-                                 collection = 'LC',
+                                 collection = NULL,
+                                 report_kind = 'static',
                                  native = 'Naturally occurring only',
                                  extinct = TRUE,
                                  doubtful_locations = FALSE,
@@ -46,6 +49,8 @@ create_native_static <- function(enriched_report,
                                  table_font_size = 10,
                                  ggtheme = NULL,
                                  separate_figure_folder = TRUE,
+                                 value_on_fig = FALSE,
+
                                  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
                                  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
                                  scale_colour_binned = ggplot2::scale_colour_viridis_b,
@@ -75,22 +80,88 @@ create_native_static <- function(enriched_report,
   }
 
 
-  # B) Choose output file
-  if(is.null(output_file) & collection == 'LC'){
-    output_file = 'native_static.docx'
+  # B) Choose output file name.
+  if(report_kind == 'interactive'){
+    if(is.null(output_file) & is.null(collection)){
+      output_file = 'native_interactive.html'
+    }
+    else if(is.null(output_file) & !is.null(collection)){
+      output_file = paste0(collection, '_native_interactive.html')
+    }
   }
-  else if(is.null(output_file) & collection != 'LC'){
-    output_file = paste0(collection, '_native_static.docx')
-  }
-  # Set the output directory if not specified.
-  if(is.null(output_dir)){
-    output_dir = getwd()
+  else if(report_kind == 'static'){
+    if(is.null(output_file) & is.null(collection)){
+      output_file = 'native_static.docx'
+    }
+    else if(is.null(output_file) & !is.null(collection)){
+      output_file = paste0(collection, '_native_static.docx')
+    }
+  }else{
+    stop('Invalid report_kind input!')
   }
 
 
   # 2) Render basic stats_static document.
-  if(!is.null(reference_docx)){
-    rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_static.Rmd"),
+  if(report_kind == 'static'){
+    if(!is.null(reference_docx)){
+      rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_report.Rmd"),
+                        params = list(enriched_report = enriched_report,
+                                      coordinates = coordinates,
+                                      wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
+                                      collection = collection,
+                                      native = native,
+                                      extinct = extinct,
+                                      doubtful_locations = doubtful_locations,
+                                      min_year = min_year,
+                                      export_data = export_data,
+                                      table_font_size = table_font_size,
+                                      ggtheme = ggtheme,
+                                      scale_colour_continuous = scale_colour_continuous,
+                                      scale_colour_discrete = scale_colour_discrete,
+                                      scale_colour_binned = scale_colour_binned,
+                                      scale_fill_continuous = scale_fill_continuous,
+                                      scale_fill_discrete = scale_fill_discrete,
+                                      scale_fill_binned = scale_fill_binned,
+                                      separate_figure_folder = separate_figure_folder,
+                                      output_dir = output_dir,
+                                      value_on_fig = value_on_fig,
+                                      report_kind = report_kind),
+                        output_file = output_file,
+                        output_dir = output_dir,
+                        output_format = rmarkdown::word_document(reference_docx = reference_docx, toc = TRUE, toc_depth = 4))
+    }else{
+      rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_report.Rmd"),
+                        params = list(enriched_report = enriched_report,
+                                      coordinates = coordinates,
+                                      wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
+                                      collection = collection,
+                                      native = native,
+                                      extinct = extinct,
+                                      doubtful_locations = doubtful_locations,
+                                      min_year = min_year,
+                                      export_data = export_data,
+                                      table_font_size = table_font_size,
+                                      ggtheme = ggtheme,
+                                      scale_colour_continuous = scale_colour_continuous,
+                                      scale_colour_discrete = scale_colour_discrete,
+                                      scale_colour_binned = scale_colour_binned,
+                                      scale_fill_continuous = scale_fill_continuous,
+                                      scale_fill_discrete = scale_fill_discrete,
+                                      scale_fill_binned = scale_fill_binned,
+                                      separate_figure_folder = separate_figure_folder,
+                                      output_dir = output_dir,
+                                      value_on_fig = value_on_fig,
+                                      report_kind = report_kind),
+                        output_file = output_file,
+                        output_dir = output_dir,
+                        output_format = rmarkdown::word_document(toc = TRUE, toc_depth = 4))
+    }
+  }
+
+  if(report_kind == 'interactive'){
+    rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_report.Rmd"),
                       params = list(enriched_report = enriched_report,
                                     coordinates = coordinates,
                                     wgsrpd3 = wgsrpd3,
@@ -110,39 +181,12 @@ create_native_static <- function(enriched_report,
                                     scale_fill_discrete = scale_fill_discrete,
                                     scale_fill_binned = scale_fill_binned,
                                     separate_figure_folder = separate_figure_folder,
-                                    output_dir = output_dir),
+                                    output_dir = output_dir,
+                                    value_on_fig = value_on_fig,
+                                    report_kind = report_kind),
                       output_file = output_file,
                       output_dir = output_dir,
-                      output_format = rmarkdown::word_document(reference_docx = reference_docx))
-  }else{
-    rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Native_static.Rmd"),
-                      params = list(enriched_report = enriched_report,
-                                    coordinates = coordinates,
-                                    wgsrpd3 = wgsrpd3,
-                                    wcvp = wcvp,
-                                    collection = collection,
-                                    native = native,
-                                    extinct = extinct,
-                                    doubtful_locations = doubtful_locations,
-                                    min_year = min_year,
-                                    export_data = export_data,
-                                    table_font_size = table_font_size,
-                                    ggtheme = ggtheme,
-                                    scale_colour_continuous = scale_colour_continuous,
-                                    scale_colour_discrete = scale_colour_discrete,
-                                    scale_colour_binned = scale_colour_binned,
-                                    scale_fill_continuous = scale_fill_continuous,
-                                    scale_fill_discrete = scale_fill_discrete,
-                                    scale_fill_binned = scale_fill_binned,
-                                    separate_figure_folder = separate_figure_folder,
-                                    output_dir = output_dir),
-                      output_file = output_file,
-                      output_dir = output_dir,
-                      output_format = rmarkdown::word_document())
+                      output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4))
   }
 
-
-  if(separate_figure_folder){
-    unlink('native_static_cache', recursive = T)
-  }
 }
