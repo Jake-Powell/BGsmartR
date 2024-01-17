@@ -16,6 +16,7 @@ create_native_report(
   doubtful_locations = FALSE,
   min_year = 1970,
   export_data = FALSE,
+  save_excel = FALSE,
   output_file = NULL,
   output_dir = NULL,
   table_font_size = 10,
@@ -53,6 +54,8 @@ create_native_report(
 \item{min_year}{The minimum year for analyses over time.}
 
 \item{export_data}{Flag (TRUE/FALSE) for whether to create a \code{.rda} and \code{.xlsx} files containing the data used to create the figures in the plot.}
+
+\item{save_excel}{Flag (TRUE/FALSE) if export_data == TRUE, save excel allows for a 'xlsx' version of the data to be created or not. Note that for particualarly large collections, saving an excel version may cause the function to fail.}
 
 \item{output_file}{The file path of the native report.}
 

@@ -20,6 +20,7 @@
 #' @param doubtful_locations  Flag (TRUE/FALSE) for whether to include doubtful locations.
 #' @param min_year The minimum year for analyses over time.
 #' @param export_data  Flag (TRUE/FALSE) for whether to create a `.rda` and `.xlsx` files containing the data used to create the figures in the plot.
+#' @param save_excel  Flag (TRUE/FALSE) if export_data == TRUE, save excel allows for a 'xlsx' version of the data to be created or not. Note that for particualarly large collections, saving an excel version may cause the function to fail.
 #' @param output_file The file path of the native report.
 #' @param table_font_size Font size for tables.
 #' @param ggtheme gg plot theme to be applied to all ggplots, see `ggthemes` package for pre-set themes.
@@ -44,6 +45,7 @@ create_native_report <- function(enriched_report,
                                  doubtful_locations = FALSE,
                                  min_year = 1970,
                                  export_data = FALSE,
+                                 save_excel = FALSE,
                                  output_file = NULL,
                                  output_dir = NULL,
                                  table_font_size = 10,
@@ -126,7 +128,8 @@ create_native_report <- function(enriched_report,
                                       separate_figure_folder = separate_figure_folder,
                                       output_dir = output_dir,
                                       value_on_fig = value_on_fig,
-                                      report_kind = report_kind),
+                                      report_kind = report_kind,
+                                      save_excel = save_excel),
                         output_file = output_file,
                         output_dir = output_dir,
                         output_format = rmarkdown::word_document(reference_docx = reference_docx, toc = TRUE, toc_depth = 4))
@@ -153,7 +156,8 @@ create_native_report <- function(enriched_report,
                                       separate_figure_folder = separate_figure_folder,
                                       output_dir = output_dir,
                                       value_on_fig = value_on_fig,
-                                      report_kind = report_kind),
+                                      report_kind = report_kind,
+                                      save_excel = save_excel),
                         output_file = output_file,
                         output_dir = output_dir,
                         output_format = rmarkdown::word_document(toc = TRUE, toc_depth = 4))
@@ -183,7 +187,8 @@ create_native_report <- function(enriched_report,
                                     separate_figure_folder = separate_figure_folder,
                                     output_dir = output_dir,
                                     value_on_fig = value_on_fig,
-                                    report_kind = report_kind),
+                                    report_kind = report_kind,
+                                    save_excel = save_excel),
                       output_file = output_file,
                       output_dir = output_dir,
                       output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4))

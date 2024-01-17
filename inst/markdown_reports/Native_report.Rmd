@@ -21,10 +21,10 @@ library(ggrepel)
 # coordinates = c(52.19378853629289,0.1277234065606053)
 
 
-
+# 
 # collection = 'LC'
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Desert_enriched_report.rda')
-# coordinates = c(33.461822709203425, -111.944936728836)
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Vilnius_enriched_report.rda')
+# coordinates = c(54.737851403492456, 25.413512725031616)
 # load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
 # load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
 # 
@@ -157,13 +157,21 @@ if(!'AccYear' %in% names(enriched_report)){
 }
 if(!'ItemStatusDate' %in% names(enriched_report)){
   do_over_time = FALSE
-  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+  enriched_report$ItemStatusDate = rep(NA, nrow(enriched_report))
 }
 if(!'ItemStatusType' %in% names(enriched_report)){
   do_over_time = FALSE
   enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
 }
-
+if(all(is.na(enriched_report$ItemStatusDate))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$ItemStatusType))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$AccYear))){
+  do_over_time = FALSE
+}
 #Extract endemic information from enriched_report
 endemic = rep('Not Endemic', nrow(enriched_report))
 endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
@@ -212,6 +220,7 @@ exporting_data_store = list()
 ```
 
 ```{r, Find LC location, echo = FALSE}
+coord_contained = TRUE
 # Extract the location of the collection.
 pnts <- data.frame( x = coordinates[2], y = coordinates[1])
 
@@ -228,7 +237,11 @@ location_name = collection_geog_details$LEVEL3_NAM
 location_code = collection_geog_details$LEVEL3_COD
 
 if(length(location_name) == 0){
-  stop('Given co-ordinates do not belong to any over the regions in  wgsrpd3!')
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
 }
 ```
 
@@ -242,7 +255,9 @@ This report explores native species existing in `r collection`, and how the repr
 
 This document considers locations that are : `r location_type_text` 
  
-Within TDWG geographical codes `r collection` is  found within the region `r location_name`. Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
+`r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",location_name,".")}`
+`r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",location_name,".")}`
+Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
 
 The location of the LC and the native region are shown below.
 
@@ -390,9 +405,9 @@ LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$AccYear),]
 LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$ItemStatusDate),]
 LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$ItemStatusType),]
 # Get the species/genera that are existing
-plant_existing_LC_native = BGSmartR::exist_at_date(date, AccessionYear = LC_native_over_time$AccYear,
-                       ItemStatusDate = LC_native_over_time$ItemStatusDate,
-                       ItemStatusType = LC_native_over_time$ItemStatusType)
+plant_existing_LC_native = BGSmartR::exist_at_date(date, AccessionYear = as.character(LC_native_over_time$AccYear),
+                       ItemStatusDate = as.character(LC_native_over_time$ItemStatusDate),
+                       ItemStatusType = as.character(LC_native_over_time$ItemStatusType))
 
 # For each year get the number in each group (species and genera)
 over_time_info = lapply(plant_existing_LC_native, function(x){
@@ -683,7 +698,7 @@ if(report_kind == 'interactive'){
 }
 ```
 
-`r if(do_over_time){"Next we show how the number of native plants in the LC has varied over time."}`
+`r if(do_over_time){"Next we show how the number of native plants in the LC has varied over time. Note that the numbers provided in 'Native / non native plants (Great Britain) in the LC' table are calculated using plants that are currently existing (irrespective of whether they have an accession year). Whereas, in the over time analysis we remove records without an accession year (since we do not know which years such records are in the LC). Therefore, the numbers shown for the current year in the figures below might be margially smaller than those show in the previous table."}`
 
 `r if(!do_over_time){"We do not have the information to perform how the number of native plants in the LC has varied over time."}`
 
@@ -842,9 +857,9 @@ if(separate_figure_folder){
 report = enriched_report
 report = report[report$AccYear > 1650 & report$AccYear<=year_cur,]
 report = report[!is.na(report$ItemStatusDate),]
-plant_existing = BGSmartR::exist_at_date(date, AccessionYear = report$AccYear,
-                       ItemStatusDate = report$ItemStatusDate,
-                       ItemStatusType = report$ItemStatusType)
+plant_existing = BGSmartR::exist_at_date(date, AccessionYear = as.character(report$AccYear),
+                       ItemStatusDate = as.character(report$ItemStatusDate),
+                       ItemStatusType = as.character(report$ItemStatusType))
 
 # For each year get the number in each group (species and genera)
 over_time_info = lapply(plant_existing, function(x){
@@ -1075,11 +1090,7 @@ if(separate_figure_folder){
 
 ### Among the native plants in a LC, how many of them are endemic or redlisted?
 
-In this section, we concentrate on native plants in the LC that are either endemic or redlisted.
-
-Below we produce a Venn diagram of endemic and threatened plants that are native in the LC.
-
-```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Venn Diagram, echo = FALSE, results='hide',fig.keep='all', message=FALSE}
+```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Data}
 # LC_native_exisiting, native and existing part of LC database.
 
 endemic = rep(FALSE, nrow(LC_native_exisiting))
@@ -1092,7 +1103,20 @@ threatened[which(LC_native_exisiting$redList_category %in% c('EN', 'VU', 'CR', '
 total_threatened = sum(threatened)
 
 total_threat_endemic = sum(endemic & threatened)
-library("VennDiagram") 
+need_venn = total_endemic > 0 | total_threatened > 0
+
+```
+
+`r if(need_venn){"In this section, we concentrate on native plants in the LC that are either endemic or redlisted."}`
+
+`r if(need_venn){"Below we produce a Venn diagram of endemic and threatened plants that are native in the LC."}`
+
+`r if(!need_venn){"There are no endemic or threatened plants that are native in the LC."}`
+
+
+```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Venn Diagram, echo = FALSE, results='hide',fig.keep='all', message=FALSE}
+if(need_venn){
+  library("VennDiagram") 
 
 # move to new plotting page 
 grid.newpage() 
@@ -1126,12 +1150,14 @@ draw.pairwise.venn(
       if(separate_figure_folder){
 ggplot2::ggsave(filename = paste0(figures_dir, '/','Native_threatened_endemic_Venn_diagram.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
     }
+}
+
 ```
 
 
-For these native and endemic/threatened plants we produce a table below detailing how many of each species is in the collection together with the accession number and when each item was last checked.
+`r if(need_venn){"For these native and endemic/threatened plants we produce a table below detailing how many of each species is in the collection together with the accession number and when each item was last checked."}`
 
-```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, echo = FALSE, ft.keepnext = FALSE}
+```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, ft.keepnext = FALSE, eval = need_venn}
 accessions = LC_native_exisiting$AccNoFull
 taxa = paste0(LC_native_exisiting$POWO_taxon_name, ' ', LC_native_exisiting$POWO_taxon_authors)
 ItemStatusDate = LC_native_exisiting$ItemStatusDate
@@ -1160,7 +1186,7 @@ if(export_data){
 }
 ```
 
-```{r, Among the native plants in a LC, how many of them are endemic or redlisted - table, ft.keepnext = FALSE}
+```{r, Among the native plants in a LC, how many of them are endemic or redlisted - table, ft.keepnext = FALSE, eval = need_venn}
 if(report_kind == 'static'){
   data_compressed |>
   flextable() |>
@@ -1601,7 +1627,9 @@ redlistcat_items <- redlistcat_items %>%
          pos = dplyr::if_else(is.na(pos), Items/2, pos))
 }
 
-redlistcat_accessions = data.frame(table(LC_native_exisiting$redlist_used[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
+LC_native_exisiting_redlist = LC_native_exisiting[LC_native_exisiting$redlist_used %in% c('VU', 'EN', 'CR', 'EW', 'EX'),]
+
+redlistcat_accessions = data.frame(table(LC_native_exisiting_redlist$redlist_used[match(unique(LC_native_exisiting_redlist$AccNoFull), LC_native_exisiting_redlist$AccNoFull)]))
 if(nrow(redlistcat_accessions) == 0){
   redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))
 }
@@ -2664,7 +2692,7 @@ fig
 ```{r, survival analysis, echo = FALSE}
 # Remove those without accession year.
 do_survival = TRUE
-if(do_over_time){
+if(!do_over_time){
   do_survival = FALSE
 }
 enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
@@ -2867,25 +2895,28 @@ if(export_data){
   # save as .rda.
   save(exporting_data_store, file = paste0(output_dir,'/',collection, '_native_data.rda'))
   
-  # save as xlsx.
-  library(xlsx)
-  file = paste0(output_dir,'/',collection, '_native_data.xlsx')
-  wb <- createWorkbook()
-  datas <- exporting_data_store
-  data_titles = names(datas) |> stringr::str_replace_all('_', ' ')
-  sheetnames <- paste0('Sheet ', 1:length(datas))
-  sheets <- lapply(sheetnames,  createSheet, wb = wb)
-  for(i in 1:length(datas)){
-    # First we'll create a new row, let's put the title on row 2
-    titleRow <-createRow(sheets[[i]], rowIndex=1)
-    # We'll add a cell to that row (in the first column) for the title
-    sheetTitle <-createCell(titleRow, colIndex=1)
-    # We'll add the sheet title to the cell
-    setCellValue(sheetTitle[[1,1]], data_titles[i])
-    # We'll choose the formatting for the cell
-    xlsx::addDataFrame(datas[[i]], sheet = sheets[[i]],row.names = FALSE, startRow = 3)
-  }
-  saveWorkbook(wb, file = file)
 }
+```
+
+```{r, save excel version of data, eval = save_excel & export_data}
+library(xlsx)
+file = paste0(output_dir,'/',collection, '_native_data.xlsx')
+wb <- createWorkbook()
+datas <- exporting_data_store
+data_titles = names(datas) |> stringr::str_replace_all('_', ' ')
+sheetnames <- paste0('Sheet ', 1:length(datas))
+sheets <- lapply(sheetnames,  createSheet, wb = wb)
+for(i in 1:length(datas)){
+  # First we'll create a new row, let's put the title on row 2
+  titleRow <-createRow(sheets[[i]], rowIndex=1)
+  # We'll add a cell to that row (in the first column) for the title
+  sheetTitle <-createCell(titleRow, colIndex=1)
+  # We'll add the sheet title to the cell
+  setCellValue(sheetTitle[[1,1]], data_titles[i])
+  # We'll choose the formatting for the cell
+  xlsx::addDataFrame(datas[[i]], sheet = sheets[[i]],row.names = FALSE, startRow = 3)
+}
+saveWorkbook(wb, file = file)
+
 ```
 ***

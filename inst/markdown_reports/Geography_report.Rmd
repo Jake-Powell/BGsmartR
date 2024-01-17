@@ -210,7 +210,7 @@ plot_info <- wgsrpd3 |>
 
 # Do we want to export the data into an excel spreadsheet and r data file.
 if(export_data){
-  save(location_data, file = paste0(collection,'_geography_data.rda'))
+  save(location_data, file = paste0(output_dir,'/',collection,'_geography_data.rda'))
   
   l = location_data
   names(l) = c('BRU level 3 code',
@@ -221,7 +221,7 @@ if(export_data){
                'Represented by Endemic Species',
                'Number of Threatened Species',
                'Represented by Threatened Species')
-  writexl::write_xlsx(l,path = paste0(collection,'_geography_data.xlsx'))
+  writexl::write_xlsx(l,path = paste0(output_dir,'/',collection,'_geography_data.xlsx'))
   rm(l)
 }
 ```
