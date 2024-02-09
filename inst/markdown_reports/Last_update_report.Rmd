@@ -17,7 +17,7 @@ library(anytime)
 ```{r, imported parameters}
 # #Inputs
 # load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Valencia_enriched_report.rda')
-# # load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
 # collection = 'CUBG'
 # separate_figure_folder = FALSE
 # output_dir = getwd()
@@ -27,6 +27,7 @@ library(anytime)
 # table_font_size = 10
 # export_data = F
 # save_excel = F
+# separate_figure_folder = F
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -85,8 +86,19 @@ best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
 best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
 report$best_name = best_name
 
+
 #Select columns of interest
-interest = report[,match(c('AccNoFull','best_name', 'sanitised_taxon', 'extracted_author', 'ItemAccNoFull', 'ItemStatusDate'), names(report))]
+interest = report[,match(c('AccNoFull', 'TaxonNameFull' ,'best_name', 'sanitised_taxon', 'extracted_author', 'POWO_taxon_authors', 'POWO_taxon_name', 'ItemAccNoFull', 'ItemStatusDate'), names(report))]
+
+# Create a column with the name if we want to print the taxa. (latin words with italic, others plain.)
+print_name = interest$sanitised_taxon
+name_with_italic = unlist(lapply(stringr::str_split(print_name, ' '), function(x){
+  x[which(!grepl('\\.',x))] = paste0('*',x[which(!grepl('\\.',x))],'*')
+  paste0(x, collapse = ' ')
+}))
+print_name = paste0(name_with_italic, ' ', interest$extracted_author)
+interest$print_name = print_name
+
 
 
 if(separate_figure_folder){
@@ -102,20 +114,20 @@ This report explores the time since the last update for records of existing plan
 
 ```{r, Anaylsis, echo = F}
 # First let's reduce our report to only the information we need.
-size_report = nrow(report)
+size_report = nrow(interest)
 
 # Get the current date. 
 current_date <- Sys.Date()
 current_year <- as.numeric(format(current_date, '%Y'))
 
 #How many records have missing ItemStatusDate?
-missing_index = which(report$ItemStatusDate == '' | is.na(report$ItemStatusDate))
+missing_index = which(interest$ItemStatusDate == '' | is.na(interest$ItemStatusDate))
 missing_ItemStatusDate = length(missing_index)
 
 # Get the year from each item.
-ItemYear = BGSmartR::extract_year(report$ItemStatusDate)
+ItemYear = BGSmartR::extract_year(interest$ItemStatusDate)
 # anytime::addFormats(c('%d-%m-%Y', '%d/%m/%Y'))
-# ItemStatusDate = as.Date(format(anytime::anydate(report$ItemStatusDate), "%Y-%m-%d"))
+# ItemStatusDate = as.Date(format(anytime::anydate(interest$ItemStatusDate), "%Y-%m-%d"))
 
 #How many records have a date after the current date?
 future_index = which(ItemYear - current_year > 0)
@@ -127,9 +139,9 @@ placeholder_ItemStatusDate = length(placeholder_index)
 
 # Reduce report into data removing missing/future itemstatusdates.
 if(length(c(missing_index,future_index, placeholder_index))> 0){
-  data = report[-c(missing_index,future_index, placeholder_index),]
+  data = interest[-c(missing_index,future_index, placeholder_index),]
 } else{
-  data = report
+  data = interest
 }
 data$year = BGSmartR::extract_year(data$ItemStatusDate)
 
@@ -160,6 +172,61 @@ names(last_update_items_store) = c('Year', 'Number of years ago', 'Number of Ite
 exporting_data_store$Table_summarising_last_status_update_of_items_in_the_collection = last_update_items_store
 }
 
+
+# MANAGEMENT SHEETS: Those with issue in the ItemStatusDate.
+issue_index = unique(c(placeholder_index, future_index, missing_index))
+if(length(issue_index) > 0){
+  issue_management_sheet = interest[issue_index, match(c('TaxonNameFull', 'POWO_taxon_name', 'POWO_taxon_authors', 'AccNoFull', 'ItemStatusDate'), names(interest))]
+issue_management_sheet$powo_name = paste0(issue_management_sheet$POWO_taxon_name, ' ', issue_management_sheet$POWO_taxon_authors)
+issue_management_sheet$powo_name[issue_management_sheet$powo_name == 'NA NA'] = NA
+
+issue_type = rep('', nrow(issue_management_sheet))
+issue_type[issue_index %in% placeholder_index] = 'Placeholder ItemStatueDate'
+issue_type[issue_index %in% future_index] = 'ItemStatueDate is in the Future'
+issue_type[issue_index %in% missing_index] = 'ItemStatueDate is missing'
+issue_management_sheet$issue_type = issue_type
+issue_management_sheet = issue_management_sheet[,c(4,1,6,5,7)]
+names(issue_management_sheet) = c('Accession Number',
+                                  "Original Report Taxonomic Name",
+                                  "Matched POWO Taxonomic Name",
+                                  "Item Status Date",
+                                  "Item Status Date Issue"
+                                  )
+
+writexl::write_xlsx(issue_management_sheet, path =paste0(output_dir,'/',collection,'_ItemStatusDate_issue_list.xlsx'))
+
+}
+
+# MANAGEMENT SHEETS: Records that haven't been updated in the last 5 years.
+if(length(issue_index)>0){
+  older_5_year_sheet = interest[-issue_index, match(c('TaxonNameFull', 'POWO_taxon_name', 'POWO_taxon_authors', 'AccNoFull', 'ItemStatusDate'), names(interest))]
+}else{
+  older_5_year_sheet = interest[, match(c('TaxonNameFull', 'POWO_taxon_name', 'POWO_taxon_authors', 'AccNoFull', 'ItemStatusDate'), names(interest))]
+}
+
+ItemStatusDate = older_5_year_sheet$ItemStatusDate
+ItemStatusDate[stringr::str_length(ItemStatusDate) == 4] = paste0(ItemStatusDate, '-01-01')
+ItemStatusDate[stringr::str_length(ItemStatusDate) == 7] = paste0(ItemStatusDate, '-01')
+
+age_year = as.numeric(Sys.Date() - as.Date(ItemStatusDate))/365
+days_since_update = (as.numeric(Sys.Date() - as.Date(ItemStatusDate)))
+older_5_year_sheet$days_since_update = days_since_update
+
+older_5_year_sheet = older_5_year_sheet[which(age_year >=5),]
+if(nrow(older_5_year_sheet) > 0){
+  older_5_year_sheet$powo_name = paste0(older_5_year_sheet$POWO_taxon_name, ' ', older_5_year_sheet$POWO_taxon_authors)
+older_5_year_sheet$powo_name[older_5_year_sheet$powo_name == 'NA NA'] = NA
+older_5_year_sheet = older_5_year_sheet[,c(4,1,7,5,6)]
+names(older_5_year_sheet) = c('Accession Number',
+                                  "Original Report Taxonomic Name",
+                                  "Matched POWO Taxonomic Name",
+                                  "Item Status Date",
+                                  "Days Since Last Update"
+                                  )
+writexl::write_xlsx(older_5_year_sheet, path =paste0(output_dir,'/',collection,'_Accessions_last_update_5_years_or_longer_list.xlsx'))
+
+}
+
 ```
 
 ***
@@ -170,13 +237,13 @@ The collection has `r format(size_report, big.mark = ',')` items that are curren
 
 ```{r, missing item status date - table}
 if(missing_ItemStatusDate > 0){
-  to_show = report[missing_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  to_show = interest[missing_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanit'), names(sanitised_taxon))]
   names(to_show) = c('ID', 'Item Status Date', 'Taxa')
  
   exporting_data_store$Table_showing_records_in_the_LC_with_missing_ItemStatusDate = to_show
   
    if(report_kind == 'static'){
-    to_show[1:min(nrow(to_show),20),] |>
+    to_show[1:min(nrow(to_show),5),] |>
     flextable() |>
     set_caption(caption = "Items with missing ItemStatusDate") |> 
     font(fontname = "Calibri (Body)", part = "all") |> 
@@ -193,13 +260,13 @@ if(missing_ItemStatusDate > 0){
 
 ```{r, future item status date - table}
 if(future_ItemStatusDate > 0){
-  to_show = report[future_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  to_show = interest[future_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(interest))]
   names(to_show) = c('ID', 'Item Status Date', 'Taxa')
   
   exporting_data_store$Table_showing_records_in_the_LC_with_ItemStatusDate_in_the_future = to_show
 
    if(report_kind == 'static'){
-    to_show[1:min(nrow(to_show),20),] |>
+    to_show[1:min(nrow(to_show),5),] |>
     flextable() |>
     set_caption(caption = "Items with a future for ItemStatusDate") |> 
     font(fontname = "Calibri (Body)", part = "all") |> 
@@ -217,13 +284,13 @@ if(future_ItemStatusDate > 0){
 
 ```{r,placeholder item status date - table}
 if(placeholder_ItemStatusDate > 0){
-  to_show = report[placeholder_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(report))]
+  to_show = interest[placeholder_index, match(c('ItemAccNoFull', 'ItemStatusDate', 'sanitised_taxon'), names(interest))]
   names(to_show) = c('ID', 'Item Status Date', 'Taxa')
   
   exporting_data_store$Table_showing_records_in_the_LC_with_placeholder_ItemStatusDate = to_show
 
   if(report_kind == 'static'){
-    to_show[1:min(nrow(to_show),20),] |>
+    to_show[1:min(nrow(to_show),5),] |>
     flextable() |>
     set_caption(caption = "Items with a placeholder for ItemStatusDate") |> 
     font(fontname = "Calibri (Body)", part = "all") |> 
@@ -246,7 +313,7 @@ if(placeholder_ItemStatusDate > 0){
 
 ```{r, Bar plots of last status date of items in the LC - static, eval = report_kind == 'static' & do_last_update,  fig.fullwidth=TRUE, fig.dim = c(10, 6)}
 # By year of last item status
-p<-ggplot(data=last_update_items, aes(x=year_num, y=cumulative)) +
+p<-ggplot(data=last_update_items, aes(x=year_num, y=no_items)) +
   geom_bar(stat="identity") +
    labs(title=paste0("Last Item status update by Year"),
       y ="Number of items",

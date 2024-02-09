@@ -11,13 +11,19 @@ sanitise_name(taxon_name)
 
 sanitise_authors(taxon_authors)
 
-sanitise_names_authors(taxon_names, taxon_authors = NA, taxon_names_full = NA)
+sanitise_names_authors(
+  taxon_names,
+  taxon_authors = NA,
+  taxon_names_full = NA,
+  console_message = FALSE
+)
 
 sanitise_names_authors_report(
   collection,
   taxon_name_column = "TaxonName",
   taxon_name_full_column = NA,
-  taxon_author_column = NA
+  taxon_author_column = NA,
+  console_message = FALSE
 )
 }
 \arguments{
@@ -28,6 +34,8 @@ sanitise_names_authors_report(
 \item{taxon_names}{Vector of taxonomic names.}
 
 \item{taxon_names_full}{Vector of joined taxonomic name and author.}
+
+\item{console_message}{Flag (TRUE/FALSE) for showing progress bar in the console.}
 
 \item{collection}{A data frame of a collection.}
 

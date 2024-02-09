@@ -13,6 +13,8 @@
 #' @param AccessionYear The accession year of the records.
 #' @param ItemStatusDate The data when the records were last updated.
 #' @param ItemStatusType The status of the record when last updated. Either `Existing` or `NotExisting`.
+#' @param post_date Set the date that existing plants in the LC are classed as alive until . Default is the present day.
+
 #'
 #' @return data frame where each column corresponds to a date, each row an item in the collection. The (i,j)th value is a logical (TRUE/FALSE) corresponding whether the ith item existed at the jth date.
 #' @export
@@ -21,21 +23,25 @@
 #' AccessionYear = c('1956', '1988', '2005', '2018'),
 #' ItemStatusDate = c('2004-01', '2010-03-05', '2022-04-08', '2022-08-19'),
 #' ItemStatusType = c('NotExisting','NotExisting','Existing','Existing'))
-exist_at_date <- function(date, AccessionYear, ItemStatusDate, ItemStatusType){
+exist_at_date <- function(date, AccessionYear, ItemStatusDate, ItemStatusType, post_date = as.character(Sys.Date())){
 
   date = as.Date(date)
   # Accession date.
   pre_date = rep(NA,length(AccessionYear)) ; pre_date_char = rep(NA,length(AccessionYear))
-  pre_date[which(AccessionYear > 1650)] =as.Date(paste(AccessionYear[which(AccessionYear > 1650)], '01', '01', sep = "-"), "%Y-%m-%d")
-  pre_date_char[which(AccessionYear > 1650)] = paste(AccessionYear[which(AccessionYear > 1650)], '01', '01', sep = "-")
+  wanted_index = which(AccessionYear > 1650 & AccessionYear <= as.numeric(format(Sys.Date(),'%Y')))
+  pre_date[wanted_index] =as.Date(paste(AccessionYear[wanted_index], '01', '01', sep = "-"), "%Y-%m-%d")
+  pre_date_char[wanted_index] = paste(AccessionYear[wanted_index], '01', '01', sep = "-")
 
   # use the current day, unless not existing then use the date of that entry.
-  post_date = rep(as.character(Sys.Date()),length(AccessionYear))
+  post_date = rep(post_date,length(AccessionYear))
   post_date[ItemStatusType == 'NotExisting'] = ItemStatusDate[ItemStatusType == 'NotExisting']
   # If only a year is given assume it occurs on the 31st of Dec
-  post_date[stringr::str_length(post_date) == 4] = paste( post_date[stringr::str_length(post_date) == 4], '12', '31', sep = "-")
+  index_string_length_4 = which(stringr::str_length(post_date) == 4)
+  post_date[index_string_length_4] = paste( post_date[index_string_length_4], '12', '31', sep = "-")
   # If only a year and month is given assume the day is the 28th.
-  post_date[stringr::str_length(post_date) == 7] = paste( post_date[stringr::str_length(post_date) == 7], '28', sep = "-")
+  index_string_length_7 = which(stringr::str_length(post_date) == 7)
+
+  post_date[index_string_length_7] = paste( post_date[index_string_length_7], '28', sep = "-")
   dates = data.frame(pre = pre_date_char, post = post_date, pre_date = pre_date, post_date = as.Date(post_date, "%Y-%m-%d"))
 
   # Vector of whether the plant is existing on the date.

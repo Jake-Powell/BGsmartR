@@ -1,0 +1,2208 @@
+---
+title: "Overview of threatened species in the LC"
+output: html_document
+---
+  
+###### {-} 
+<!-- This section is for loading/setting up the data and writing the intro -->
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+```
+
+```{r, imported parameters, eval  =FALSE}
+
+collection = 'CUBG'
+load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+coordinates = c(52.19378853629289,0.1277234065606053)
+#
+#
+load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
+
+native = 'Naturally occurring only'
+extinct = TRUE
+doubtful_locations = FALSE
+min_year = 1970
+export_data = F
+table_font_size = 14
+ggtheme = NULL
+separate_figure_folder = FALSE
+value_on_fig = TRUE
+report_kind = 'static'
+color_binary = c('darkgray','darkgreen')
+palette = 'Greens'
+recent_year = 2020
+output_dir = getwd()
+```
+
+```{r, functions for turnover}
+turnover_items <- function(report, max_year = as.numeric(format(Sys.Date(),'%Y')), min_year = 1970){
+  combined = data.frame(Year = years)
+  
+  # Items
+  gain = data.frame(table(report$AccYear))
+  if(nrow(gain) == 0){
+    gained = rep(0,nrow(combined))
+    combined$gain_items = gained
+  }else{
+    names(gain) = c('Year', 'Items')
+    gain$Year = as.numeric(as.character(gain$Year))
+    gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
+    gained = rep(0,nrow(combined))
+    gained[match(gain$Year, combined$Year)] = gain$Items
+    combined$gain_items = gained
+  }
+  
+  
+  loss = data.frame(table(report$LossYear))
+  if(nrow(loss) == 0){
+    lost = rep(0,nrow(combined))
+    combined$loss_items = lost
+  }else{
+    names(loss) = c('Year', 'Items')
+    loss$Year = as.numeric(as.character(loss$Year))
+    loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
+    lost = rep(0,nrow(combined))
+    lost[match(loss$Year, combined$Year)] = loss$Items
+    combined$loss_items = lost
+  }
+  
+  
+  combined$net_items = combined$gain_items - combined$loss_items
+  return(combined)
+}
+
+plots_turnover <- function(turnover, report_kind, text = '', separate_figure_folder, data_type = 'items'){
+  if(report_kind == 'static'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+    
+    p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
+      geom_line(aes(color=C)) +
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,'')) +
+      guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+      # theme(text = element_text(size=table_font_size)) +
+      scale_color_manual(values=c("blue", "red"))+
+      theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
+    
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.pdf'),device = 'pdf', scale = 1, width = 20, height = 12, limitsize = FALSE)
+    }
+    p1=p
+    
+    # Color based on value
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    
+    p = ggplot(turnover, aes(x = Year, y = net_items)) +
+      geom_bar(stat = "identity",
+               show.legend = FALSE,
+               fill = color,      # Background color
+               color = "white") + # Border color
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Net turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,'')) #+
+    # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Net_turnover_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    p2=p
+    
+    return(list(gain_loss = p1, net = p2))
+  }
+  if(report_kind == 'interactive'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+    
+    colors = c("lightblue", "pink")
+    fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
+    }
+    fig1 = fig
+    
+    colors = c("pink", "lightblue")
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    texto = paste0('Net: ', turnover$net_items, '<br>',
+                   'Gain: ', turnover$gain_items, '<br>',
+                   'Loss: ', turnover$loss_items, '<br>'
+    )
+    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
+    }
+    
+    return(list(gain_loss = fig1, net = fig))
+    
+  }
+}
+
+proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
+                                        report_kind, text = '', data_type = 'items'){
+  if(report_kind == 'static'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      labs(title=paste0("Proportion of gained ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    p1 = p
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Proportion of lost ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
+  }
+  if(report_kind =='interactive'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('% ',text,' ',data_type,' gained'), marker = list(color = 'lightblue'))
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('% ',text,' ',data_type,' in LC'), marker = list(color = 'black'))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    fig1 = fig
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('% ',text,' ',data_type,' lost'), marker = list(color = 'pink'))
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('% ',text,' ',data_type,' in LC'), marker = list(color = 'black'))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
+    
+  }
+}
+```
+
+```{r theme_ggplot2}
+library(ggplot2)
+
+# Changing the default theme
+if(is.null(ggtheme)){
+  ggtheme <- function(base_size = 16) {
+    ggplot2::theme_bw(base_size = base_size) %+replace%
+      ggplot2::theme(
+        plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.border = ggplot2::element_blank(),
+        axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+        axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+        axis.line = ggplot2::element_line(color = "black"),
+        legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+        legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+        legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+        legend.key.size = ggplot2::unit(1.5, "lines"),
+        legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+        strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+        strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+      )
+  }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+  want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+  want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+  want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+  want = want[!grepl('001|011|101',want)]
+}
+geog_want_values = want
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+  level3codes =do.call("paste", c(geography_data, sep = ", "))
+  level3codes = stringr::str_remove(level3codes, ', NA$')
+  level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+  level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+  location_type_text = paste0(location_type_text, 'naturally occurring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+  
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+  location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+  location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+  
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+`r if(any(! c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: assume each item is its own accession.\n"}`
+`r if(!'AccYear' %in% names(enriched_report)){"- AccYear: Cannot do analyses over time.\n"}`
+`r if(!'ItemStatusDate' %in% names(enriched_report)){"- AccNoFull: Cannot do analyses over time.\n"}`
+`r if(!'ItemStatusType' %in% names(enriched_report)){"- AccNoFull: Cannot do analyses over time.\n"}`
+
+`r if(any(! c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
+
+```{r, Find LC location}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+```
+
+
+```{r, Extracting information from enriched report, echo = F}
+# Add required columns if missing.
+do_over_time = TRUE
+needed_columns = c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'AccYear' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$ItemStatusDate = rep(NA, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+if(all(is.na(enriched_report$ItemStatusDate))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$ItemStatusType))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$AccYear))){
+  do_over_time = FALSE
+}
+
+#Extract endemic information from enriched_report
+endemic = rep('Widespread', nrow(enriched_report))
+endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+enriched_report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(enriched_report))
+threatened[which(enriched_report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(enriched_report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+enriched_report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(enriched_report))
+for(i in 1:length(threat_cat)){
+  threatened_category[which(enriched_report$redList_category == threat_cat[i])] = threat_cat[i]
+  threatened_category[which(enriched_report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+enriched_report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Add native column.
+native = rep('Non-native', nrow(enriched_report))
+native_index = which(grepl(location_code, enriched_report$geography_codes))
+native[native_index] = 'Native'
+enriched_report$native = native
+rm(native)
+
+LossYear = rep(NA,nrow(enriched_report))
+ItemStatusYear = as.numeric(stringr::str_extract(enriched_report$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[enriched_report$ItemStatusType == 'NotExisting'] = ItemStatusYear[enriched_report$ItemStatusType == 'NotExisting']
+enriched_report$LossYear = LossYear
+
+# Create a sanitised taxonomic name.
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+
+best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
+enriched_report$best_name = best_name
+report_original = enriched_report
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+exporting_data_store = list()
+```
+
+This report explores threatened species in `r collection`, and how the number of threatened species has varied over time.
+
+A taxa in the collection is classed as **threatened** if it is classified as either extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's red list](https://www.iucnredlist.org). 
+
+Note that in this document we will show the geographic area that threatened taxa in the LC belong to. To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
+
+- Native / introduced,
+- Extinct / Not extinct,
+- Location is doubtful / otherwise.
+
+This document considers locations that are: `r location_type_text` 
+ 
+```{r get threatened only information}
+threatened = enriched_report[enriched_report$threatened == 'Threatened',]
+
+# threatened must match to POWO so no naming issues.
+threatened_existing = threatened[threatened$ItemStatusType == 'Existing',] 
+no_threatened_items_existing = nrow(threatened_existing)
+no_threatened_accessions_existing = length(unique(threatened_existing$AccNoFull))
+no_threatened_species_existing = length(unique(paste0(threatened_existing$POWO_genus, ' ', threatened_existing$POWO_species)))
+no_threatened_taxa_existing = length(unique(paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_authors)))
+
+# For all items we need to be more careful. Items and accessions are fine. 
+# For species and taxa only consider those that have matched to POWO. 
+LC_existing = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+no_LC_items_existing = nrow(LC_existing)
+no_LC_accessions_existing = length(unique(LC_existing$AccNoFull))
+no_LC_species_existing = length(unique(paste0(LC_existing$POWO_genus, ' ', LC_existing$POWO_species)))
+no_LC_species_existing = no_LC_species_existing - sum(any(is.na(LC_existing$POWO_genus)))
+no_LC_taxa_existing = length(unique(paste0(LC_existing$POWO_taxon_name, ' ', LC_existing$POWO_taxon_authors)))
+no_LC_taxa_existing = no_LC_taxa_existing - sum(any(is.na(LC_existing$POWO_genus)))
+
+
+category = c('Items', 'Accessions', 'Species', 'Taxa')
+threatened_values = c(no_threatened_items_existing, no_threatened_accessions_existing, no_threatened_species_existing, no_threatened_taxa_existing)
+LC_values  = c(no_LC_items_existing, no_LC_accessions_existing, no_LC_species_existing, no_LC_taxa_existing)
+proportion = paste0(round(threatened_values/LC_values*100, digits = 2),'%')
+
+threatened_count_table = data.frame(category, threatened_values,LC_values, proportion)
+names(threatened_count_table) = c('Category', 'Number of threatened found in LC', ' Total in LC', 'Proportion of threatened')
+
+if(export_data){
+  exporting_data_store$threatened_count_table = threatened_count_table
+}
+
+### Over time information
+### A) threatened
+year_cur = as.numeric(format(Sys.Date(), '%Y'))
+years = max(min_year, min(enriched_report$AccYear[enriched_report$AccYear > 1650],na.rm = T)) :year_cur
+dates = paste0(years,'-01-01')
+threatened_existing_each_year = BGSmartR::exist_at_date(date = dates,
+                                                     AccessionYear = as.character(threatened$AccYear),
+                                                     ItemStatusDate = as.character(threatened$ItemStatusDate),
+                                                     ItemStatusType = as.character(threatened$ItemStatusType))
+
+# Get the number of items accession taxa species for threatened plants in the LC.
+over_time_info = lapply(threatened_existing_each_year, function(x){
+  garden_current = threatened[x,]
+  
+  # Get the values of interest.
+  no_items = nrow(garden_current)
+  no_accessions = length(unique(garden_current$AccNoFull))
+  no_taxa = length(unique(garden_current$TaxonNameFull))
+  no_species = length(unique(paste0(garden_current$POWO_taxon_name, garden_current$POWO_taxon_authors)[!is.na(garden_current$POWO_plant_name_id)]))
+  
+  return(c(no_items, no_accessions, no_taxa, no_species))
+}) |>
+  data.frame() |>
+  t() |> 
+  data.frame()
+names(over_time_info) = c('Items', 'Accessions', 'Taxa', 'Species')
+over_time_info = data.frame(Date = dates, over_time_info)
+row.names(over_time_info) = 1:nrow(over_time_info)
+threatened_over_time = over_time_info
+
+if(export_data){
+  exporting_data_store$Number_of_threatened_species_in_LC_over_time = threatened_over_time
+}
+
+### B) Whole LC.
+# Do the same for the whole collection.
+report = enriched_report
+report = report[report$AccYear > 1650 & report$AccYear<=year_cur,]
+report = report[!is.na(report$ItemStatusDate),]
+plant_existing = BGSmartR::exist_at_date(dates, AccessionYear = as.character(report$AccYear),
+                                         ItemStatusDate = as.character(report$ItemStatusDate),
+                                         ItemStatusType = as.character(report$ItemStatusType))
+
+# For each year get the number in each group (species and genera)
+over_time_info = lapply(plant_existing, function(x){
+  garden_current = report[x,]
+  
+  # Get the values of interest.
+  no_items = nrow(garden_current)
+  no_accessions = length(unique(garden_current$AccNoFull))
+  no_taxa = length(unique(garden_current$TaxonNameFull))
+  no_species = length(unique(paste0(garden_current$POWO_taxon_name, garden_current$POWO_taxon_authors)[!is.na(garden_current$POWO_plant_name_id)]))
+  
+  return(c(no_items, no_accessions, no_taxa, no_species))
+}) |>
+  data.frame() |>
+  t() |> 
+  data.frame()
+names(over_time_info) = c('Items', 'Accessions', 'Taxa', 'Species')
+over_time_info = data.frame(Date = dates, over_time_info)
+row.names(over_time_info) = 1:nrow(over_time_info)
+LC_data = over_time_info
+
+if(export_data){
+  exporting_data_store$Total_counts_of_LC_over_time = LC_data
+}
+
+### MANAGEMENT SHEET: All existing threatened accessions.
+threatened_accessions = threatened_existing
+threatened_accessions = threatened_accessions[match(unique(threatened_accessions$AccNoFull),threatened_accessions$AccNoFull),]
+powo_name = paste0(threatened_accessions$POWO_taxon_name, ' ', threatened_accessions$POWO_taxon_authors)
+powo_name[powo_name == 'NA NA'] = NA
+threatened_accessions$powo_name = powo_name
+threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode'), names(threatened_accessions))]
+names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance')
+writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
+
+
+```
+
+### How many threatened species are in the LC and where are they from?
+
+In the LC there are `r format(no_threatened_items_existing, big.mark=',')` items corresponding to  `r format(no_threatened_accessions_existing, big.mark=',')` accessions of existing threatened plants. The number of threatened species existing in the LC is summarised below.
+
+```{r, How many native species are in the LC - table}
+if(report_kind == 'static'){
+  threatened_count_table |>
+    flextable() |>
+    set_caption(caption = "Threatened plants in the LC") |> 
+    font(fontname = "Calibri (Body)", part = "all") |> 
+    fontsize(size = table_font_size, part = "body") |> 
+    # add footer if you want
+    # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+    #                colwidths = 4) |> 
+    theme_booktabs() |> # default theme
+    autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(threatened_count_table, rownames = FALSE)
+}
+
+```
+
+Above the number of species is the number of unique genus species pairs found in the LC that match to WCVP. Whereas, the number of taxa is the number of unique taxonomic names and authors found in the LC that match to WCVP.
+
+Next we produce maps showing where in the world the threatened plants in the LC are from. 
+
+```{r threatened Species map -  data}
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+wanted_info = threatened
+wanted_info_species = wanted_info[match(unique(wanted_info$best_name), wanted_info$best_name),]
+
+
+
+#Get the number of speices for each location.
+no_threatened_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info$geography_codes))
+}))
+#Get the number of speices for each location.
+no_threatened_species = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info_species$geography_codes))
+}))
+
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           rep_threatened = no_threatened_items > 0,
+                           no_threatened_items = no_threatened_items,
+                           no_threatened_species = no_threatened_species
+)
+
+location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands')
+location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
+
+plot_info <- wgsrpd3 |>
+  #add the location data to the geometry data
+  dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
+
+# Do we want to export the data into an excel spreadsheet and r data file.
+if(export_data){
+  l = location_data
+  names(l) = c('BRU level 3 code',
+                 'BRU level 3 name',
+                 'Has Threatened Species in LC',
+                 'Number of Threatened Items',
+                 'Number of Threatened Species')
+  
+  exporting_data_store$map_of_threatened_species = l
+  rm(l)
+}
+
+percent_rep = round(sum(plot_info$rep_threatened) / length(plot_info$rep_threatened) *100,digits = 2)
+no_rep = plot_info$LEVEL3_NAM[!plot_info$rep_threatened]
+```
+
+Note that a threatened taxa may belong to multiple geographic regions. Therefore, a single taxa/item can contribute to the count of multiple regions on the map. As such if one was to add the number of items from all the regions this will be larger than the number of threatened items in the LC. 
+
+Recall that we use WCVP to determine the geographic distribution of taxa and we use a combination of WCVP and IUCN red list to determine the threatened status. Therefore, it is possible that we find a threatened taxa (using red list) that is not found in WCVP, and thus we do not have a geographic distribution for these taxa. In the LC there are `r length(unique(threatened_existing$best_name[which(is.na(threatened_existing$geography_codes))]))` taxa that are classed as threatened without geographic information provided by WCVP.
+
+```{r Get threatened without geography table, eval = FALSE}
+
+threat_without_geography = threatened_existing[which(is.na(threatened_existing$geography_codes)),]
+threat_without_geography$POWO_web_address[8]
+if(report_kind == 'static'){
+  threatened_count_table |>
+    flextable() |>
+    set_caption(caption = "Threatened plants in the LC") |> 
+    font(fontname = "Calibri (Body)", part = "all") |> 
+    fontsize(size = table_font_size, part = "body") |> 
+    # add footer if you want
+    # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+    #                colwidths = 4) |> 
+    theme_booktabs() |> # default theme
+    autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(threatened_count_table, rownames = FALSE)
+}
+```
+
+```{r, Number threatened Species in the LC - figure, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+top10_name = plot_info$LEVEL3_NAM[order(plot_info$no_threatened_species, decreasing = TRUE)][1:10]
+top10_value = plot_info$no_threatened_species[order(plot_info$no_threatened_species, decreasing = TRUE)][1:10]
+top10 = data.frame(region = top10_name, no_threatened = top10_value)
+
+###################################################################
+# Plot of the representation of threatened species in each geographic region.
+# Regions that have no threatened plants are set to NA.
+plot_info$rep_threatened[plot_info$rep_threatened == TRUE] = 'Yes'
+plot_info$rep_threatened[plot_info$rep_threatened == FALSE] = 'No'
+
+plot_info$`Have Threatened` = plot_info$rep_threatened
+
+p = ggplot(plot_info)+
+  geom_sf(aes(fill=`Have Threatened`),  col="transparent")+
+  stat_sf_coordinates(aes(col=`Have Threatened`), show.legend = FALSE)+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Geography of Threatened Species in the LC")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_representation_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+###################################################################
+###################################################################
+# Plot of the number of threatened species in each geographic region.
+plot_info$no_threatened_species[plot_info$no_threatened_species == 0] = NA
+p = ggplot(plot_info)+
+  geom_sf(aes(fill=no_threatened_species),  col="transparent")+
+  stat_sf_coordinates(aes(col=no_threatened_species))+
+  scale_colour_distiller(direction=1, 
+                         name="Number\nof Species", na.value = 'black') +
+  scale_fill_distiller(direction=1,
+                       name="Number\nof Species", na.value = 'black')+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Number of Threatened Species")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_number_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+
+```
+
+```{r, interactive map data setup, eval = report_kind == 'interactive'}
+# Due to the high level of detail in wgsrpd3 we need to go to a simplified geometry for the interactive geometry plots. 
+# load all geo areas
+wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+
+# Reduce to only regions that have threatened species.
+plot_int_info <- wgsrpd3_level3_simp |>
+  dplyr::left_join(location_data, by=c("code"="code"))
+plot_int_info$name = plot_int_info$name.x
+
+data_g = st_geometry(plot_int_info)
+centers = st_centroid(data_g)
+AA = unlist(centers)
+center_df = data.frame(long = AA[seq(1,length(AA),2)], lat = AA[seq(2,length(AA),2)])
+
+# Convert geometry into a format accepted by plotly
+mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+geo_sf = geojsonsf::sf_geojson(mapp)
+data = rjson::fromJSON(geo_sf)
+feat = data$features
+for(i in 1:length(feat)){
+  feat[[i]]$id = feat[[i]]$properties$code
+}
+data$features = feat
+
+index = seq(0,1,0.01)
+col_rep = color_binary
+colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+counter = 1:length(index)
+col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+
+colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+ramp <- scales::colour_ramp(colours_cont)
+colos = ramp(seq(0, 1, length = 1001))
+
+
+index = seq(0,1,0.001)
+colours_cont = c( "black","black",colos)
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'Is\\.', 'Islands')
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'I\\.', 'Island')
+```
+
+`r if(report_kind == 'interactive'){"##### Maps of threatened species held in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Has a threatened species"}`
+```{r  Map of the representation of threatened species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_threatened = rep('No', nrow(plot_int_info))
+rep_threatened[plot_int_info$rep_threatened] = 'Yes'
+plot_int_info$rep_threatened_yes_no = rep_threatened
+text = paste0('Region: ', plot_int_info$name, '<br />', 
+              'Represented: ', rep_threatened, '<br />',
+              '# Species in LC: ', plot_int_info$no_threatened_species,
+              '# Items in LC: ', plot_int_info$no_threatened_items, '<br />')
+plot_int_info$hover = text
+
+fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+  add_trace(type="choroplethmapbox",
+            geojson=data,
+            locations=plot_int_info$code,
+            z=as.numeric(plot_int_info$rep_threatened),
+            colorscale=col_scale_rep,
+            reversescale = FALSE,
+            marker=list(line=list(
+              width=0.01,color ='black'),
+              text = plot_int_info$hover,
+              hoverinfo = 'text'
+            )) |>
+  layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46, 
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+  hide_colorbar()
+# colorbar(title = "Species <br> Represented <br> in LC")  
+fig = fig |>  add_trace(type="scattermapbox",
+                        mode = 'markers',
+                        data = center_df,
+                        lon = center_df$long,
+                        lat = center_df$lat,
+                        text = plot_int_info$hover,
+                        color = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]), 
+                        hoverinfo = 'text',
+                        inherit = FALSE, showlegend = FALSE) 
+
+fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_threatened_Species.html'))
+}
+suppressWarnings(fig)
+
+```
+
+`r if(report_kind == 'interactive'){"###### By Number of threatened Species Held"}`
+```{r  Map of the number of threatened species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_threatened = rep('No', nrow(plot_int_info))
+rep_threatened[plot_int_info$rep_threatened] = 'Yes'
+
+  plot_int_info$no_threatened_species_use = plot_int_info$no_threatened_species
+  plot_int_info$no_threatened_species_use[plot_int_info$no_threatened_species == 0] = -1
+  
+  colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (plot_int_info$no_threatened_species_use+1)/max(plot_int_info$no_threatened_species_use+1)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+  
+  
+  # fig = fig |>  add_trace(type="scattermapbox",
+  #                         mode = 'markers',
+  #                         data = center_df,
+  #                         lon = center_df$long,
+  #                         lat = center_df$lat,
+  #                         text = plot_int_info$hover,
+  #                         # fill = plot_int_info$no_threatened_species+1,
+  #                         # fillcolor=col_scale,
+  #                         hoverinfo = 'skip',
+  #                         inherit = FALSE,
+  #                         showlegend = FALSE,
+  #                         marker = list(color = fillcolor, line = list(width = 0)))
+
+
+  
+  fig = plot_ly(plot_int_info,  text = plot_int_info$hover, hoverinfo = 'text') |>
+      add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df,
+                          lon = center_df$long,
+                          lat = center_df$lat,
+                          text = plot_int_info$hover,
+                          # fill = plot_int_info$no_threatened_species+1,
+                          # fillcolor=col_scale,
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                          hoverlabel = list(bgcolor = fillcolor)) |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_int_info$code,
+     z=plot_int_info$no_threatened_species_use+1,
+     zmin = 0, zmax = max(plot_int_info$no_threatened_species_use),
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_int_info$hover,
+     hoverinfo = 'text',
+     hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    colorbar(title = "Number<br> of Species")
+
+
+  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_threatened_Species.html'))
+  }
+  suppressWarnings(fig)
+
+```
+
+
+### Duplication of threatened species in the LC
+
+```{r, duplication of threatened species}
+### How many items/accessions for each threatened taxa in the LC.
+threatened_items_per_taxa = table(paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_authors))
+threatened_items_per_taxa_table = table(as.numeric(threatened_items_per_taxa))
+
+threatened_items_per_taxa_simp = as.numeric(threatened_items_per_taxa)
+threatened_items_per_taxa_simp[threatened_items_per_taxa_simp >= 5] = '>4'
+threatened_items_per_taxa_table_simp = table(threatened_items_per_taxa_simp)
+
+threatened_accessions = threatened_existing[match(unique(threatened_existing$AccNoFull), threatened_existing$AccNoFull),]
+threatened_accessions_per_taxa = table(paste0(threatened_accessions$POWO_taxon_name, ' ', threatened_accessions$POWO_taxon_authors))
+threatened_accessions_per_taxa_table = table(as.numeric(threatened_accessions_per_taxa))
+
+threatened_accessions_per_taxa_simp = as.numeric(threatened_accessions_per_taxa)
+threatened_accessions_per_taxa_simp[threatened_accessions_per_taxa_simp >= 5] = '>4'
+threatened_accessions_per_taxa_table_simp = table(threatened_accessions_per_taxa_simp)
+
+duplication_items = data.frame(threatened_items_per_taxa_table_simp)
+names(duplication_items) = c('Duplication', 'Items')
+
+duplication_items$percent = paste0(round(duplication_items$Items / sum(duplication_items$Items)*100,digits = 1),'%')
+duplication_items <- duplication_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+                pos = Items/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
+
+duplication_accessions = data.frame(threatened_accessions_per_taxa_table_simp)
+names(duplication_accessions) = c('Duplication', 'Accessions')
+# duplication_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(duplication_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
+duplication_accessions$percent = paste0(round(duplication_accessions$Accessions / sum(duplication_accessions$Accessions)*100,digits = 1),'%')
+duplication_accessions <- duplication_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+                pos = Accessions/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
+flex_data = data.frame(duplication_items$Duplication,
+                       duplication_items$Items, 
+                       paste0(round(duplication_items$Items/sum(duplication_items$Items)*100,digits=2),'%'),
+                       duplication_accessions$Accessions,
+                       paste0(round(duplication_accessions$Accessions/sum(duplication_accessions$Accessions)*100,digits=2),'%'))
+names(flex_data) = c('Duplication', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
+
+if(export_data){
+  exporting_data_store$Duplication_of_existing_threatened_plants_in_the_LC = flex_data
+}
+
+```
+
+In this section, we explore the duplication of threatened species in the LC. 
+
+We produce pie charts showing the number of items/accessions each threatened taxa has in the LC. 
+
+```{r, Duplication of threatened plants in the LC pie charts, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+# Basic piechart
+pie1 = ggplot(duplication_items, aes(x="", y=Items, fill=Duplication)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtheme(base_size = 18) +
+  ggtitle('Items') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+pie2 = ggplot(duplication_accessions, aes(x="", y=Accessions, fill=Duplication)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('Accessions') + 
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+if(value_on_fig){
+  pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                                 size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+  
+  pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                                 size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+}
+
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Duplication_of_threatened_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+
+p
+
+```
+
+`r if(report_kind == 'interactive'){"#####  Duplication of threatened species in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r  Duplication of existing threatened items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(duplication_items$Items, ' Threatened Taxa has ', duplication_items$Duplication, ' items')
+
+fig <- plot_ly(duplication_items, labels = ~Duplication, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-duplication_threatened_items.html'))
+}
+
+
+```
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r  Duplication of existing threatened accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(duplication_accessions$Accessions, ' Threatened taxa has', duplication_accessions$Duplication, ' accessions')
+
+fig <- plot_ly(duplication_accessions, labels = ~Duplication, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-duplication_threatened_accessions.html'))
+}
+
+
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+The following table corresponds to the pie chart
+
+```{r Duplication of threatened plants in the LC - Table}
+if(report_kind == 'static'){
+  flex_data |>
+    flextable() |>
+    set_caption(caption = paste0('Duplication of existing threatened plants in the LC')) |> 
+    font(fontname = "Calibri (Body)", part = "all") |> 
+    fontsize(size = table_font_size, part = "body") |> 
+    # add footer if you want
+    # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+    #                colwidths = 4) |> 
+    theme_booktabs() |> # default theme
+    separate_header() |> 
+    align(align = "center", part = "all") |>
+    autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(flex_data)
+}
+
+```
+
+
+
+### Recent changes in the threatened species held in the LC
+
+```{r, recent changes to threatened species}
+recent_years = recent_year:2024
+threatened_new = threatened[threatened$AccYear %in% recent_years,]
+threatened_new$count = rep(1,nrow(threatened_new))
+threatened_new$powo_name = paste0(threatened_new$POWO_taxon_name, ' ', threatened_new$POWO_taxon_authors)
+threatened_new$dead = threatened_new$ItemStatusType == 'NotExisting'
+
+new_threatened_accessions <- threatened_new |>
+    dplyr::group_by(.data$good_name) |>
+    dplyr::summarise(original_report_taxon_name = toString(unique(.data$TaxonNameFull)),
+                     powo_taxon_name = toString(unique(.data$powo_name)),
+                     no_items_in_LC = sum(.data$count),
+                     no_dead = sum(.data$dead),
+                     accessions = toString(unique(.data$AccNoFull)),
+                     threatened = .data$threatened[1],
+                     location = .data$geography_codes[1],
+    ) |>
+    dplyr::ungroup() 
+
+alive_prior = unlist(lapply(new_threatened_accessions$accessions, function(x){
+  accessions = unlist(stringr::str_split(x, ', '))
+  taxa = threatened$good_name[threatened$AccNoFull == accessions[1]][1]
+  
+  all_records = threatened[threatened$good_name == taxa,]
+  all_records = all_records[order(all_records$AccYear, all_records$AccNoFull),]
+  items_prior_to_accession = rep(NA, length(accessions))
+  for(i in 1:length(accessions)){
+    if((match(accessions[i], all_records$AccNoFull)-1) == 0){
+      items_prior_to_accession[i] = 'Never in LC before'
+    }else{
+    prior_records =all_records[1:(match(accessions[i], all_records$AccNoFull)-1),]
+    accession_year = all_records$AccYear[match(accessions[i], all_records$AccNoFull)][1]
+    def_dead_before = sum(prior_records$status_year < accession_year & prior_records$ItemStatusType == 'NotExisting')
+    pos_dead_or_alive_before = sum(prior_records$status_year == accession_year & prior_records$ItemStatusType == 'NotExisting')
+    def_alive = nrow(prior_records) - def_dead_before - pos_dead_or_alive_before
+    items_prior_to_accession[i] = paste0('(',def_alive, ', ', pos_dead_or_alive_before ,')')
+    }
+   
+  }
+  return(paste0(items_prior_to_accession, collapse = ', '))
+}))
+new_threatened_accessions$alive_prior_accession = alive_prior
+
+new_threatened_accessions$location = wgsrpd3$LEVEL3_NAM[match(new_threatened_accessions$location, wgsrpd3$LEVEL3_COD)]
+```
+
+In this section we explore new additions to the threatened species to the collection since `r recent_year`. In this time frame there have been `r length(unique(threatened_new$AccNoFull))` accessions of threatened species with a total of `r nrow(threatened_new)` items. The new accessions consists of `r nrow(new_threatened_accessions)` threatened taxa which spans `r length(unique(new_threatened_accessions$location))` different locations. 
+
+We can use the accession year (no date available) and item status date to calculate how many of the recently accessioned threatened species were new to the LC at the time of accessioning. We do have to be slightly careful since we could have a new accession in the same year as the last previous item of that taxa dying in the same year. In this case, we cannot be sure if the accessioning occurred before or after the plant died. In this case we shall make a note, and class it as "unsure".
+
+Of the `r nrow(new_threatened_accessions)` taxa accessioned `r sum(grepl('Never in LC before', new_threatened_accessions$alive_prior_accession))` were never previously held in the LC. Of those that have being in the LC before (`r sum(new_threatened_accessions$alive_prior_accession != 'Never in LC before')`) `r sum(grepl('^\\(0, 0', new_threatened_accessions$alive_prior_accession))` were not existing at the time of accessions, `r sum(grepl('^\\(0, [1-9]', new_threatened_accessions$alive_prior_accession))` are unsure if they were existing at time of accessioning and `r sum(grepl('^\\([1-9]', new_threatened_accessions$alive_prior_accession))` were already held in the LC.
+
+Of the recently accessioned threatened species `r sum(new_threatened_accessions$no_dead)` items have died, resulting to `r sum(new_threatened_accessions$no_dead == new_threatened_accessions$no_items_in_LC)` taxa having net no new accessions/items since `r recent_year` (i.e all accessioned items have died). This includes `r sum(new_threatened_accessions$no_dead == new_threatened_accessions$no_items_in_LC & grepl('Never in LC before', new_threatened_accessions$alive_prior_accession))` taxa which were never previously held in the LC. 
+
+### What proportion of the LC at `r collection` is threatened and how has this varied over time?
+
+In this section we explore how the number of threatened species in the LC has varied over time. For each year we use the accession year and item status date to determine which items in the collection are existing on the 1st of January each year.
+
+```{r, What proportion of the LC at `r collection` is threatened and how has this varied over time - static number figures, eval = report_kind == 'static' & do_over_time,  fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+for(i in 1:length(to_do)){
+  counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+  plot_data = data.frame(date = years, counts = counts)
+  
+  p = ggplot(data=plot_data, aes(x=date, y=counts)) +
+    geom_line()+
+    geom_point() +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title=paste0("Number of threatened ", titles[i] , " over time"),
+         x ="Year",
+         y = paste0("Number of ",titles[i])) #+
+  # guides(fill=guide_legend(title=paste0("", titles[i]))) +
+  # theme(text = element_text(size=table_font_size))
+  
+  if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','number_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  
+  print(p)
+}
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"##### Number of threatened plants over time  {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
+```{r  Number of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=1
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+plot_data = data.frame(date = years, counts = counts)
+
+fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
+
+fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
+                     xaxis = list(title = "Year"))
+fig <- fig |> layout(hovermode = 'x unified')
+fig
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_threatened_',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Accessions"}`
+```{r  Number of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=2
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+plot_data = data.frame(date = years, counts = counts)
+
+fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
+
+fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
+                     xaxis = list(title = "Year"))
+fig <- fig |> layout(hovermode = 'x unified')
+fig
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_threatened_',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
+```{r  Number of threatened taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=3
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+plot_data = data.frame(date = years, counts = counts)
+
+fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
+
+fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
+                     xaxis = list(title = "Year"))
+fig <- fig |> layout(hovermode = 'x unified')
+fig
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_threatened_',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
+```{r  Number of threatened species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=4
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+plot_data = data.frame(date = years, counts = counts)
+
+fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
+
+fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
+                     xaxis = list(title = "Year"))
+fig <- fig |> layout(hovermode = 'x unified')
+fig
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_threatened_',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
+
+`r if(do_over_time){"Next we view threatened plants in the LC as a percentage of all plants in the LC over time."}`
+
+```{r, What proportion of the LC at `r collection` is threatened and how has this varied over time - static percentage figures, eval = report_kind == 'static' & do_over_time, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+to_do =  c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+# Loop over to_do.
+for(i in 1:length(to_do)){
+  threatened_counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+  total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+  
+  percent = round(threatened_counts/total_counts*100, digits = 3)
+  
+  plot_dataA = data.frame(date =years, 
+                          percent = percent,
+                          represented = rep('Threatened', length(date)))
+  plot_dataB = data.frame(date =years, 
+                          percent = 100-percent,
+                          represented = rep('Non-Threatened', length(date)))
+  
+  plot_data = rbind(plot_dataA, plot_dataB)
+  plot_data$represented = factor(plot_data$represented,levels = c('Non-Threatened','Threatened'))
+  
+  names(plot_data) = c('dates', 'percentage', 'represented')
+  
+  p = ggplot(plot_data, aes(fill=represented, y=percentage, x=dates)) + 
+    geom_bar(position="stack", stat="identity", width = 1) +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title=paste0("Proportion of ", titles[i] , " that are threatened in the LC over time"),
+         x ="Year",
+         y = "Percentage (%)") +
+    guides(fill=guide_legend(title=paste0("", titles[i]))) +
+    scale_fill_discrete() # +
+  # theme(text = element_text(size=table_font_size))
+  
+  if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','proportion_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  
+  print(p)
+}
+
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of threatened plants over time graphs {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
+```{r  Proportion of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=1
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+threatened_counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+
+percent = round(threatened_counts/total_counts*100, digits = 3)
+
+plot_dataA = data.frame(date =years, 
+                        percent = percent,
+                        represented = rep('Threatened', length(date)))
+plot_dataB = data.frame(date =years, 
+                        percent = 100-percent,
+                        represented = rep('Non-Threatened', length(date)))
+
+plot_data = rbind(plot_dataA, plot_dataB)
+plot_data$represented = factor(plot_data$represented,levels = c('Non-Threatened','Threatened'))
+
+names(plot_data) = c('dates', 'percentage', 'represented')
+
+fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text=paste0("", to_do[i]))),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_threatened',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Accessions"}`
+```{r  Proportion of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=2
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+threatened_counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+
+percent = round(threatened_counts/total_counts*100, digits = 3)
+
+plot_dataA = data.frame(date =years, 
+                        percent = percent,
+                        represented = rep('Threatened', length(date)))
+plot_dataB = data.frame(date =years, 
+                        percent = 100-percent,
+                        represented = rep('Non-Threatened', length(date)))
+
+plot_data = rbind(plot_dataA, plot_dataB)
+plot_data$represented = factor(plot_data$represented,levels = c('Non-Threatened','Threatened'))
+
+names(plot_data) = c('dates', 'percentage', 'represented')
+
+fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text=paste0("", to_do[i]))),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_threatened',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
+```{r  Proportion of threatened taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=3
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+threatened_counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+
+percent = round(threatened_counts/total_counts*100, digits = 3)
+
+plot_dataA = data.frame(date =years, 
+                        percent = percent,
+                        represented = rep('Threatened', length(date)))
+plot_dataB = data.frame(date =years, 
+                        percent = 100-percent,
+                        represented = rep('Non-Threatened', length(date)))
+
+plot_data = rbind(plot_dataA, plot_dataB)
+plot_data$represented = factor(plot_data$represented,levels = c('Non-Threatened','Threatened'))
+
+names(plot_data) = c('dates', 'percentage', 'represented')
+
+fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text=paste0("", to_do[i]))),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_threatened',titles[i],'__over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
+```{r  Proportion of threatened species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+i=4
+to_do = c('Items', 'Accessions', 'Taxa', 'Species')
+titles = c('items', 'accessions', 'taxa', 'species')
+
+threatened_counts = threatened_over_time[,match(to_do[i], names(threatened_over_time))]
+total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+
+percent = round(threatened_counts/total_counts*100, digits = 3)
+
+plot_dataA = data.frame(date =years, 
+                        percent = percent,
+                        represented = rep('Threatened', length(date)))
+plot_dataB = data.frame(date =years, 
+                        percent = 100-percent,
+                        represented = rep('Non-Threatened', length(date)))
+
+plot_data = rbind(plot_dataA, plot_dataB)
+plot_data$represented = factor(plot_data$represented,levels = c('Non-Threatened','Threatened'))
+
+names(plot_data) = c('dates', 'percentage', 'represented')
+
+fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text=paste0("", to_do[i]))),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_threatened',titles[i],'_over_time.html'))
+}
+
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
+
+***
+  
+### Provenance of threatened plants in the LC
+  
+  In this section we are exploring the provenance of threatened plants in the collection. We shall do this in two parts: existing plants in the LC and how this has changed over time.
+
+Below we produce a table of provenance for items and accessions.
+
+```{r, Provenance of threatened plants in the LC}
+# LC_native_exisiting the data of existing threatened plants in the LC. 
+
+prov_items = data.frame(table(threatened_existing$ProvenanceCode))
+names(prov_items) = c('Provenance', 'Items')
+# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
+prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
+prov_items <- prov_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+                pos = Items/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
+
+prov_accessions = data.frame(table(threatened_existing$ProvenanceCode[match(unique(threatened_existing$AccNoFull), threatened_existing$AccNoFull)]))
+names(prov_accessions) = c('Provenance', 'Accessions')
+# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
+prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
+prov_accessions <- prov_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+                pos = Accessions/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
+flex_data = data.frame(prov_items$Provenance,
+                       prov_items$Items, 
+                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
+                       prov_accessions$Accessions,
+                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
+names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
+
+if(export_data){
+  exporting_data_store$Provenance_of_existing_threatened_plants_in_the_LC = flex_data
+}
+```
+
+```{r Provenance of threatened plants in the LC - Table}
+if(report_kind == 'static'){
+  flex_data |>
+    flextable() |>
+    set_caption(caption = paste0('Provenance of existing threatened plants in the LC')) |> 
+    font(fontname = "Calibri (Body)", part = "all") |> 
+    fontsize(size = table_font_size, part = "body") |> 
+    # add footer if you want
+    # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+    #                colwidths = 4) |> 
+    theme_booktabs() |> # default theme
+    separate_header() |> 
+    align(align = "center", part = "all") |>
+    autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(flex_data)
+}
+
+```
+
+Putting the data into a pie charts yields
+
+```{r, Provenance of threatened plants in the LC pie charts, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+# Basic piechart
+pie1 = ggplot(prov_items, aes(x="", y=Items, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtheme(base_size = 18) +
+  ggtitle('Items') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('Accessions') + 
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+if(value_on_fig){
+  pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                                 size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+  
+  pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                                 size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+}
+
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_threatened_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+
+p
+
+```
+
+`r if(report_kind == 'interactive'){"#####  Provenance of threatened species in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r  Provenance of existing threatened items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(prov_items$Items, ' threatened items with provenance "', prov_items$Provenance, '"')
+
+fig <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_threatened_items.html'))
+}
+
+
+```
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r  Provenance of existing threatened accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(prov_accessions$Accessions, ' threatened accessions with provenance "', prov_accessions$Provenance, '"')
+
+fig <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_threatened_accessions.html'))
+}
+
+
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+`r if(do_over_time){"We will now look at how the provenance of threatened plants in the LC has changed over time."}`
+
+`r if(!do_over_time){"We do not have the information to explore how provenance of threatened plants in the LC has changed over time."}`
+
+```{r, Provenance of threatened plants in the LC- change over time data, eval = do_over_time}
+
+# For each year get the number in each group (species and genera)
+over_time_info = lapply(threatened_existing_each_year, function(x){
+  garden_current = threatened[x,]
+  
+  prov_items =  data.frame(table(garden_current$ProvenanceCode))
+  if(nrow(prov_items) == 0){
+    return(list(prov_items = prov_items,
+                prov_accessions = prov_items))
+  }
+  names(prov_items) = c('Provenance', 'Items')
+  
+  prov_accessions = data.frame(table(garden_current$ProvenanceCode[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  names(prov_accessions) = c('Provenance', 'Accessions')
+  
+  return(list(prov_items = prov_items,
+              prov_accessions = prov_accessions))
+})
+prov_threatened_over_time = over_time_info
+
+```
+
+```{r, Provenance of threatened plants in the LC- change over time figures, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = report_kind == 'static' & do_over_time}
+to_do = c('items', 'accessions')
+for(i in 1:length(to_do)){
+  # Get the data from over_time_info.
+  data_wanted = NULL
+  wanted_item = which(grepl('prov',names(prov_threatened_over_time[[1]])) & grepl(to_do[i],names(prov_threatened_over_time[[1]])) )
+  for(jj in 1:length(prov_threatened_over_time)){
+    info_year = prov_threatened_over_time[[jj]][[wanted_item]]
+    if(nrow(info_year) == 0){
+      next
+    }
+    prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+    info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                           info_year = info_year,
+                           prop = prop)
+    data_wanted = rbind(data_wanted, info_year)
+    
+  }
+  names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+  data_wanted[,2] = as.character(data_wanted[,2])
+  # data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+  data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+  
+  
+  if(export_data){
+    item_name = paste0('Provenance_of_threatened_plants_in_the_LC_proportion_over_time_',to_do[i])
+    exporting_data_store$AA = data_wanted
+    names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+  }
+  
+  p = ggplot(data_wanted, aes(fill=Provenance, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title=paste0("Provenance of ", to_do[i] , " that are threatened in the LC over time"),
+         x ="Year",
+         y = "Percentage (%)") +
+    guides(fill=guide_legend(title=paste0('Provenance')))# +
+  # theme(text = element_text(size=table_font_size))
+  
+  if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  print(p)
+  
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of threatened species in the LC over time {.tabset}"}`
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
+```{r  Provenance of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
+to_do = c('items', 'accessions')
+i=1
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+  
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+if(export_data){
+  item_name = paste0('Provenance_of_threatened_plants_in_the_LC_proportion_over_time_',to_do[i])
+  exporting_data_store$AA = data_wanted
+  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+}
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
+data_wanted$text = text
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}',
+               sort = FALSE)
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='Provenance Type')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-threatened_provenance_over_time_by_item.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Accessions"}`
+```{r  Provenance of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
+to_do = c('items', 'accessions')
+i=2
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+  
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+if(export_data){
+  item_name = paste0('Provenance_of_threatened_plants_in_the_LC_proportion_over_time_',to_do[i])
+  exporting_data_store$AA = data_wanted
+  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+}
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
+data_wanted$text = text
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}',
+               sort = FALSE)
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='Provenance Type')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-threatened_provenance_over_time_by_accession.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
+
+
+***
+  
+### Turnover of threatened Species
+  
+This section looks at the turnover of plants that are threatened.
+
+```{r, turnover of threatened}
+do_type = TRUE
+report_cur = threatened
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  # Need to get the turnover for the whole collection (items/accessions) for proportion later.
+  report = report_original
+  overall_turnover_items = turnover_items(report)
+  
+  unique_accessions = unique(report$AccNoFull)
+  # Order the items where the lower indices have the most recent death date.
+  LossYear_dummy = report$LossYear
+  LossYear_dummy[is.na(LossYear_dummy)] = 4000
+  ordered_items = order(LossYear_dummy,decreasing = T)
+  #Match to the ordered accessions.
+  match_to_best = match(unique_accessions,report$AccNoFull[ordered_items])
+  #Reduce the data to unique accessions with most recent death date.
+  report_accessions = report[match_to_best,]
+  overall_turnover_accessions = turnover_items(report_accessions)
+  
+  turnover = turnover_items(report_cur, min_year = min_year)
+  exporting_data_store$turnover_threatened = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'threatened', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                                                                  AccessionYear = report_cur$AccYear,
+                                                                  ItemStatusDate = report_cur$ItemStatusDate,
+                                                                  ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ LC_data$Items
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'threatened',
+                                                   data_type = 'items')
+  ##############################################################################################
+  report_cur = report_accessions[report_accessions$threatened == 'Threatened',]
+  turnover = turnover_items(report_cur, min_year = min_year)
+  exporting_data_store$turnover_threatened_accessions = turnover
+  
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'threatened',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                                                                  AccessionYear = report_cur$AccYear,
+                                                                  ItemStatusDate = report_cur$ItemStatusDate,
+                                                                  ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ LC_data$Accessions
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                              overall_turnover = overall_turnover_accessions,
+                                                              collection_proportion = collection_proportion,
+                                                              report_kind = report_kind,
+                                                              separate_figure_folder = separate_figure_folder,
+                                                              text = 'threatened',
+                                                              data_type = 'accessions')
+}
+```
+
+`r if(!do_type){"There are no records that are threatened."}`
+
+```{r, Turnover of threatened items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of threatened {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of threatened species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of threatened species each year. To calculate the proportion of the collection that are threatened each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of threatened - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of threatened {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+### Survival of threatened plants in the LC 
+
+```{r, survival analysis, echo = FALSE}
+# Remove those without accession year.
+do_survival = TRUE
+if(!do_over_time){
+  do_survival = FALSE
+}
+enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
+
+# Create a data-frame of the information we want.
+wanted_data = data.frame(enriched_report_wanted$TaxonNameFull, enriched_report_wanted$AccYear, enriched_report_wanted$ItemStatusDate, enriched_report_wanted$ItemStatusType)
+names(wanted_data) = c('TaxonNameFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+
+wanted_data = wanted_data[!is.na(wanted_data$ItemStatusDate),]
+wanted_data = wanted_data[!is.na(wanted_data$AccYear),]
+if(nrow(wanted_data) == 0){
+  do_survival = FALSE
+}
+if(do_survival){
+  #Set accession date (just chose the first of June)
+pre_date = rep(NA, length(wanted_data$AccYear))
+pre_date = paste(wanted_data$AccYear, "06", "01", sep = "-")
+
+# Convert ItemStatusDate into all dates (i.e if month or day missing add one)
+post_date = rep(as.character(Sys.Date()), length(wanted_data$AccYear))
+post_date[which(wanted_data$ItemStatusType == "NotExisting")] = as.character(wanted_data$ItemStatusDate[which(wanted_data$ItemStatusType == 
+  "NotExisting")])
+
+post_date[which(stringr::str_length(post_date) == 4)] = paste(post_date[which(stringr::str_length(post_date) == 
+  4)], "12", "28", sep = "-")
+post_date[which(stringr::str_length(post_date) == 7)] = paste(post_date[which(stringr::str_length(post_date) == 
+  7)], "28", sep = "-")
+
+# Create the time difference between accession and ItemStatusDate.
+time = as.numeric(as.Date(post_date) - as.Date(pre_date)) /365.25
+
+# Create status to tell whether the last item status date was item death or just a check.
+status = rep(0,length(wanted_data$AccYear))
+status[wanted_data$ItemStatusType == 'NotExisting'] = 1
+
+wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
+                         StatusDate = post_date,
+                         time = time,
+                         Alive_dead = status)
+
+
+# We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
+missing_itemstatusdate_index = which(wanted_data$time > 0)
+wanted_data = wanted_data[missing_itemstatusdate_index,]
+enriched_report = enriched_report[missing_itemstatusdate_index,]
+
+
+## 1) Native or non-native (or doesn't have geography info.)
+#Get which records are native.
+native_non_native = enriched_report$threatened
+
+data_to_analyse = data.frame(wanted_data$TaxonNameFull,
+                             wanted_data$time,
+                             wanted_data$Alive_dead,
+                             native_non_native)
+names(data_to_analyse) = c("TaxonNameFull", "time", "Alive_dead", "threatened_status")
+
+if(export_data){
+  exporting_data_store$Data_for_survival = data_to_analyse
+}
+}
+
+```
+
+In this section, we look at whether the survival period of threatened plants are longer than Non-Threatened plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
+
+`r if(FALSE){"Note that \"lifespan\" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not \"perfect\" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. "}`
+
+In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. )
+
+Since we only have the accession year we set the accession date to be the middle of the year (1st June).
+ 
+`r if(do_survival){"Below we show the survival probability (Kaplan-Meier plots) for native and non-native plants."}`
+
+`r if(!do_survival){"Survival analysis cannot be performed. (This could be due to lack of accession year or item status date."}`
+
+```{r, survival analysis - figure, echo  = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), results='hide',fig.keep='all', message=FALSE, eval = do_survival}
+# Create Kaplan-Meier plots comparing native and not native
+p = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ threatened_status, data = data_to_analyse) |> 
+  ggsurvfit::ggsurvfit() +
+  ggplot2::labs(
+    x = "Years",
+    y = "Overall survival probability"
+  ) + 
+  ggsurvfit::add_confidence_interval()+
+    # theme(text = element_text(size=table_font_size))+
+  # labs(title=paste0("Survival probability of native and non native plants in the LC")) +
+  labs(caption = "Shaded region represents 95% confidence interval.") +
+  ggtheme() + scale_colour_discrete()
+
+if(report_kind == 'static'){
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','threatened_Non-Threatened_survival.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  p
+} 
+```
+
+```{r survival_analysis - interactive figure, eval = do_survival,  fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+if(report_kind == 'interactive'){
+  fig = ggplotly(p)
+  fig$x$layout$title$text =''
+  fig$x$layout$legend$title$text = 'Type of Taxa'
+  fig$x$layout$hovermode = 'x unified'
+  fig$x$data[[2]]$name = 'Non-Threatened'
+  fig$x$data[[2]]$legendgroup = 'Non-Threatened'
+  fig$x$data[[1]]$name = 'Threatened'
+  fig$x$data[[1]]$legendgroup = 'Threatened'
+  fig$x$data[[4]]$hoverinfo = 'none'
+  fig$x$data[[3]]$hoverinfo = 'none'
+  
+  time_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
+    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
+    as.numeric(), digits = 3) 
+  lower_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100,digits = 2)
+  upper_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100, digits = 2)
+  time = round(fig$x$data[[2]]$x,digits = 3)
+  lower = lower_region[match(time, time_region)]
+  upper = upper_region[match(time, time_region)]
+  
+  fig$x$data[[2]]$text = paste0(#'Age (years): ',round(fig$x$data[[2]]$x,digits = ), '<br>',
+                                'Survival probability: ', round(fig$x$data[[2]]$y*100,digits = 2),'% <br>',
+                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
+  
+    time_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
+    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
+    as.numeric(), digits = 3) 
+  lower_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100,digits = 2)
+  upper_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100, digits = 2)
+  time = round(fig$x$data[[1]]$x,digits = 3)
+  lower = lower_region[match(time, time_region)]
+  upper = upper_region[match(time, time_region)]
+  
+  fig$x$data[[1]]$text = paste0('Age (years): ',round(fig$x$data[[1]]$x,digits = ), '<br>',
+                                'Survival probability: ', round(fig$x$data[[1]]$y*100,digits = 2),'% <br>',
+                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
+  
+  if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','threatened_survival_analysis.html'))
+}
+
+fig
+}
+```
+
+`r if(do_survival){"Next we give the survival probability for 10-year intervals."}`
+
+```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
+# We can also get survival probabilities in a table
+# 
+ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ threatened_status, data = data_to_analyse) |> 
+  gtsummary::tbl_survfit(
+    times = c(2,5,10),
+    label_header = "{time}-year survival (95% CI)")
+
+ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ threatened_status, data = data_to_analyse) |> 
+  gtsummary::tbl_survfit(
+    times = c(25,50,100),
+    label_header = "{time}-year survival (95% CI)")
+# ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
+#   gtsummary::tbl_survfit(
+#     times = c(70,80,90),
+#     label_header = "{time}-year survival (95% CI)")
+```
+
+
+***
+
+###### {-} 
+<!-- This section is for exporting the data -->
+
+```{r, export data}
+if(export_data){
+  #remove all data except wanted to be exported.
+  # rm(list=setdiff(ls(), c("exporting_data_store", "output_dir", "collection")))
+  # Do some changes (which we do in smaller chunks in the actual code.)
+
+  threatened_data  = exporting_data_store
+  # save as .rda.
+  save(threatened_data, file = paste0(output_dir,'/',collection, '_threatened_data.rda'))
+
+}
+```
+
+```{r, save excel version of data, eval = save_excel & export_data}
+library(xlsx)
+file = paste0(output_dir,'/',collection, '_threatened_data.xlsx')
+wb <- createWorkbook()
+datas <- exporting_data_store
+
+data_titles = names(datas) |> stringr::str_replace_all('_', ' ')
+sheetnames <- paste0('Sheet ', 1:length(datas))
+sheets <- lapply(sheetnames,  createSheet, wb = wb)
+for(i in 1:length(datas)){
+  # First we'll create a new row, let's put the title on row 2
+  titleRow <-createRow(sheets[[i]], rowIndex=1)
+  # We'll add a cell to that row (in the first column) for the title
+  sheetTitle <-createCell(titleRow, colIndex=1)
+  # We'll add the sheet title to the cell
+  setCellValue(sheetTitle[[1,1]], data_titles[i])
+  # We'll choose the formatting for the cell
+  xlsx::addDataFrame(datas[[i]], sheet = sheets[[i]],row.names = FALSE, startRow = 3)
+}
+saveWorkbook(wb, file = file)
+
+```

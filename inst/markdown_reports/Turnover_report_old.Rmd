@@ -1,0 +1,2557 @@
+---
+title: "Turnover of plants and groups of plants in the LC"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+```
+
+```{r, imported parameters}
+# #Inputs
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Copenhagen_enriched_report.rda')
+# collection = 'Chicago'
+# coordinates = c(52.19378853629289,0.1277234065606053)
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# 
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# 
+# separate_figure_folder = T
+# output_dir = getwd()
+# report_kind = 'interactive'
+# ggtheme = NULL
+# value_on_fig = TRUE
+# min_year = 1970
+# data_type = 'Accessions'
+# earliest_allowable_record = 1650
+# old_accession_year_codes = c(1000)
+```
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+```
+
+```{r theme_ggplot2, echo = FALSE}
+library(ggplot2)
+# Changing the default theme
+if(is.null(ggtheme)){
+   ggtheme <- function(base_size = 16) {
+      ggplot2::theme_bw(base_size = base_size) %+replace%
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+          panel.grid.minor = ggplot2::element_blank(),
+          panel.background = element_rect(fill = 'transparent', color = NA),
+          panel.border = ggplot2::element_blank(),
+          axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          axis.line = ggplot2::element_line(color = "black"),
+          legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+          legend.key.size = ggplot2::unit(1.5, "lines"),
+          legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+          strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+          strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+        )
+    }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+ location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+   location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+   location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+```{r, Find LC location, echo = FALSE}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+```
+
+`r if(any(!c('AccNoFull') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: assume each item is its own accession.\n"}`
+
+`r if(any(!c('no_gardens','AccNoFull') %in% names(enriched_report))){"***"}`
+
+```{r, Extracting required information from enriched report, echo = F}
+
+needed_columns = c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'AccYear' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$ItemStatusDate = rep(NA, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  do_over_time = FALSE
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+if(all(is.na(enriched_report$ItemStatusDate))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$ItemStatusType))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$AccYear))){
+  do_over_time = FALSE
+}
+#Extract endemic information from enriched_report
+endemic = rep('Not Endemic', nrow(enriched_report))
+endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+enriched_report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(enriched_report))
+threatened[which(enriched_report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(enriched_report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+enriched_report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(enriched_report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(enriched_report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(enriched_report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+enriched_report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Extract tree.
+tree =rep('Not Tree', nrow(enriched_report))
+tree[enriched_report$Enrich_is_tree] = 'Tree'
+enriched_report$tree = tree
+rm(tree)
+
+# Extract native.
+native = rep('Not Native', nrow(enriched_report))
+native_index = grepl(location_code,enriched_report$geography_codes)
+native[native_index] = 'Native'
+enriched_report$native = native
+rm(native)
+
+# Create a sanitised taxonomic name.
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+
+best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
+enriched_report$best_name = best_name
+
+report_original = enriched_report
+
+report = enriched_report[match(c('AccNoFull','AccYear', 'ItemStatusDate', 'ItemStatusType','good_name', 'best_name', 'taxon_type',
+                                 'ProvenanceCode', 'endemic', 'threatened', 'threatened_category',
+                                 'tree', 'native'),names(enriched_report))]
+LossYear = rep(NA,nrow(report))
+ItemStatusYear = as.numeric(stringr::str_extract(report$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[report$ItemStatusType == 'NotExisting'] = ItemStatusYear[report$ItemStatusType == 'NotExisting']
+report$LossYear = LossYear
+  
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+exporting_data_store = list()
+
+## Data for turnovers
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+years = min_year:max_year
+
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(report$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  report$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(report$AccYear) >= earliest_allowable_record  & as.numeric(report$AccYear) <= max_year)
+still_issue = nrow(report) - length(to_keep)
+report = report[to_keep,]
+
+# Find the number of items in the collection each year.
+existing_items_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = as.character(report$AccYear),
+                        ItemStatusDate = as.character(report$ItemStatusDate),
+                        ItemStatusType = as.character(report$ItemStatusType))))
+
+#######################################
+# Report restricted to accessions.
+#######################################
+unique_accessions = unique(report$AccNoFull)
+
+# Order the items where the lower indices have the most recent death date.
+LossYear_dummy = LossYear
+LossYear_dummy[is.na(LossYear_dummy)] = 4000
+ordered_items = order(LossYear_dummy,decreasing = T)
+
+#Match to the ordered accessions.
+match_to_best = match(unique_accessions,report$AccNoFull[ordered_items])
+
+#Reduce the data to unique accessions with most recent death date.
+report_accessions = report[match_to_best,]
+
+existing_accessions_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_accessions$AccYear,
+                        ItemStatusDate = report_accessions$ItemStatusDate,
+                        ItemStatusType = report_accessions$ItemStatusType)))
+```
+
+```{r, functions for turnover}
+turnover_items <- function(report){
+  combined = data.frame(Year = years)
+
+# Items
+gain = data.frame(table(report$AccYear))
+if(nrow(gain) == 0){
+  gained = rep(0,nrow(combined))
+  combined$gain_items = gained
+}else{
+  names(gain) = c('Year', 'Items')
+  gain$Year = as.numeric(as.character(gain$Year))
+  gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
+  gained = rep(0,nrow(combined))
+  gained[match(gain$Year, combined$Year)] = gain$Items
+  combined$gain_items = gained
+}
+
+
+loss = data.frame(table(report$LossYear))
+if(nrow(loss) == 0){
+  lost = rep(0,nrow(combined))
+  combined$loss_items = lost
+}else{
+  names(loss) = c('Year', 'Items')
+  loss$Year = as.numeric(as.character(loss$Year))
+  loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
+  lost = rep(0,nrow(combined))
+  lost[match(loss$Year, combined$Year)] = loss$Items
+  combined$loss_items = lost
+}
+
+
+combined$net_items = combined$gain_items - combined$loss_items
+return(combined)
+}
+
+plots_turnover <- function(turnover, report_kind, text = '', separate_figure_folder, data_type = 'items'){
+  if(report_kind == 'static'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+    
+    p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
+      geom_line(aes(color=C)) +
+        # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+        labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
+            x ="Year",
+            y = paste0('Number of ',data_type,'')) +
+        guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+        # theme(text = element_text(size=table_font_size)) +
+      scale_color_manual(values=c("blue", "red"))+
+        theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
+      
+      
+      if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.pdf'),device = 'pdf', scale = 1, width = 20, height = 12, limitsize = FALSE)
+    }
+    p1=p
+      
+    # Color based on value
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    
+    p = ggplot(turnover, aes(x = Year, y = net_items)) +
+      geom_bar(stat = "identity",
+               show.legend = FALSE,
+               fill = color,      # Background color
+               color = "white") + # Border color
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Net turnover of ",text," in the LC (By ",data_type,")"),
+          x ="Year",
+          y = paste0('Number of ',data_type,'')) #+
+      # theme(text = element_text(size=table_font_size))
+
+      if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Net_turnover_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    p2=p
+    
+    return(list(gain_loss = p1, net = p2))
+  }
+  if(report_kind == 'interactive'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+    
+    colors = c("lightblue", "pink")
+    fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                       xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
+    }
+    fig1 = fig
+    
+    colors = c("pink", "lightblue")
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    texto = paste0('Net: ', turnover$net_items, '<br>',
+                  'Gain: ', turnover$gain_items, '<br>',
+                  'Loss: ', turnover$loss_items, '<br>'
+                  )
+    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+                       xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
+    }
+    
+    return(list(gain_loss = fig1, net = fig))
+
+  }
+}
+
+proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
+                                        report_kind, text = '', data_type = 'items'){
+  if(report_kind == 'static'){
+     # Gain
+  plot_data = data.frame(year = turnover[,1],
+                         specific = turnover[,2], 
+                         all = overall_turnover[,2])
+  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+  plot_data$prop_specific_collection = collection_proportion*100
+  plot_data_gain = plot_data
+   p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
+     geom_point(aes(x = year, y = prop_specific_collection))+
+      labs(title=paste0("Proportion of gained ",data_type," that are ",text," in the LC"),
+          x ="Year",
+          y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+        labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    p1 = p
+    
+        if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+      }
+    
+  ### Plot of proportion of lost items being native.
+  
+  plot_data = data.frame(year =  turnover[,1],
+                         specific = turnover[,3], 
+                         all = overall_turnover[,3])
+  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+  plot_data$prop_specific_collection = collection_proportion*100
+  plot_data_loss = plot_data
+
+   p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
+     geom_point(aes(x = year, y = prop_specific_collection))+
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Proportion of lost ",data_type," that are ",text," in the LC"),
+          x ="Year",
+          y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+        labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+  
+          if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+          }
+   
+   return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
+  }
+  if(report_kind =='interactive'){
+     # Gain
+  plot_data = data.frame(year = turnover[,1],
+                         specific = turnover[,2], 
+                         all = overall_turnover[,2])
+  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+  plot_data$prop_specific_collection = collection_proportion*100
+  plot_data_gain = plot_data
+   fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('% ',text,' ',data_type,' gained'), marker = list(color = 'lightblue'))
+fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                   xaxis = list(title = "Year"))
+fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('% ',text,' ',data_type,' in LC'), marker = list(color = 'black'))
+fig <- fig |> layout(hovermode = 'x unified')
+
+if(separate_figure_folder){
+ htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+}
+
+fig1 = fig
+    
+  ### Plot of proportion of lost items being native.
+  
+  plot_data = data.frame(year =  turnover[,1],
+                         specific = turnover[,3], 
+                         all = overall_turnover[,3])
+  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+  plot_data$prop_specific_collection = collection_proportion*100
+  plot_data_loss = plot_data
+
+     fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('% ',text,' ',data_type,' lost'), marker = list(color = 'pink'))
+fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                   xaxis = list(title = "Year"))
+fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('% ',text,' ',data_type,' in LC'), marker = list(color = 'black'))
+fig <- fig |> layout(hovermode = 'x unified')
+
+if(separate_figure_folder){
+ htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+}
+
+return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
+   
+  }
+}
+```
+
+This report uses data from **`r collection`** and analyses turnover in the collection from **`r min_year`** to **`r max_year`**.
+
+`r if(!is.null(old_accession_year_codes)){paste0("Within the collection the accession years '", paste0(old_accession_year_codes, collapse = ', '),"' are used to denote items which have unknown accession year but have being in the collection since near the beginning. There are ", no_old_accessions," items in the collection with these accession years. In this analysis we set the accession year of such plants to ", earliest_allowable_record, ".")}`
+
+`r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis.
+
+Turnover can be split into two parts; when a plant arrives into the collection and when the item is removed. We refer to these two parts as *Gain* and *Loss*. From these values we can calculate the net number of plants gained/lost each year. 
+
+For *Gain* we require items to have an accession date associated with their record. 
+
+For *Loss* we require items to have an item status date together with item status type notifying that the item is now 'Not Existing'. Keep in mind this means a plant is recorded to have being lost on the date the record is updated and this might not align completely with when the item was removed or died.
+
+In the analysis presented within we refer to turnover in terms of `r data_type`. 
+`r if(data_type == 'Accessions}{"For accessions, An accession is lost only when all items in the accession have been removed."}`. 
+
+
+### Overall Turnover
+
+```{r, overall turnover}
+overall_turnover_items = turnover_items(report)
+exporting_data_store$overall_turnover_items = overall_turnover_items
+plots = plots_turnover(overall_turnover_items, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'items')
+if(report_kind == 'static'){
+  plots$gain_loss = plots$gain_loss + ggtitle('Turnover of items in the LC')
+  plots$net = plots$gain_loss + ggtitle('Net turnover of items in the LC')
+}
+
+overall_turnover_accessions = turnover_items(report_accessions)
+exporting_data_store$overall_turnover_accessions = overall_turnover_accessions
+
+plots_accessions = plots_turnover(overall_turnover_accessions, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'accessions', data_type = 'accessions')
+if(report_kind == 'static'){
+  plots_accessions$gain_loss = plots$gain_loss + ggtitle('Turnover of accessions in the LC')
+  plots_accessions$net = plots$gain_loss + ggtitle('Net turnover of accessions in the LC')
+}
+``` 
+
+In this section we shall consider the turnover of plants in the whole of the LC. 
+
+#### Items
+
+First we will consider the gain and loss of items in the LC.
+
+```{r, Overall turnover of items - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+```
+
+`r if(report_kind == 'interactive'){"#####  Turnover of items {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Gain/Loss"}`
+```{r  Gain/Loss of items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+plots$gain_loss
+
+```
+
+`r if(report_kind == 'interactive'){"###### Net"}`
+```{r  Net turnover of items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+plots$net
+
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+#### Accessions
+
+First we will consider the gain and accessions of items in the LC.
+
+```{r, Overall turnover of accessions - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_accessions$gain_loss
+
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive'){"#####  Turnover of accessions {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Gain/Loss"}`
+```{r  Gain/Loss of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+plots_accessions$gain_loss
+
+```
+
+`r if(report_kind == 'interactive'){"###### Net"}`
+```{r  Net turnover of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+plots_accessions$net
+
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+
+### Turnover of new/unique plants
+
+In this section, we look at the gain of plants that were not in the collection in the previous year and the loss of plants that causes the species to no longer be represented in the LC. 
+
+```{r, gain new/unique plants}
+# First need to create a list of taxonomic names that were in the LC each previous year.
+existing_items = BGSmartR::exist_at_date(date = paste0(years-1,'-12-31'),
+                        AccessionYear = report$AccYear,
+                        ItemStatusDate = report$ItemStatusDate,
+                        ItemStatusType = report$ItemStatusType)
+
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report$best_name[x]
+  return(unique(data_cur))
+})
+
+names(taxonomic_names_in_LC_years) = paste0('plants_previous_year_to_',years)
+new_to_collection = unlist(lapply(years, function(x){
+  plants_accessioned = unique(report$best_name[report$AccYear == x])
+  previous_plants = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_accessioned %in% previous_plants)
+}))
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_accessioned = report$best_name[report$AccYear == x]
+  length(unique(plants_accessioned))
+}))
+
+prop_new_collection = new_to_collection*100 /total_taxonomic_names
+prop_new_collection[is.nan(prop_new_collection)] = NA
+
+plot_data = data.frame(years, new_to_collection, total_taxonomic_names, prop_new_collection)
+exporting_data_store$gained_taxa_with_new_to_LC = plot_data
+
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$new_to_collection, prop = plot_data$prop_new_collection, fill = rep('Yes',nrow(plot_data)) ), 
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$new_to_collection, prop = 100 - plot_data$prop_new_collection, fill = rep('No',nrow(plot_data)) )
+)
+
+if(report_kind == 'static'){
+  p = ggplot(plot_data_formatted, aes(fill=fill, y=taxa, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Number of Taxa', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01)))+
+  ggtitle("Number of gained taxa to the LC \n by if the taxa is already present")
+
+p1= p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_number.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p = ggplot(plot_data_formatted, aes(fill=fill, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Percentage', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01))) +
+  ggtitle("Percentage of gained taxa that are new to the LC")
+
+p2 = p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_percentage.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+gained_new_taxa = list(number = p1, percentage = p2)
+}
+if(report_kind == 'interactive'){
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='New to LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig1 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_number.html'))
+}
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='New to LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig2 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_percentage.html'))
+}
+gained_new_taxa = list(number = fig1, percentage = fig2)
+
+}
+```
+
+```{r, gain new/unique plants excluding indeterminate and cultivar}
+# First need to create a list of taxonomic names that were in the LC each previous year
+report_cur = report[!grepl('0|5',report$taxon_type),]
+existing_items = BGSmartR::exist_at_date(date = paste0(years-1,'-12-31'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)
+
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report_cur$best_name[x]
+  return(unique(data_cur))
+})
+
+names(taxonomic_names_in_LC_years) = paste0('plants_previous_year_to_',years)
+new_to_collection = unlist(lapply(years, function(x){
+  plants_accessioned = unique(report_cur$best_name[report_cur$AccYear == x])
+  previous_plants = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_accessioned %in% previous_plants)
+}))
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_accessioned = report_cur$best_name[report_cur$AccYear == x]
+  length(unique(plants_accessioned))
+}))
+
+prop_new_collection = new_to_collection*100 /total_taxonomic_names
+prop_new_collection[is.nan(prop_new_collection)] = NA
+
+plot_data = data.frame(years, new_to_collection, total_taxonomic_names, prop_new_collection)
+exporting_data_store$gained_taxa_with_new_to_LC_without_cult_or_indet = plot_data
+
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$new_to_collection, prop = plot_data$prop_new_collection, fill = rep('Yes',nrow(plot_data)) ), 
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$new_to_collection, prop = 100 - plot_data$prop_new_collection, fill = rep('No',nrow(plot_data)) )
+)
+
+if(report_kind == 'static'){
+  p = ggplot(plot_data_formatted, aes(fill=fill, y=taxa, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Number of Taxa', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01)))+
+  ggtitle("Number of gained taxa to the LC \n by if the taxa is already present \n after removing cultivars and indeterminate taxa")
+
+p1= p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_number_without_cult_indet.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p = ggplot(plot_data_formatted, aes(fill=fill, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Percentage', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01))) +
+  ggtitle("Percentage of gained taxa that are new to the LC\n after removing cultivars and indeterminate taxa")
+
+p2 = p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_percentage_without_cult_indet.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+gained_new_taxa_without_cult_indet = list(number = p1, percentage = p2)
+}
+if(report_kind == 'interactive'){
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='New to LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig1 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_number_without_cult_indet.html'))
+}
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='New to LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig2 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_percentage_without_cult_indet.html'))
+}
+gained_new_taxa_without_cult_indet = list(number = fig1, percentage = fig2)
+
+}
+```
+
+Below we show the number of gained taxa each year (where we count taxa by unique taxonomic name and author), and show how many of the gained taxa are new to the LC.
+
+```{r, number and percentage gained taxa are new - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+gained_new_taxa$number
+
+gained_new_taxa$percentage
+```
+
+`r if(report_kind == 'interactive'){"#####  Gained Taxa and whether the taxa is new to the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number of Taxa"}`
+```{r  number gained taxa are new - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+gained_new_taxa$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage gained taxa are new - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+gained_new_taxa$percentage
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+Next we perform the same analysis as above but removing new indeterminate taxa and cultivars.
+
+```{r, number and percentage gained taxa are new without cult or indet - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+gained_new_taxa_without_cult_indet$number
+
+gained_new_taxa_without_cult_indet$percentage
+```
+
+`r if(report_kind == 'interactive'){"#####  Gained Taxa and whether the taxa is new to the LC (removed cultivars and indeterminate taxa) {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number of Taxa"}`
+```{r  number gained taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+gained_new_taxa_without_cult_indet$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage gained taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+gained_new_taxa_without_cult_indet$percentage
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+```{r, loss unique plants}
+# First need to create a list of taxonomic names that were in the LC at the end of the year.
+existing_items = BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = report$AccYear,
+                        ItemStatusDate = report$ItemStatusDate,
+                        ItemStatusType = report$ItemStatusType)
+
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report$best_name[x]
+  return(unique(data_cur))
+})
+
+names(taxonomic_names_in_LC_years) = paste0('plants_at_end_of_year_',years)
+
+lost_to_the_collection = unlist(lapply(years, function(x){
+  plants_lost = unique(report$best_name[which(report$LossYear == x)])
+  in_LC_end_year = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_lost %in% in_LC_end_year)
+}))
+
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_lost = report$best_name[which(report$LossYear == x)]
+  length(unique(plants_lost))
+}))
+
+prop_lost_unique = lost_to_the_collection*100 /total_taxonomic_names
+prop_lost_unique[is.nan(prop_lost_unique)] = NA
+
+plot_data = data.frame(years, lost_to_the_collection, total_taxonomic_names, prop_lost_unique)
+exporting_data_store$lost_taxa_with_lost_to_LC = plot_data
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$lost_to_the_collection, prop = plot_data$prop_lost_unique, fill = rep('Yes',nrow(plot_data)) ), 
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$lost_to_the_collection, prop = 100 - plot_data$prop_lost_unique, fill = rep('No',nrow(plot_data)) )
+)
+
+if(report_kind == 'static'){
+  p = ggplot(plot_data_formatted, aes(fill=fill, y=taxa, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Number of Taxa', fill = 'No longer represented\nin the LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01)))+
+  ggtitle("Number of lost taxa to the LC \n by if the taxa is no longer represented in th LC")
+
+p1= p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_number.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p = ggplot(plot_data_formatted, aes(fill=fill, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Percentage', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01))) +
+  ggtitle("Percentage of lost taxa that are no longer represented in the LC")
+
+p2 = p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_percentage.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+loss_unique_taxa = list(number = p1, percentage = p2)
+}
+if(report_kind == 'interactive'){
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='No longer represented<br>in the LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig1 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_number.html'))
+}
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='No longer represented<br>in the LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig2 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_percentage.html'))
+}
+loss_unique_taxa = list(number = fig1, percentage = fig2)
+
+}
+```
+
+```{r, loss unique plants excluding indeterminate and cultivar}
+report_cur = report[!grepl('0|5',report$taxon_type),]
+
+# First need to create a list of taxonomic names that were in the LC at the end of the year.
+existing_items = BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)
+
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report_cur$best_name[x]
+  return(unique(data_cur))
+})
+
+names(taxonomic_names_in_LC_years) = paste0('plants_at_end_of_year_',years)
+
+lost_to_the_collection = unlist(lapply(years, function(x){
+  plants_lost = unique(report_cur$best_name[which(report_cur$LossYear == x)])
+  in_LC_end_year = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_lost %in% in_LC_end_year)
+}))
+
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_lost = report_cur$best_name[which(report_cur$LossYear == x)]
+  length(unique(plants_lost))
+}))
+
+prop_lost_unique = lost_to_the_collection*100 /total_taxonomic_names
+prop_lost_unique[is.nan(prop_lost_unique)] = NA
+
+plot_data = data.frame(years, lost_to_the_collection, total_taxonomic_names, prop_lost_unique)
+exporting_data_store$lost_taxa_with_lost_to_LC_without_cult_or_indet = plot_data
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$lost_to_the_collection, prop = plot_data$prop_lost_unique, fill = rep('Yes',nrow(plot_data)) ), 
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$lost_to_the_collection, prop = 100 - plot_data$prop_lost_unique, fill = rep('No',nrow(plot_data)) )
+)
+
+if(report_kind == 'static'){
+  p = ggplot(plot_data_formatted, aes(fill=fill, y=taxa, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Number of Taxa', fill = 'No longer represented\nin the LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01)))+
+  ggtitle("Number of lost taxa to the LC \n by if the taxa is no longer represented in th LC")
+
+p1= p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_number_without_cult_indet.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p = ggplot(plot_data_formatted, aes(fill=fill, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) + labs(x = 'Year', y = 'Percentage', fill = 'New to LC')
+p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01))) + scale_y_continuous(expand = expansion(mult = c(0.01, 0.01))) +
+  ggtitle("Percentage of lost taxa that are no longer represented in the LC")
+
+p2 = p
+
+if(separate_figure_folder){
+ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_percentage_without_cult_indet.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+loss_unique_taxa_without_cult_indet = list(number = p1, percentage = p2)
+}
+if(report_kind == 'interactive'){
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='No longer represented<br>in the LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig1 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_number_without_cult_indet.html'))
+}
+
+fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, type = 'bar')
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='No longer represented<br>in the LC')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig2 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_percentage_without_cult_indet.html'))
+}
+loss_unique_taxa_without_cult_indet = list(number = fig1, percentage = fig2)
+
+}
+```
+
+Next up we consider the loss of taxa from the LC each year. In the following graphs we show the total number of taxa which have loss. Moreover, we group the taxa into those that are no longer represented in the LC and those that are at the end of the year. For example a taxa will be classed as 'No longer represented in the LC' if during the year the taxa has experienced loss (plant removal/death) and on the 31st of December that year the taxa is no longer represented in the garden. This method does therefore class taxa which are not in th LC for a period of the year to be still represented in the LC as long as the taxa is reintroduced by the 31st of December.  
+
+```{r, number and percentage lost taxa are new - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+loss_unique_taxa$number
+
+loss_unique_taxa$percentage
+```
+
+`r if(report_kind == 'interactive'){"#####  Lost taxa and whether they are still represented in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number of Taxa"}`
+```{r  number loss taxa are new - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+loss_unique_taxa$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage loss taxa are new - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+loss_unique_taxa$percentage
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+Next we perform the same analysis as above but removing lost indeterminate taxa and cultivars.
+
+```{r, number and percentage lost taxa are new without cult or indet - static, eval = report_kind == 'static', fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+loss_unique_taxa_without_cult_indet$number
+
+loss_unique_taxa_without_cult_indet$percentage
+```
+
+`r if(report_kind == 'interactive'){"#####  Lost taxa and whether they are still represented in the LC (removed cultivars and indeterminate taxa) {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number of Taxa"}`
+```{r  number lost taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+loss_unique_taxa_without_cult_indet$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage lost taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+loss_unique_taxa_without_cult_indet$percentage
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+### Turnover of types of taxa
+
+This section explores the turnover of types of taxa. In particular, we use the taxonomic name of plants in the LC to determine whether plants classified as:
+
+- Indeterminate
+- Species
+- Subspecies
+- Varieties
+- Forma
+- Cultivars
+- Hybrids
+
+Not that a record can have multiple of these classifications, such as `Tilia cordata × dasystyla subsp. caucasica`. Since, are not interested in the level of species (i.e if a plant is a subspecies or variety) we are going to explore the turnover of: indeterminate taxa, cultivars, and non-horticultural (those that are not indeterminate, hybrids or cultivars).
+
+#### Indeterminate Taxa
+
+```{r, turnover of indeterminates}
+do_indet = TRUE
+report_cur = report[grepl('0',report$taxon_type),]
+if(nrow(report_cur) == 0){
+  do_indet = FALSE
+}else{
+  turnover_indetermintes = turnover_items(report_cur)
+exporting_data_store$turnover_indeterminate_taxa = turnover_indetermintes
+
+plots = plots_turnover(turnover_indetermintes, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'indeterminate plants')
+
+existing_indeterminates_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_indeterminates_each_year/ existing_items_each_year
+
+plots_proportional = proportional_plots_turnover(turnover = turnover_indetermintes,
+                                                 overall_turnover = overall_turnover_items,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'indeterminate')
+exporting_data_store$proportional_turnover_indeterminate_taxa_gain = plots_proportional$data_gain
+exporting_data_store$proportional_turnover_indeterminate_taxa_loss = plots_proportional$data_loss
+
+############################################################################
+report_cur = report_accessions[grepl('0',report_accessions$taxon_type),]
+turnover_indetermintes_accessions = turnover_items(report_cur)
+plots_accessions = plots_turnover(turnover_indetermintes_accessions, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'indeterminate plants', data_type = 'accessions')
+
+existing_indeterminates_each_year_accessions = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_indeterminates_each_year/ existing_accessions_each_year
+
+plots_proportional_accessions = proportional_plots_turnover(turnover = turnover_indetermintes_accessions,
+                                                 overall_turnover = overall_turnover_accessions,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'indeterminate',data_type = 'accessions')
+exporting_data_store$proportional_turnover_indeterminate_taxa_accessions_gain = plots_proportional_accessions$data_gain
+exporting_data_store$proportional_turnover_indeterminate_taxa_accessions_loss = plots_proportional_accessions$data_loss
+
+}
+
+```
+
+`r if(!do_indet){"There are no records that are indeteminate."}`
+
+```{r, Turnover of indeterminates items - static, eval = report_kind == 'static' & do_indet, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_indet){"#####  Turnover of indeterminate taxa {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_indet){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of indeterminates items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Net (Items)"}`
+```{r  Net turnover of indeterminates items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of indeterminates accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Net (Accessions)"}`
+```{r  Net turnover of indeterminates accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_indet){"##### {-}"}`
+
+`r if(do_indet){"We now explore how the gain and loss of indeterminate items compare proportionally to the total number of gained and lost items and the overall proportion of indeterminate items each year. To calculate the proportion of the collection that is indeteminate each year we only consider records that have an accession year and item status date and extract which items were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of indeterminates items - static, eval = report_kind == 'static' & do_indet, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_indet){"#####  Proportional Turnover of indeterminate taxa {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_indet){"###### Gain (Items)"}`
+```{r  Proportional Gain of indeterminates items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Loss (Items)"}`
+```{r  Proportional Loss of indeterminates items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of indeterminates accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_indet){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of indeterminates accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_indet}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_indet){"##### {-}"}`
+
+#### Cutivars
+
+```{r, turnover of cultivars}
+do_type = TRUE
+report_cur = report[grepl('5',report$taxon_type),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_cutivars = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'cultivars', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'cultivars',
+                                                   data_type = 'items')
+  exporting_data_store$proportional_turnover_cutivars_gain = plots_proportional$data_gain
+  exporting_data_store$proportional_turnover_cutivars_loss = plots_proportional$data_loss
+  ##############################################################################################
+  report_cur = report_accessions[grepl('5',report_accessions$taxon_type),]
+  turnover = turnover_items(report_cur)
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'cultivars',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'cultivars',
+                                                   data_type = 'accessions')
+  exporting_data_store$proportional_turnover_cutivars_gain_accessions = plots_proportional_accessions$data_gain
+  exporting_data_store$proportional_turnover_cutivars_loss_accessions = plots_proportional_accessions$data_loss
+}
+```
+
+`r if(!do_type){"There are no records that are cultivars."}`
+
+```{r, Turnover of cultivars items - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of cultivars {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of cultivars items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of cultivars items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of cultivars accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of cultivars accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(do_type){"We now explore how the gain and loss of cultivars compare proportionally to the total number of gained and lost items/accessions and the overall proportion of cultivars each year. To calculate the proportion of the collection that are cultivars each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of cultivars - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of cultivars {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of cultivars items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of cultivars items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of cultivars accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of cultivars accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+#### Non-horticultural
+
+```{r, turnover of Non-horticultural}
+do_type = TRUE
+report_cur = report[!grepl('0|5|6',report$taxon_type),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_non_horticultural = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'Non-horticultural', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'Non-horticultural',
+                                                   data_type = 'items')
+  exporting_data_store$proportional_turnover_non_horticultural_gain = plots_proportional$data_gain
+  exporting_data_store$proportional_turnover_non_horticultural_loss = plots_proportional$data_loss
+  ##############################################################################################
+  report_cur = report_accessions[!grepl('0|5|6',report_accessions$taxon_type),]
+  turnover = turnover_items(report_cur)
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'Non-horticultural',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'Non-horticultural',
+                                                   data_type = 'accessions')
+  exporting_data_store$proportional_turnover_non_horticultural_gain_accessions = plots_proportional_accessions$data_gain
+  exporting_data_store$proportional_turnover_non_horticultural_loss_accessions = plots_proportional_accessions$data_loss
+}
+```
+
+`r if(!do_type){"There are no records that are non-horticultural."}`
+
+```{r, Turnover of Non-horticultural items - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of Non-horticultural {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of Non-horticultural items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of Non-horticultural items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of Non-horticultural accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of Non-horticultural accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of Non-horticultural taxa compare proportionally to the total number of gained and lost items/accessions and the overall proportion of Non-horticultural each year. To calculate the proportion of the collection that are Non-horticultural each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of Non-horticultural - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of Non-horticultural {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of Non-horticultural items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of Non-horticultural items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of Non-horticultural accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of Non-horticultural accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+### Provenance of Turnover
+
+This section looks at the provenance of gained and lost items to the collection. The provenance of an item can be in one of four groups, namely: Wild, Wild-derived, Garden or Unknown. We shall consider each provenance type individually. 
+
+```{r, provenance of turnover individual by items}
+do_unknown = TRUE
+report_cur = report[which(report$ProvenanceCode == 'Unknown'),]
+if(nrow(report_cur) == 0){
+  do_unknown = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_provenance_unknown = turnover
+  
+  plots_unknown = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'unknown provenance', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_unknown = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'unknown provenance',
+                                                   data_type = 'items')
+}
+
+###################################################################################################
+do_garden = TRUE
+report_cur = report[which(report$ProvenanceCode == 'Garden'),]
+if(nrow(report_cur) == 0){
+  do_garden = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_provenance_garden = turnover
+  
+  plots_garden = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'garden provenance', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_garden = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'garden provenance',
+                                                   data_type = 'items')
+}
+
+###################################################################################################
+do_wild_derived = TRUE
+report_cur = report[which(report$ProvenanceCode == 'Wild-derived'),]
+if(nrow(report_cur) == 0){
+  do_wild_derived = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_provenance_wild_derived = turnover
+  
+  plots_wild_derived = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild-derived provenance', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_wild_derived = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'wild-derived provenance',
+                                                   data_type = 'items')
+}
+
+###################################################################################################
+do_wild = TRUE
+report_cur = report[which(report$ProvenanceCode == 'Wild'),]
+if(nrow(report_cur) == 0){
+  do_wild = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_provenance_wild = turnover
+  
+  plots_wild = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild provenance', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_wild = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'wild provenance',
+                                                   data_type = 'items')
+}
+
+##############################################################################################
+```
+
+```{r, provenance of turnover individual by accessions}
+if(do_unknown){
+  report_cur = report_accessions[which(report_accessions$ProvenanceCode == 'Unknown'),]
+turnover = turnover_items(report_cur)
+exporting_data_store$turnover_provenance_unknown_accessions = turnover
+
+plots_accessions_unknown = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'unknown provenance',data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_each_year/ existing_items_each_year
+
+plots_proportional_accessions_unknown = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover_items,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'unknown provenance',
+                                                 data_type = 'accessions')
+}
+
+if(do_garden){
+  report_cur = report_accessions[which(report_accessions$ProvenanceCode == 'Garden'),]
+turnover = turnover_items(report_cur)
+exporting_data_store$turnover_provenance_garden_accessions = turnover
+
+plots_accessions_garden = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'garden provenance',data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_each_year/ existing_items_each_year
+
+plots_proportional_accessions_garden = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover_items,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'garden provenance',
+                                                 data_type = 'accessions')
+}
+
+if(do_wild_derived){
+  report_cur = report_accessions[which(report_accessions$ProvenanceCode == 'Wild-derived'),]
+turnover = turnover_items(report_cur)
+exporting_data_store$turnover_provenance_wild_derived_accessions = turnover
+
+plots_accessions_wild_derived = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild-derived provenance',data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_each_year/ existing_items_each_year
+
+plots_proportional_accessions_wild_derived = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover_items,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'wild-derived provenance',
+                                                 data_type = 'accessions')
+}
+
+if(do_wild){
+  report_cur = report_accessions[which(report_accessions$ProvenanceCode == 'Wild'),]
+turnover = turnover_items(report_cur)
+exporting_data_store$turnover_provenance_wild_accessions = turnover
+
+plots_accessions_wild = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild provenance',data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType)))
+collection_proportion = existing_each_year/ existing_items_each_year
+
+plots_proportional_accessions_wild = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover_items,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'wild provenance',
+                                                 data_type = 'accessions')
+}
+
+
+```
+
+#### Garden
+
+In this section we explore the turnover of garden origin plants.
+
+`r if(!do_garden){"There are no records with garden origin."}`
+
+```{r, Turnover of garden provenance items - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_garden$gain_loss
+
+plots_garden$net
+
+plots_accessions_garden$gain_loss
+
+plots_accessions_garden$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_garden){"#####  Turnover of garden origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of garden origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_garden$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Net (Items)"}`
+```{r  Net turnover of garden origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_garden$net
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of garden origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_accessions_garden$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Net (Accessions)"}`
+```{r  Net turnover of garden origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_accessions_garden$net
+```
+
+`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
+
+`r if(do_garden){"We now explore how the gain and loss of garden origin plants compare proportionally to the total number of gained and lost items/accessions and the overall proportion of garden origin each year. To calculate the proportion of the collection that are of garden origin each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of garden origin - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional_garden$gain
+
+plots_proportional_garden$loss
+
+plots_proportional_accessions_garden$gain
+
+plots_proportional_accessions_garden$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_garden){"#####  Proportional Turnover of garden origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain (Items)"}`
+```{r  Proportional Gain of garden origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_garden$gain
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Loss (Items)"}`
+```{r  Proportional Loss of garden origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_garden$loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of garden origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_accessions_garden$gain
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of garden origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_accessions_garden$loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
+
+
+
+#### Wild
+
+In this section we explore the turnover of wild origin plants.
+
+`r if(!do_wild){"There are no records with wild origin."}`
+
+```{r, Turnover of wild provenance items - static, eval = report_kind == 'static' & do_wild, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_wild$gain_loss
+
+plots_wild$net
+
+plots_accessions_wild$gain_loss
+
+plots_accessions_wild$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_wild){"#####  Turnover of wild origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_wild){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of wild origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_wild$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Net (Items)"}`
+```{r  Net turnover of wild origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_wild$net
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of wild origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_accessions_wild$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Net (Accessions)"}`
+```{r  Net turnover of wild origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_accessions_wild$net
+```
+
+`r if(report_kind == 'interactive' & do_wild){"##### {-}"}`
+
+`r if(do_wild){"We now explore how the gain and loss of wild origin plants compare proportionally to the total number of gained and lost items/accessions and the overall proportion of wild origin each year. To calculate the proportion of the collection that are of wild origin each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of wild origin - static, eval = report_kind == 'static' & do_wild, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional_wild$gain
+
+plots_proportional_wild$loss
+
+plots_proportional_accessions_wild$gain
+
+plots_proportional_accessions_wild$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_wild){"#####  Proportional Turnover of wild origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_wild){"###### Gain (Items)"}`
+```{r  Proportional Gain of wild origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_proportional_wild$gain
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Loss (Items)"}`
+```{r  Proportional Loss of wild origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_proportional_wild$loss
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of wild origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_proportional_accessions_wild$gain
+```
+
+`r if(report_kind == 'interactive' & do_wild){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of wild origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild}
+plots_proportional_accessions_wild$loss
+```
+
+`r if(report_kind == 'interactive' & do_wild){"##### {-}"}`
+
+
+
+#### Wild-derived
+
+In this section we explore the turnover of wild-derived origin plants.
+
+`r if(!do_wild_derived){"There are no records with wild-derived origin."}`
+
+```{r, Turnover of wild_derived provenance items - static, eval = report_kind == 'static' & do_wild_derived, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_wild_derived$gain_loss
+
+plots_wild_derived$net
+
+plots_accessions_wild_derived$gain_loss
+
+plots_accessions_wild_derived$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"#####  Turnover of wild-derived origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of wild_derived origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_wild_derived$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Net (Items)"}`
+```{r  Net turnover of wild_derived origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_wild_derived$net
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of wild_derived origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_accessions_wild_derived$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Net (Accessions)"}`
+```{r  Net turnover of wild_derived origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_accessions_wild_derived$net
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"##### {-}"}`
+
+`r if(do_wild_derived){"We now explore how the gain and loss of wild-derived origin plants compare proportionally to the total number of gained and lost items/accessions and the overall proportion of wild-derived origin each year. To calculate the proportion of the collection that are of wild-derived origin each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of wild_derived origin - static, eval = report_kind == 'static' & do_wild_derived, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional_wild_derived$gain
+
+plots_proportional_wild_derived$loss
+
+plots_proportional_accessions_wild_derived$gain
+
+plots_proportional_accessions_wild_derived$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"#####  Proportional Turnover of wild-derived origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Gain (Items)"}`
+```{r  Proportional Gain of wild_derived origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_proportional_wild_derived$gain
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Loss (Items)"}`
+```{r  Proportional Loss of wild_derived origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_proportional_wild_derived$loss
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of wild_derived origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_proportional_accessions_wild_derived$gain
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of wild_derived origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_wild_derived}
+plots_proportional_accessions_wild_derived$loss
+```
+
+`r if(report_kind == 'interactive' & do_wild_derived){"##### {-}"}`
+
+
+
+
+#### Unknown
+
+In this section we explore the turnover of unknown origin plants.
+
+`r if(!do_unknown){"There are no records with unknown origin."}`
+
+
+```{r, Turnover of unknown provenance items - static, eval = report_kind == 'static' & do_unknown, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_unknown$gain_loss
+
+plots_unknown$net
+
+plots_accessions_unknown$gain_loss
+
+plots_accessions_unknown$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"#####  Turnover of unknown origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of unknown origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_unknown$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Net (Items)"}`
+```{r  Net turnover of unknown origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_unknown$net
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of unknown origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_accessions_unknown$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Net (Accessions)"}`
+```{r  Net turnover of unknown origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_accessions_unknown$net
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"##### {-}"}`
+
+`r if(do_unknown){"We now explore how the gain and loss of unknown origin plants compare proportionally to the total number of gained and lost items/accessions and the overall proportion of unknown origin each year. To calculate the proportion of the collection that are of unknown origin each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of unknown origin - static, eval = report_kind == 'static' & do_unknown, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional_unknown$gain
+
+plots_proportional_unknown$loss
+
+plots_proportional_accessions_unknown$gain
+
+plots_proportional_accessions_unknown$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"#####  Proportional Turnover of unknown origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Gain (Items)"}`
+```{r  Proportional Gain of unknown origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_proportional_unknown$gain
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Loss (Items)"}`
+```{r  Proportional Loss of unknown origin items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_proportional_unknown$loss
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of unknown origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_proportional_accessions_unknown$gain
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of unknown origin accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_unknown}
+plots_proportional_accessions_unknown$loss
+```
+
+`r if(report_kind == 'interactive' & do_unknown){"##### {-}"}`
+
+### Turnover of Native Species
+
+This section looks at the turnover of plants that are native to the location of `r collection` In other words plants that are native to `r location_name`. Here we use Plants of the World Online (POWO) to determine the geography distribution of individual plants, where we only consider regions where the plant is `r location_type_text`.
+
+```{r, turnover of native}
+do_type = TRUE
+report_cur = report[which(report$native == 'Native'),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_native = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'native', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'native',
+                                                   data_type = 'items')
+  ##############################################################################################
+  report_cur = report_accessions[which(report_accessions$native == 'Native'),]
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_native_accessions = turnover
+  
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'native',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'native',
+                                                   data_type = 'accessions')
+}
+```
+
+`r if(!do_type){"There are no records that are native."}`
+
+```{r, Turnover of native items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of native {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of native species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of native species each year. To calculate the proportion of the collection that are native each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of native - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of native {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+### Turnover of Endemic Species
+
+This section looks at the turnover of plants that are endemic, this means plants that are native to a single geography region (not only native plants). Here we use Plants of the World Online (POWO) to determine the geography distribution of individual plants, where we only consider regions where the plant is `r location_type_text`. 
+
+```{r, turnover of endemic}
+do_type = TRUE
+report_cur = report[report$endemic == 'Endemic',]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_endemic = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'endemic', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'endemic',
+                                                   data_type = 'items')
+  ##############################################################################################
+  report_cur = report_accessions[report_accessions$endemic == 'Endemic',]
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_endemic_accessions = turnover
+  
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'endemic',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'endemic',
+                                                   data_type = 'accessions')
+}
+```
+
+`r if(!do_type){"There are no records that are endemic."}`
+
+```{r, Turnover of endemic items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of endemic {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of endemic accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of endemic accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of endemic species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of endemic species each year. To calculate the proportion of the collection that are endemic each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of endemic - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of endemic {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of endemic accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of endemic accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+### Turnover of Threatened Species
+
+This section looks at the turnover of plants that are threatened. 
+
+```{r, turnover of threatened}
+do_type = TRUE
+report_cur = report[report$threatened == 'Threatened',]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_threatened = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'threatened', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'threatened',
+                                                   data_type = 'items')
+  ##############################################################################################
+  report_cur = report_accessions[report_accessions$threatened == 'Threatened',]
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_threatened_accessions = turnover
+  
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'threatened',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'threatened',
+                                                   data_type = 'accessions')
+}
+```
+
+`r if(!do_type){"There are no records that are threatened."}`
+
+```{r, Turnover of threatened items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of threatened {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of threatened species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of threatened species each year. To calculate the proportion of the collection that are threatened each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of threatened - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of threatened {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of threatened accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+### Turnover of Trees
+
+This section looks at the turnover of plants that are trees. Here we use BGCI's TreeSearch combined with Plants of the World Online (POWO) (to look at synonymy) to determine which plants in the LC are trees. Note that we use the Genus and Species base to determine trees therefore, this will also include cultivated trees if any exist.
+
+
+```{r, turnover of tree}
+do_type = TRUE
+report_cur = report[report$tree == 'Tree',]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_trees = turnover
+  
+  plots = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'tree', data_type = 'items')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'tree',
+                                                   data_type = 'items')
+  ##############################################################################################
+  report_cur = report_accessions[report_accessions$tree == 'Tree',]
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_trees_accessions = turnover
+  
+  plots_accessions = plots_turnover(turnover, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'tree',data_type = 'accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-01-01'),
+                          AccessionYear = report_cur$AccYear,
+                          ItemStatusDate = report_cur$ItemStatusDate,
+                          ItemStatusType = report_cur$ItemStatusType)))
+  collection_proportion = existing_each_year/ existing_items_each_year
+  
+  plots_proportional_accessions = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover_items,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'tree',
+                                                   data_type = 'accessions')
+}
+```
+
+`r if(!do_type){"There are no records that are trees."}`
+
+```{r, Turnover of tree items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots$gain_loss
+
+plots$net
+
+plots_accessions$gain_loss
+
+plots_accessions$net
+
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of tree {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Items)"}`
+```{r  Gain/Loss of tree items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Items)"}`
+```{r  Net turnover of tree items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss (Accessions)"}`
+```{r  Gain/Loss of tree accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Net (Accessions)"}`
+```{r  Net turnover of tree accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_accessions$net
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(!do_type){"We now explore how the gain and loss of trees compare proportionally to the total number of gained and lost items/accessions and the overall proportion of trees each year. To calculate the proportion of the collection that are trees each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
+
+```{r, Proportional Turnover of tree - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+plots_proportional_accessions$gain
+
+plots_proportional_accessions$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of tree {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Items)"}`
+```{r  Proportional Gain of tree items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Items)"}`
+```{r  Proportional Loss of tree items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain (Accessions)"}`
+```{r  Proportional Gain of tree accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss (Accessions)"}`
+```{r  Proportional Loss of tree accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_type}
+plots_proportional_accessions$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+
+
+
+```{r, export data, echo = FALSE}
+if(export_data){
+ turnover_data = exporting_data_store
+  save(turnover_data, file = paste0(output_dir,'/',collection, '_turnover_data.rda'))
+  
+}
+```
+
+```{r, save excel version of data, eval = save_excel & export_data}
+library(xlsx)
+file = paste0(output_dir,'/',collection, '_turnover_data.xlsx')
+wb <- createWorkbook()
+
+datas <- exporting_data_store[!grepl('proportional',names(exporting_data_store))]
+data_titles = names(datas) |> stringr::str_replace_all('_', ' ')
+sheetnames <- paste0('Sheet ', 1:length(datas))
+sheets <- lapply(sheetnames,  createSheet, wb = wb)
+for(i in 1:length(datas)){
+  # First we'll create a new row, let's put the title on row 2
+  titleRow <-createRow(sheets[[i]], rowIndex=1)
+  # We'll add a cell to that row (in the first column) for the title
+  sheetTitle <-createCell(titleRow, colIndex=1)
+  # We'll add the sheet title to the cell
+  setCellValue(sheetTitle[[1,1]], data_titles[i])
+  # We'll choose the formatting for the cell
+  xlsx::addDataFrame(datas[[i]], sheet = sheets[[i]],row.names = FALSE, startRow = 3)
+}
+saveWorkbook(wb, file = file)
+
+
+file = paste0(output_dir,'/',collection, '_proportional_turnover_data.xlsx')
+wb <- createWorkbook()
+
+datas <- exporting_data_store[grepl('proportional',names(exporting_data_store))]
+data_titles = names(datas) |> stringr::str_replace_all('_', ' ')
+sheetnames <- paste0('Sheet ', 1:length(datas))
+sheets <- lapply(sheetnames,  createSheet, wb = wb)
+for(i in 1:length(datas)){
+  # First we'll create a new row, let's put the title on row 2
+  titleRow <-createRow(sheets[[i]], rowIndex=1)
+  # We'll add a cell to that row (in the first column) for the title
+  sheetTitle <-createCell(titleRow, colIndex=1)
+  # We'll add the sheet title to the cell
+  setCellValue(sheetTitle[[1,1]], data_titles[i])
+  # We'll choose the formatting for the cell
+  xlsx::addDataFrame(datas[[i]], sheet = sheets[[i]],row.names = FALSE, startRow = 3)
+}
+saveWorkbook(wb, file = file)
+
+```

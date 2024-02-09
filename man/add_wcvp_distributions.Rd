@@ -4,7 +4,7 @@
 \alias{add_wcvp_distributions}
 \title{Add wcvp_distributions information to wcvp_names}
 \usage{
-add_wcvp_distributions(filepath, wcvp, use_rWCVPdata = FALSE)
+add_wcvp_distributions(filepath = NULL, wcvp, use_rWCVPdata = FALSE)
 }
 \arguments{
 \item{filepath}{path to wcvp_distributions.csv file.}

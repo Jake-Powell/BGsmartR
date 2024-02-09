@@ -72,7 +72,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   # 1) Load wcvp_names (using method as described in the download)
   #################################
   cli::cli_h2("Loading wvcp_names")
-    if(!is.null(filepath)){
+  if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
     if(grepl('\\.csv$',filepath)){
       wcvp_names = utils::read.table(filepath, sep="|", header=TRUE, quote = "", fill=TRUE, encoding = "UTF-8")
@@ -90,7 +90,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
       stop('filepath is not a csv or R data file!')
     }
 
-    }else if(use_rWCVPdata){
+    } else if(use_rWCVPdata){
     if(system.file(package='rWCVPdata') == ''){
       stop('Package rWCVPdata is not installed please use another method to load wcvp_names or install the package')
     }
@@ -100,6 +100,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
       }
 
   }
+
   if(!exists('wcvp_names')){
     stop('Have not successfully loaded wcvp_names, please make sure you provide either: filepath, filepath or set use_rWCVPdata = TRUE')
   }
@@ -128,16 +129,17 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
                           do_add_id = FALSE,
                           do_sort = FALSE,
                           console_message = TRUE)
+  indices_require_sanitise = which(wcvp_names$require_sanitise)
 
   #################################
   # 2) Sanitise taxon names.
   #################################
-  cli::cli_h2("Sanitising taxon names")
-  santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
-  original_taxon_name = wcvp_names$taxon_name
-  wcvp_names$taxon_name = santise_taxon_name
-  indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
-  cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
+  # cli::cli_h2("Sanitising taxon names")
+  # santise_taxon_name = unlist(pbapply::pblapply(wcvp_names$taxon_name,BGSmartR::sanitise_name))
+  # original_taxon_name = wcvp_names$taxon_name
+  # wcvp_names$taxon_name = santise_taxon_name
+  # indices_require_sanitise=which(santise_taxon_name != original_taxon_name)
+  # cli::cli_alert_success("Sanitising required for {length(indices_require_sanitise)} taxon names")
 
   #################################
   # 3) Update author of autonyms to match the none-autonymed species.
@@ -149,7 +151,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
 
   # Create a data frame of taxon name, is_autonym, authors, and the GenusSpecies.
   GenusSpecies = paste0(wcvp_names$genus, ' ', wcvp_names$species)
-  autonym_names = BGSmartR::add_is_autonym(data.frame(taxon = wcvp_names$taxon_name),TaxonName_column = 'taxon',progress_bar = T)
+  autonym_names = BGSmartR::add_is_autonym(data.frame(taxon = wcvp_names$taxon_name),taxon_name_column = 'taxon',progress_bar = T)
   autonym_names = data.frame(autonym_names,
                              author = wcvp_names$taxon_authors,
                              GenusSpecies = GenusSpecies)
@@ -177,34 +179,34 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   # 3) Sanitise authors.
   #################################
-  cli::cli_h2("(2/6) Creating author parts...")
-  authors = wcvp_names$taxon_authors
-  authors = stringi::stri_trans_general(authors, id = "Latin-ASCII")
-  remove_initials = unlist(pbapply::pblapply(authors,function(x){paste0(author_words(x),collapse =', ')}))
-  wcvp_names$taxon_authors_simp = authors
-  wcvp_names$author_parts = remove_initials
+  # cli::cli_h2("(2/6) Creating author parts...")
+  # authors = wcvp_names$taxon_authors
+  # authors = stringi::stri_trans_general(authors, id = "Latin-ASCII")
+  # remove_initials = unlist(pbapply::pblapply(authors,function(x){paste0(author_words(x),collapse =', ')}))
+  # wcvp_names$taxon_authors_simp = authors
+  # wcvp_names$author_parts = remove_initials
 
   #################################
   # 4) Create new column for the length of the taxonName (used if we search for typos
   #################################
-  cli::cli_h2("(3/6) Adding taxon_length column")
-  taxon_length = unlist(pbapply::pblapply(wcvp_names$taxon_name, stringr::str_length))
-  wcvp_names$taxon_length = taxon_length
+  # cli::cli_h2("(3/6) Adding taxon_length column")
+  # taxon_length = unlist(pbapply::pblapply(wcvp_names$taxon_name, stringr::str_length))
+  # wcvp_names$taxon_length = taxon_length
 
   #################################
   # 5) Add flag for whether there exists multiple taxon names.
   #################################
-  cli::cli_h2("(4/6) Splitting wcvp_names into those with multiple Taxon names and those with only one...")
-  name_freq = table(wcvp_names$taxon_name)
-  single_entry = rep(NA, nrow(wcvp_names))
-  single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) == 1]] = TRUE
-  single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1]] = FALSE
-  wcvp_names = data.frame(wcvp_names, single_entry)
+  # cli::cli_h2("(4/6) Splitting wcvp_names into those with multiple Taxon names and those with only one...")
+  # name_freq = table(wcvp_names$taxon_name)
+  # single_entry = rep(NA, nrow(wcvp_names))
+  # single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) == 1]] = TRUE
+  # single_entry[wcvp_names$taxon_name %in% names(name_freq)[as.numeric(name_freq) > 1]] = FALSE
+  # wcvp_names = data.frame(wcvp_names, single_entry)
 
   #################################
   # 6) Where possible update records that are synonyms without an accepted form to include an accepted form via powo.
   #################################
-  cli::cli_h2("(5/6) Checking for accepted form issues with synonyms...")
+  cli::cli_h2("Checking for accepted form issues with synonyms...")
   #find the indices of the entries that have missing accepted plant name id when their taxon status is a synonym.
   issue_index = which(wcvp_names$taxon_status == 'Synonym' & is.na(wcvp_names$accepted_plant_name_id))
   non_accepted_synonyms = wcvp_names[issue_index,]
@@ -228,7 +230,7 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   # 7)  Check for common hybrids, cultivars in wcvp to check we can definitely exclude these initally. Find exceptions that are included in wcvp_names.
   #################################
-  cli::cli_h2("(6/6) Checking for common hybrids, cultivar, etc symbols...")
+  cli::cli_h2("Checking for common hybrids, cultivar, etc symbols...")
 
   # A)  Note current wcvp has a bug where [*] and [**] are sometimes used instead if var. and f.
   # Fix this here
@@ -279,14 +281,14 @@ import_wcvp_names <- function(filepath=NULL, use_rWCVPdata = FALSE, wanted_colum
   #################################
   changes = NULL
 
-  #add taxon name sanitising.
-  if(length(indices_require_sanitise)>0){
-    changes = data.frame(issue = rep('Taxon name required sanitising',length(indices_require_sanitise)),
-                         powo_id = wcvp_names$powo_id[indices_require_sanitise],
-                         taxon_name = wcvp_names$taxon_name[indices_require_sanitise],
-                         issue_entry = paste0('Original taxon_name = ', original_taxon_name[indices_require_sanitise]),
-                         fix = paste0('New taxon_name = ', wcvp_names$taxon_name[indices_require_sanitise]))
-  }
+  # #add taxon name sanitising.
+  # if(length(indices_require_sanitise)>0){
+  #   changes = data.frame(issue = rep('Taxon name required sanitising',length(indices_require_sanitise)),
+  #                        powo_id = wcvp_names$powo_id[indices_require_sanitise],
+  #                        taxon_name = wcvp_names$taxon_name[indices_require_sanitise],
+  #                        issue_entry = paste0('Original taxon_name = ', original_taxon_name[indices_require_sanitise]),
+  #                        fix = paste0('New taxon_name = ', wcvp_names$taxon_name[indices_require_sanitise]))
+  # }
 
   #add missing accepted form.
   indices = !is.na(new_accepted_name)
@@ -421,12 +423,14 @@ generate_labels <- function(data){
 #' @return Desired information from wcvp_distributions.csv combined with wcvp_names.
 #' @export
 #'
-add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
+add_wcvp_distributions <- function(filepath = NULL, wcvp, use_rWCVPdata = FALSE){
 
   ######################################################
   # 1) Load wcvp_distributions (using method as described in the download)
   ######################################################
-  print('(1/4) Loading wvcp_distribution...')
+  cli::cli_h1("Adding wcvp distribution information (wcvp_distributions)")
+
+  cli::cli_h2("Loading wvcp_distribution")
   if(!is.null(filepath)){
     # We have a filepath, try and load depending on file format.
     if(grepl('\\.csv$',filepath)){
@@ -449,14 +453,16 @@ add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
     if(system.file(package='rWCVPdata') == ''){
       stop('Package rWCVPdata is not installed please use another method to load wcvp_names or install the package')
     }
-    # wcvp_distributions <- rWCVPdata::wcvp_distributions
+    if(requireNamespace('rWCVPdata', quietly = T)){
+      wcvp_distributions <- rWCVPdata::wcvp_distributions
+    }
 
   }
   if(!exists('wcvp_distributions')){
     stop('Have not successfully loaded wcvp_distributions, please make sure you provide either: filepath or set use_rWCVPdata = TRUE')
   }
   ######################################################
-  # 2) Get ONLY native locations.
+  # 2) Re-format data.
   ######################################################
   # Select only non-extinct, native, with no location doubt.
   wcvp_distributions$locationcombined = paste0(wcvp_distributions$introduced,wcvp_distributions$extinct, wcvp_distributions$location_doubtful)
@@ -464,9 +470,9 @@ add_wcvp_distributions <- function(filepath, wcvp, use_rWCVPdata = FALSE){
   locationOptions = unique(wcvp_distributions$locationcombined)
   plant_ids = sort(unique(wcvp_distributions$plant_name_id),decreasing = FALSE)
 
-  print('Extracting plant geography for native/introduced, extinct and location doubtful...')
-  locations = pbapply::pblapply(locationOptions, function(locationOption){
-    wcvp_distributions_cur = wcvp_distributions[wcvp_distributions$locationcombined == locationOption,]
+  cli::cli_h2('Extracting plant geography for native/introduced, extinct and location doubtful')
+    locations = pbapply::pblapply(locationOptions, function(locationOption){
+    wcvp_distributions_cur = wcvp_distributions[which(wcvp_distributions$locationcombined == locationOption),]
 
     wcvp_distributions_plant_id <- wcvp_distributions_cur |>
       dplyr::group_by(.data$plant_name_id) |>

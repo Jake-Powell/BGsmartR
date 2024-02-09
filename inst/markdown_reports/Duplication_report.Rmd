@@ -14,17 +14,19 @@ library(ggrepel)
 ```
 
 ```{r, imported parameters}
-# #Inputs
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/BuenosAiresCT_enriched_report.rda')
-# collection = 'Benmore'
+#Inputs
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/ICCP_RBGE_enriched_report.rda')
+# collection = 'ICCP at Royal Botanic Gardens Edinburgh'
 # 
 # separate_figure_folder = FALSE
-# output_dir = getwd()
+# output_dir = '/Users/jakepowell/Desktop/Reports/ICCP at Royal Botanic Gardens Edinburgh'
 # report_kind = 'static'
 # ggtheme = NULL
 # value_on_fig = TRUE
 # min_year = 1970
 # join_bigger_than = 4
+# export_data  =T
+# save_excel = T
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -84,28 +86,109 @@ report = report[index_want,]
 
 # Get the best name from POWO first o/w original report.
 report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
-best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
-best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
-report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+powo_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+powo_name[which(powo_name == 'NA NA')] = NA
+report$powo_name = powo_name
+
+best_name = powo_name
+best_name[which(is.na(best_name))] = report$good_name[which(is.na(best_name))]
+report$best_name =best_name
+
+
+
+#Extract endemic information from enriched_report
+endemic = rep('Not Endemic', nrow(report))
+endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(report))
+threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+report$threatened = threatened
+rm(threatened)
 
 #Select columns of interest
-interest = report[,match(c('AccNoFull','sanitised_taxon', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'no_gardens'), names(report))]
+interest = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'no_gardens', 'endemic', 'threatened'), names(report))]
+
+# Create a column with the name if we want to print the taxa. (latin words with italic, others plain.)
+print_name = interest$sanitised_taxon
+name_with_italic = unlist(lapply(stringr::str_split(print_name, ' '), function(x){
+  x[which(!grepl('\\.',x))] = paste0('*',x[which(!grepl('\\.',x))],'*')
+  paste0(x, collapse = ' ')
+}))
+print_name = paste0(name_with_italic, ' ', interest$extracted_author)
+interest$print_name = print_name
 
 
 if(separate_figure_folder){
   figures_dir = paste0(output_dir,'/',collection,'_Figures')
   dir.create(figures_dir,showWarnings = FALSE)
 }
+
+## - Deaccessioning list: sheet of very common, non-threatened, non-endemic taxa duplicated three or more times in a LC, including at least taxon name according to POWO, original name, and accession number
+deaccessioning_list = interest[which(interest$threatened == 'Not Threatened' &
+                                     interest$endemic == 'Not Endemic' & 
+                                     interest$no_gardens > 100),]
+
+# Reduce report unique by the number in each.
+deaccessioning_list$count = rep(1,nrow(deaccessioning_list))
+deaccessioning_list_format <- deaccessioning_list |>
+    dplyr::group_by(.data$good_name) |>
+    dplyr::summarise(original_report_taxon_name = toString(unique(.data$TaxonNameFull)),
+                     powo_taxon_name = toString(unique(.data$powo_name)),
+                     no_items_in_LC = sum(.data$count),
+                    global = .data$no_gardens[1],
+                     accessions = toString(unique(.data$AccNoFull)),
+                     endemic = .data$endemic[1],
+                     threatened = .data$threatened[1]
+    ) |>
+    dplyr::ungroup() 
+deaccessioning_list_format = deaccessioning_list_format[deaccessioning_list_format$no_items_in_LC > 3,]
+deaccessioning_list_format = deaccessioning_list_format[,-1]
+names(deaccessioning_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status")
+writexl::write_xlsx(deaccessioning_list_format, path =paste0(output_dir,'/',collection,'_deaccessioning_list.xlsx'))
+
+
+# -Sheet of taxa in 0-10 LCs including at least taxon name according to POWO, original name, and accession number. Can these be fake rare taxa (typos, non-matching names)? If so, add warning to plot and management sheet.
+
+rare_global_list = interest[which(interest$no_gardens <= 10),]
+rare_global_list$match_powo_issue = rare_global_list$POWO_taxon_name == rare_global_list$POWO_taxon_name
+rare_global_list$match_powo_issue[is.na(rare_global_list$match_powo_issue)] = FALSE
+
+# Reduce report unique by the number in each.
+rare_global_list$count = rep(1,nrow(rare_global_list))
+rare_global_list_format <- rare_global_list |>
+    dplyr::group_by(.data$good_name) |>
+    dplyr::summarise(original_report_taxon_name = toString(unique(.data$TaxonNameFull)),
+                     powo_taxon_name = toString(unique(.data$powo_name)),
+                     match_powo_issue = .data$match_powo_issue[1],
+                     no_items_in_LC = sum(.data$count),
+                    global = .data$no_gardens[1],
+                     accessions = toString(unique(.data$AccNoFull)),
+                     endemic = .data$endemic[1],
+                     threatened = .data$threatened[1]
+    ) |>
+    dplyr::ungroup() 
+no_different_rare_taxa = sum(!rare_global_list_format$match_powo_issue)
+rare_global_list_format = rare_global_list_format[,-1]
+names(rare_global_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Original Taxonomic Name same as POWO", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status")
+writexl::write_xlsx(rare_global_list_format, path =paste0(output_dir,'/',collection,'_rare_global_list.xlsx'))
+
+
 ```
 
 This report explores duplication for existing plants at `r collection`. This is performed in two ways:
 
-- Global level: investigates how many collections globally taxa from the LC are found in.
+- Global level: how many collections globally are taxa in the LC found.
 - Collection Level: investigates how many items or accessions there are for each taxa.
 
 In all sections we only consider plants that are:
 
-- Existing in the LC. 
 - Are not hybrids or cultivars.
 
 This reduces the number of records in the LC to `r format(no_records, big.mark =',')` from `r format(nrow(interest), big.mark =',')`.
@@ -123,6 +206,8 @@ Moreover, where possible we will use the taxonomic name from matching to POWO on
 `r if(do_global){"- Match to POWO, and update taxonomic name and authority if needed (e.g. going to accepted name)."}`
 `r if(do_global){"- Use the taxonomic name and authority to match to BGCI's plant search."}`
 `r if(do_global){"- Extract the number of ex-situ sites, if the record does not exist set the number of gardens to zero."}`
+
+`r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the LC classed as very rare (<= 10 LCs globally) where the original taxonomic name from the report and POWO's taxonomic name differ. See 'rare global list' management sheet for further detail.")}`
 
 `r if(do_global){"Below we show the number of taxa in the LC against the number of sites the taxa is held globally. \n"}`
 
@@ -194,11 +279,11 @@ fig <- layout(fig,
              shapes = list(
                list(type = "rect",
                     fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
-                    x0 = 0, x1 = 15.5, xref = "x",
+                    x0 = 0, x1 = 10.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
                 list(type = "rect",
                     fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
-                    x0 = 15.5, x1 = 50.5, xref = "x",
+                    x0 = 10.5, x1 = 50.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
                list(type = "rect",
                     fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
@@ -226,11 +311,11 @@ Next we group taxa by the number of collections they are found in globally. Thes
 - **Common**: found in between 51 and 100 collections.
 - **Very Common**: found in more than 100 collections.
 
-Doughnut/Pie graph of rarity of species at the LC
+Rarity of species at the LC
 
 ```{r, grouped rarity - data, fig.dim = c(10, 4), eval = do_global}
-v_rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 0:15])  
-rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 16:50]) 
+v_rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 0:10])  
+rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 11:50]) 
 common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 51:100]) 
 v_common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 100:1500]) 
 
@@ -329,6 +414,9 @@ accession_taxa = table(taxa_no_accessions$no_accessions)
 accession_taxa = data.frame(total_accessions = as.numeric(names(accession_taxa)), 
                             no_species = as.numeric(accession_taxa))
 
+top_name = taxa_no_accessions$taxa[taxa_no_accessions$no_accessions == max(accession_taxa$total_accessions)][1]
+top_name = interest$print_name[match(top_name,interest$good_name)]
+
 # data formatted if we want to export/save it.
 Local_accession_taxa = accession_taxa
 Local_accession_taxa$percent = paste0(round(Local_accession_taxa$no_species / sum(Local_accession_taxa$no_species)*100,digits = 2),'%')
@@ -373,13 +461,13 @@ fig
 
 Statistics from number of accessions per taxa:
 
-- The maximum number of accessions for a given taxa is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r taxa_no_accessions$taxa[taxa_no_accessions$no_accessions == max(accession_taxa$total_accessions)][1]`**. 
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name`**. 
 - The mean number of accessions per taxa is **`r round(mean(taxa_no_accessions$no_accessions),digits=2)`**.
 - The median number of accessions per taxa is **`r median(taxa_no_accessions$no_accessions)`**.
 - **`r format(accession_taxa$no_species[accession_taxa$total_accessions == 1], big.mark =',')`** taxa have a single accession.
 
 
-Doughnut/Pie chart of number of accessions per taxa. 
+Number of accessions per taxa 
 
 ```{r simplify accessions per taxa for donut chart}
 doughnut_data =  accession_taxa[,1:2]
@@ -464,6 +552,9 @@ item_taxa = table(data_cur$no_items)
 item_taxa = data.frame(total_items = as.numeric(names(item_taxa)), 
                             no_species = as.numeric(item_taxa))
 
+top_name = data_cur$taxa[data_cur$no_items == max(item_taxa$total_items)][1]
+top_name = interest$print_name[match(top_name,interest$good_name)]
+
 Local_item_taxa = item_taxa
 Local_item_taxa$percent = paste0(round(Local_item_taxa$no_species / sum(Local_item_taxa$no_species)*100,digits = 2),'%')
 names(Local_item_taxa) = c("Number of Items in LC", "Number of species in LC", "Percentage")
@@ -510,12 +601,12 @@ fig
 
 Statistics from number of items per taxa:
 
-- The maximum number of items for a given taxa is **`r max(item_taxa$total_items)`**. An example is the taxa **`r data_cur$taxa[data_cur$no_items == max(item_taxa$total_items)][1]`**. 
+- The maximum number of items for a given taxa is **`r max(item_taxa$total_items)`**. An example is the taxon **`r top_name`**. 
 - The mean number of items per taxa is **`r round(mean(data_cur$no_items),digits=2)`**.
 - The median number of items per taxa is **`r median(data_cur$no_items)`**.
 - **`r item_taxa$no_species[item_taxa$total_items == 1]`** taxa have a single item in the LC.
 
-Doughnut/Pie chart of number of items per taxa. 
+Number of items per taxa 
 
 ```{r simplify items per taxa for donut chart}
 doughnut_data =  item_taxa[,1:2]
@@ -592,11 +683,12 @@ fig
 
 ### Number of items per accession 
 
-For this section we consider all accessions that have at least one item still existing. It can be tricky here to determine what number of items per accession means since for all the existing plants in the LC some items from an accession might have died. Therefore, we will produce two versions of each of the following figures, one where we take into account the number of items for each accession existing in the LC at this moment in time and another where we take the number of items in each accession at the time when the accession occurred. 
+When considering the number of items per accession we first consider all of the plants that are existing in the LC. This is performed in the section 'Only considering items currently existing in the LC'. However, this does not account for how many items there were at the time of accessioning because some of the items might have died. Therefore, we will also explore the number of items in an accession at the time of accessioning. This will allow us to explore if the number of items per accession has changed over time. This is performed in the section 'Considering the total number of items in an accession at the time of accessioning'.
+
 
 #### Only considering items currently existing in the LC
 
-Bar graph of the number of accessions in the collection by their number of items (existing at this moment).
+Number of accessions in the collection by their number of items (existing at this moment).
 
 ```{r, get items per accession data - existing, echo = FALSE}
 existing_accessions = unique(report$AccNoFull)
@@ -640,6 +732,8 @@ max_accession_existing = item_per_access_existing$accession[item_per_access_exis
 
 plant_max_accession = paste0(report$sanitised_taxon[match(max_accession, report$AccNoFull)], ' ', report$extracted_author[match(max_accession, report$AccNoFull)])
 plant_max_accession_existing = paste0(report$sanitised_taxon[match(max_accession_existing, report$AccNoFull)], ' ', report$extracted_author[match(max_accession_existing, report$AccNoFull)])
+
+
 ```
 
 ```{r, number of items per accession exisiting at this moment - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
@@ -683,13 +777,13 @@ fig
 
 Statistics from number of items per accession (at time of accessioning):
 
-- The maximum number of items in an accession is **`r max(item_dist_existing$total_items)`**, for example the accession **`r max_accession[1]`** (`r plant_max_accession_existing[1]`). 
+- The maximum number of items in an accession is **`r max(item_dist_existing$total_items)`**, for example the accession **`r max_accession[1]`** (`r interest$print_name[match(plant_max_accession_existing[1],interest$good_name)]`). 
 - The mean number of items per accession is **`r round(mean(item_per_access_existing$no_items),digits=2)`**.
 - The median number of items per accession is **`r median(item_per_access_existing$no_items)`**.
 - **`r item_dist_existing$no_accessions[item_dist_existing$total_items==1]`** accessions are comprised of a single item.
 
 
-Doughnut/Pie chart of number of items per taxa. 
+Number of items per taxa 
 
 ```{r simplify items per accession for existing items  for donut chart}
 doughnut_data =  item_dist_existing[,1:2]
@@ -764,7 +858,7 @@ fig
 
 #### Considering the total number of items in an accession at the time of accessioning
 
-Bar graph of the number of accessions in the collection by their number of items (at the time of accession).
+Number of accessions in the collection by their number of items (at the time of accession).
 
 ```{r, number of items per accession exisiting at time of accession - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
 p<-ggplot(data=item_dist, aes(x=total_items, y=no_accessions+0.01)) +
@@ -807,12 +901,12 @@ fig
 
 Statistics from number of items per accession (at time of accessioning):
 
-- The maximum number of items in an accession is **`r max(item_dist$total_items)`** for example the accession **`r max_accession[1]`** (`r plant_max_accession[1]`). 
+- The maximum number of items in an accession is **`r max(item_dist$total_items)`** for example the accession **`r max_accession[1]`** (`r interest$print_name[match(plant_max_accession[1],interest$good_name)]`). 
 - The mean number of items per accession is **`r round(mean(item_per_access$no_items),digits=2)`**.
 - The median number of items per accession is **`r median(item_per_access$no_items)`**.
 - **`r item_dist$no_accessions[item_dist$total_items==1]`** accessions are comprised of a single item.
 
-Doughnut/Pie chart of number of items per taxa. 
+Number of items per taxa. 
 
 ```{r simplify items per accession exisiting at time of accession for donut chart}
 doughnut_data =  item_dist[,1:2]
@@ -1038,3 +1132,4 @@ xlsx::addDataFrame(items_per_accessions_over_years_simp, sh11, startRow = 1, row
 xlsx::saveWorkbook(wb, file = paste0(output_dir,'/',collection,'_duplication_data.xlsx'))
 ```
 ***
+

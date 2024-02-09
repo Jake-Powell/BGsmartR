@@ -25,6 +25,7 @@
 #' @param taxon_names Vector of taxonomic names.
 #' @param taxon_names_full Vector of joined taxonomic name and author.
 #' @param taxon_authors Vector of taxonomic authors.
+#' @param console_message Flag (TRUE/FALSE) for showing progress bar in the console.
 #'
 #' @export
 #'
@@ -130,9 +131,15 @@ sanitise_authors <- function(taxon_authors){
 #' @export
 sanitise_names_authors <- function(taxon_names,
                                 taxon_authors = NA,
-                                taxon_names_full = NA){
+                                taxon_names_full = NA,
+                                console_message = FALSE){
   # A) Sanitise the taxon names.
-  clean_taxon_name = unlist(lapply(taxon_names, sanitise_name))
+  if(console_message){
+    clean_taxon_name = unlist(pbapply::pblapply(taxon_names, sanitise_name))
+  }else{
+    clean_taxon_name = unlist(lapply(taxon_names, sanitise_name))
+
+  }
 
   # B) Extract author if needed.
   # i) Both taxon_authors and taxon_names_full = NA
@@ -164,7 +171,8 @@ sanitise_names_authors <- function(taxon_names,
 sanitise_names_authors_report <- function(collection,
                                        taxon_name_column = 'TaxonName',
                                        taxon_name_full_column = NA,
-                                       taxon_author_column = NA){
+                                       taxon_author_column = NA,
+                                       console_message = FALSE){
   # Get the values out of original report.
   taxon_names = collection[[taxon_name_column]]
   if(is.na(taxon_name_full_column)){
@@ -179,5 +187,5 @@ sanitise_names_authors_report <- function(collection,
     taxon_authors = collection[[taxon_author_column]]
   }
 
-  return(sanitise_names_authors(taxon_names = taxon_names, taxon_names_full = taxon_name_full, taxon_authors = taxon_authors))
+  return(sanitise_names_authors(taxon_names = taxon_names, taxon_names_full = taxon_name_full, taxon_authors = taxon_authors, console_message = console_message))
 }

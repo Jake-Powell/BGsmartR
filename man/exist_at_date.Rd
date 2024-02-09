@@ -4,7 +4,13 @@
 \alias{exist_at_date}
 \title{Generate data frame of records that exist each year}
 \usage{
-exist_at_date(date, AccessionYear, ItemStatusDate, ItemStatusType)
+exist_at_date(
+  date,
+  AccessionYear,
+  ItemStatusDate,
+  ItemStatusType,
+  post_date = as.character(Sys.Date())
+)
 }
 \arguments{
 \item{date}{dates in the format \code{YYYY-MM-DD} or \code{YYYY/MM/DD}.}
@@ -14,6 +20,8 @@ exist_at_date(date, AccessionYear, ItemStatusDate, ItemStatusType)
 \item{ItemStatusDate}{The data when the records were last updated.}
 
 \item{ItemStatusType}{The status of the record when last updated. Either \code{Existing} or \code{NotExisting}.}
+
+\item{post_date}{Set the date that existing plants in the LC are classed as alive until . Default is the present day.}
 }
 \value{
 data frame where each column corresponds to a date, each row an item in the collection. The (i,j)th value is a logical (TRUE/FALSE) corresponding whether the ith item existed at the jth date.

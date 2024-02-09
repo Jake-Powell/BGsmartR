@@ -114,7 +114,7 @@ enriched_report$geography_codes = level3codes
 ```{r, Get location_type_text}
 location_type_text = ''
 if(native == 'Naturally occurring only'){
- location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
+ location_type_text = paste0(location_type_text, 'naturally occurringonly,', collapse = ' ')  
 }else if(native == 'Introduced only'){
   location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
  
@@ -245,7 +245,7 @@ if(length(location_name) == 0){
 }
 ```
 
-This report explores native species existing in `r collection`, and how the representation of native species has varied over time.
+This report explores the taxa existing in `r collection` that are native to `r location_name`, and how the representation of native species has varied over time.
 
  To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
 
@@ -253,11 +253,11 @@ This report explores native species existing in `r collection`, and how the repr
 - Extinct / Not extinct,
 - Location is doubtful / otherwise.
 
-This document considers locations that are : `r location_type_text` 
+This document considers locations that are: `r location_type_text` 
  
 `r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",location_name,".")}`
 `r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",location_name,".")}`
-Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
+Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise, taxa are classed as non-native.
 
 The location of the LC and the native region are shown below.
 
@@ -356,9 +356,21 @@ names(df) = c('Category', 'Number found in WCVP', ' Number found in LC', 'Propor
 if(export_data){
   exporting_data_store$Representative_of_native_species_in_LC_current = df
 }
+
+# MANAGEMENT SHEET: Export the management sheet of all native accessions.
+native_accessions = LC_native_exisiting
+native_accessions = native_accessions[match(unique(native_accessions$AccNoFull),native_accessions$AccNoFull),]
+powo_name = paste0(native_accessions$POWO_taxon_name, ' ', native_accessions$POWO_taxon_authors)
+powo_name[powo_name == 'NA NA'] = NA
+native_accessions$powo_name = powo_name
+native_accessions = native_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'endemic'), names(native_accessions))]
+names(native_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Endemic')
+
+writexl::write_xlsx(native_accessions, path =paste0(output_dir,'/',collection,'_native_accessions_list.xlsx'))
+
 ```
 
-In the LC there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants. In the following table we show how many families/genus/species/taxa of native plants are represented in the LC (compared to all plants from `r location_name` in WCVP).
+In the LC there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants. In the following table we show how many families/genus/species/taxa of native plants are represented in the LC (compared to all plants from `r location_name` in WCVP). Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
 
 ```{r, How many native species are in the LC - table}
 if(report_kind == 'static'){
@@ -457,11 +469,11 @@ for(i in 1:length(to_do)){
   p = ggplot(plot_data, aes(fill=represented, y=percentage, x=dates)) + 
     geom_bar(position="stack", stat="identity", width = 1) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Representation of ", titles[i] , " over time"),
-        x ="Year",
+    labs(x ="Year",
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
-    scale_fill_discrete()
+    scale_fill_discrete() #+
+    # ggtitle(paste0("Representation of ", titles[i] , " over time"))
   
   if(separate_figure_folder){
 ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_species_are_in_the_LC', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
@@ -740,11 +752,12 @@ for(i in 1:length(to_do)){
   geom_line()+
   geom_point() +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Number of native ", titles[i] , " over time"),
+    labs(title="",
         x ="Year",
         y = paste0("Number of ",titles[i])) #+
     # guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
-    # theme(text = element_text(size=table_font_size))
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Number of native ", titles[i] , " over time")
   
     if(separate_figure_folder){
 ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','number_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
@@ -913,12 +926,13 @@ for(i in 1:length(to_do)){
   p = ggplot(plot_data, aes(fill=represented, y=percentage, x=dates)) + 
     geom_bar(position="stack", stat="identity", width = 1) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Proportion of ", titles[i] , " that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
    scale_fill_discrete() # +
-    # theme(text = element_text(size=table_font_size))
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of ", titles[i] , " that are native in the LC over time"))
     
       if(separate_figure_folder){
 ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','proportion_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
@@ -1107,7 +1121,7 @@ need_venn = total_endemic > 0 | total_threatened > 0
 
 ```
 
-`r if(need_venn){"In this section, we concentrate on native plants in the LC that are either endemic or redlisted."}`
+`r if(need_venn){paste0("In this section, we concentrate on native plants in the LC that are either endemic to ", location_name ," or redlisted by the IUCN.")}`
 
 `r if(need_venn){"Below we produce a Venn diagram of endemic and threatened plants that are native in the LC."}`
 
@@ -1184,6 +1198,11 @@ data_compressed = data_compressed[data_compressed$endemic | data_compressed$thre
 if(export_data){
   exporting_data_store$Detail_threatened_and_endemic_native_plants_in_LC = data.frame(data_compressed)
 }
+
+# MANAGEMENT SHEET: native plants that are native and either endemic or threatened.
+writexl::write_xlsx(data_compressed, path =paste0(output_dir,'/',collection,'_native_and_either_endemic_or_threatened_list.xlsx'))
+
+
 ```
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - table, ft.keepnext = FALSE, eval = need_venn}
@@ -1206,389 +1225,6 @@ if(report_kind == 'interactive'){
 }
 
 ```
-
-***
-
-### Provenance of native plants in the LC
-
-In this section we are exploring the provenance of native plants in the collection. We shall do this in two parts: existing plants in the LC and how this has changed over time.
-
-Below we produce a table of provenance for items and accessions.
-
-```{r, Provenance of native plants in the LC}
-# LC_native_exisiting the data of existing native plants in the LC. 
-
-prov_items = data.frame(table(LC_native_exisiting$ProvenanceCode))
-names(prov_items) = c('Provenance', 'Items')
-# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
-prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
-prov_items <- prov_items %>% 
-  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
-         pos = Items/2 + dplyr::lead(csum, 1),
-         pos = dplyr::if_else(is.na(pos), Items/2, pos))
-
-
-prov_accessions = data.frame(table(LC_native_exisiting$ProvenanceCode[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
-names(prov_accessions) = c('Provenance', 'Accessions')
-# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
-prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
-prov_accessions <- prov_accessions %>% 
-  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
-         pos = Accessions/2 + dplyr::lead(csum, 1),
-         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
-
-flex_data = data.frame(prov_items$Provenance,
-                       prov_items$Items, 
-                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
-                       prov_accessions$Accessions,
-                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
-names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
-
-if(export_data){
-  exporting_data_store$Provenance_of_existing_native_plants_in_the_LC = flex_data
-}
-```
-
-```{r Provenance of native plants in the LC - Table}
-if(report_kind == 'static'){
-flex_data |>
-  flextable() |>
-  set_caption(caption = paste0('Provenance of existing native plants in the LC')) |> 
-  font(fontname = "Calibri (Body)", part = "all") |> 
-  fontsize(size = table_font_size, part = "body") |> 
-  # add footer if you want
-  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
-  #                colwidths = 4) |> 
-  theme_booktabs() |> # default theme
-  separate_header() |> 
-  align(align = "center", part = "all") |>
-  autofit()
-}
-if(report_kind == 'interactive'){
-    DT::datatable(flex_data)
-}
-
-```
-
-Putting the data into a pie charts yields
-
-```{r, Provenance of native plants in the LC pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
-# Basic piechart
-pie1 = ggplot(prov_items, aes(x="", y=Items, fill=Provenance)) +
-  geom_bar(stat="identity", width=1, color="white") +
-  ggtheme(base_size = 18) +
-  coord_polar("y", start=0) +
-  ggtheme(base_size = 18) +
-  ggtitle('Items') +
-  scale_fill_discrete() +
-  theme(legend.position = "none",
-        axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        plot.background=element_blank(),
-        plot.title = element_text(hjust = 0.5))
-
-pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
-  geom_bar(stat="identity", width=1, color="white") +
-  ggtheme(base_size = 18) +
-  coord_polar("y", start=0) +
-  ggtitle('Accessions') + 
-  scale_fill_discrete() +
-  theme(legend.position = "none",
-        axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        plot.background=element_blank(),
-        plot.title = element_text(hjust = 0.5))
-
-    if(value_on_fig){
-      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
-                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
-      
-      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
-                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
-  }
-
-p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
-
-if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-
-p
-
-```
-
-`r if(report_kind == 'interactive'){"#####  Provenance of native species in the LC {.tabset}"}`
-
-`r if(report_kind == 'interactive'){"###### Items"}`
-```{r  Provenance of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
-text = paste0(prov_items$Items, ' native items with provenance "', prov_items$Provenance, '"')
-             
-fig <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_items.html'))
-}
-
-  
-```
-
-`r if(report_kind == 'interactive'){"###### Accessions"}`
-```{r  Provenance of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
-text = paste0(prov_accessions$Accessions, ' native accessions with provenance "', prov_accessions$Provenance, '"')
-             
-fig <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_accessions.html'))
-}
-
-  
-```
-
-`r if(report_kind == 'interactive'){"##### {-}"}`
-
-`r if(do_over_time){"We will now look at how the provenance of native plants in the LC has changed over time."}`
-
-`r if(!do_over_time){"We do not have the information to explore how provenance of native plants in the LC has changed over time."}`
-
-```{r, Provenance of native plants in the LC- change over time data, eval = do_over_time}
-# LC_native_over_time contains the over time native plants.
-redlistcatA = LC_native_over_time$redList_category
-redlistcatB = LC_native_over_time$POWO_Red_category
-
-redlist_used = rep(NA, nrow(LC_native_over_time))
-redlist_used[redlistcatA == 'VU' | redlistcatB == 'VU'] = 'VU'
-redlist_used[redlistcatA == 'EN' | redlistcatB == 'EN'] = 'EN'
-redlist_used[redlistcatA == 'CR' | redlistcatB == 'CR'] = 'CR'
-redlist_used[redlistcatA == 'EW' | redlistcatB == 'EW'] = 'EW'
-redlist_used[redlistcatA == 'EX' | redlistcatB == 'EX'] = 'EX'
-
-LC_native_over_time$redlist_used = redlist_used
-
-# For each year get the number in each group (species and genera)
-over_time_info = lapply(plant_existing_LC_native, function(x){
-  garden_current = LC_native_over_time[x,]
-  
-  prov_items =  data.frame(table(garden_current$ProvenanceCode))
-  if(nrow(prov_items) == 0){
-    return(list(prov_items = prov_items,
-              prov_accessions = prov_items,
-              redlistcat_items = prov_items,
-              redlistcat_accessions = prov_items,
-              redlistcat_taxa = prov_items))
-  }
-  names(prov_items) = c('Provenance', 'Items')
-  
-  prov_accessions = data.frame(table(garden_current$ProvenanceCode[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
-  names(prov_accessions) = c('Provenance', 'Accessions')
-  
-  redlistcat_items = data.frame(table(garden_current$redlist_used))
-  if(ncol(redlistcat_items) != 2){redlistcat_items = data.frame(matrix(ncol = 2, nrow = 0))}
-  names(redlistcat_items) = c('RedListCategory', 'Items')
-  
-  redlistcat_accessions = data.frame(table(garden_current$redlist_used[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
-  if(ncol(redlistcat_accessions) != 2){redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))}
-  
-  names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
-  
-  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
-  redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
-  if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
-  
-  names(redlistcat_taxa) = c('RedListCategory', 'Accessions')
-  
-  
-  return(list(prov_items = prov_items,
-              prov_accessions = prov_accessions,
-              redlistcat_items = redlistcat_items,
-              redlistcat_accessions = redlistcat_accessions,
-              redlistcat_taxa = redlistcat_taxa))
-})
-prov_redlist_native_over_time = over_time_info
-
-```
-
-```{r, Provenance of native plants in the LC- change over time figures, fig.fullwidth=FALSE, fig.dim = c(10, 6), , eval = report_kind == 'static' & do_over_time}
-to_do = c('items', 'accessions')
-for(i in 1:length(to_do)){
-  # Get the data from over_time_info.
-  data_wanted = NULL
-  wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-  for(jj in 1:length(over_time_info)){
-    info_year = over_time_info[[jj]][[wanted_item]]
-    if(nrow(info_year) == 0){
-      next
-    }
-    prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-    info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                           info_year = info_year,
-                           prop = prop)
-    data_wanted = rbind(data_wanted, info_year)
-
-  }
-  names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-  data_wanted[,2] = as.character(data_wanted[,2])
-  # data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-  data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-  
-  
-    if(export_data){
-    item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-  exporting_data_store$AA = data_wanted
-  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-    }
-  
-    p = ggplot(data_wanted, aes(fill=Provenance, y=prop, x=year)) + 
-    geom_bar(position="stack", stat="identity", width = 1) +
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Provenance of ", to_do[i] , " that are native in the LC over time"),
-        x ="Year",
-        y = "Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance')))# +
-    # theme(text = element_text(size=table_font_size))
-    
-    if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-  print(p)
-
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of native species in the LC over time {.tabset}"}`
-
-`r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
-```{r  Provenance of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
-to_do = c('items', 'accessions')
-i=1
-
-# Get the data from over_time_info.
-data_wanted = NULL
-wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-for(jj in 1:length(over_time_info)){
-  info_year = over_time_info[[jj]][[wanted_item]]
-  if(nrow(info_year) == 0){
-    next
-  }
-  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                         info_year = info_year,
-                         prop = prop)
-  data_wanted = rbind(data_wanted, info_year)
-
-}
-names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-data_wanted[,2] = as.character(data_wanted[,2])
-# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-
-
-  if(export_data){
-  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-exporting_data_store$AA = data_wanted
-names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-  }
-
-
-text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
-data_wanted$text = text
-fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',
-               sort = FALSE)
-fig <- fig |> layout(yaxis = list(title = 'Percentage'),
-                     xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Provenance Type')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_item.html'))
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"###### Accessions"}`
-```{r  Provenance of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
-to_do = c('items', 'accessions')
-i=2
-
-# Get the data from over_time_info.
-data_wanted = NULL
-wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-for(jj in 1:length(over_time_info)){
-  info_year = over_time_info[[jj]][[wanted_item]]
-  if(nrow(info_year) == 0){
-    next
-  }
-  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                         info_year = info_year,
-                         prop = prop)
-  data_wanted = rbind(data_wanted, info_year)
-
-}
-names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-data_wanted[,2] = as.character(data_wanted[,2])
-# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-
-
-  if(export_data){
-  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-exporting_data_store$AA = data_wanted
-names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-  }
-
-
-text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
-data_wanted$text = text
-fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',
-               sort = FALSE)
-fig <- fig |> layout(yaxis = list(title = 'Percentage'),
-                     xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Provenance Type')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_accession.html'))
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
-
 
 ***
 
@@ -1798,6 +1434,47 @@ if(separate_figure_folder){
 
 `r if(!do_over_time){"We do not have the information to explore how hreatened categories of native plants in the LC has changed over time."}`
 
+```{r, Threatened, native plants in the LC - data over time, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = do_over_time}
+# LC_native_over_time contains the over time native plants.
+redlistcatA = LC_native_over_time$redList_category
+redlistcatB = LC_native_over_time$POWO_Red_category
+
+redlist_used = rep(NA, nrow(LC_native_over_time))
+redlist_used[redlistcatA == 'VU' | redlistcatB == 'VU'] = 'VU'
+redlist_used[redlistcatA == 'EN' | redlistcatB == 'EN'] = 'EN'
+redlist_used[redlistcatA == 'CR' | redlistcatB == 'CR'] = 'CR'
+redlist_used[redlistcatA == 'EW' | redlistcatB == 'EW'] = 'EW'
+redlist_used[redlistcatA == 'EX' | redlistcatB == 'EX'] = 'EX'
+
+LC_native_over_time$redlist_used = redlist_used
+
+# For each year get the number in each group (species and genera)
+over_time_info = lapply(plant_existing_LC_native, function(x){
+  garden_current = LC_native_over_time[x,]
+  redlistcat_items = data.frame(table(garden_current$redlist_used))
+  if(ncol(redlistcat_items) != 2){redlistcat_items = data.frame(matrix(ncol = 2, nrow = 0))}
+  names(redlistcat_items) = c('RedListCategory', 'Items')
+  
+  redlistcat_accessions = data.frame(table(garden_current$redlist_used[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  if(ncol(redlistcat_accessions) != 2){redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
+  
+  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
+  redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
+  if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_taxa) = c('RedListCategory', 'Accessions')
+  
+  
+  return(list(redlistcat_items = redlistcat_items,
+              redlistcat_accessions = redlistcat_accessions,
+              redlistcat_taxa = redlistcat_taxa))
+})
+
+
+```
+
 ```{r, Threatened, native plants in the LC - static proportion over time, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = report_kind == 'static' & have_redlist & do_over_time}
 to_do = c('items', 'accessions')
 if(nrow(flex_data) > 0){
@@ -1826,11 +1503,12 @@ for(i in 1:length(to_do)){
     p = ggplot(data_wanted, aes(fill=RedListCategory, y=prop, x=year)) + 
     geom_bar(position="stack", stat="identity", width = 1) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("RedList Category of ", to_do[i] , " that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0('RedList Category')))# +
-    # theme(text = element_text(size=table_font_size))
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("RedList Category of ", to_do[i] , " that are native in the LC over time"))
     
     if(separate_figure_folder){
   ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
@@ -1867,11 +1545,12 @@ for(i in 1:length(to_do)){
   p = ggplot(data=data_wanted, aes(x=year, y=data_wanted[,3], group=RedListCategory)) +
   geom_line(aes(color=RedListCategory)) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("RedList Category of ", to_do[i] , " that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = paste0('Number of ',to_do[i])) +
     guides(color=guide_legend(title=paste0('RedList Category'))) #+
-    # theme(text = element_text(size=table_font_size))
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("RedList Category of ", to_do[i] , " that are native in the LC over time"))
   
       if(separate_figure_folder){
   ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Number_of_threatened_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
@@ -2103,6 +1782,392 @@ fig
 
 ***
 
+### Provenance of native plants in the LC
+
+In this section we are exploring the provenance of native plants in the collection. We shall do this in two parts: existing plants in the LC and how this has changed over time.
+
+Below we produce a table of provenance for items and accessions.
+
+```{r, Provenance of native plants in the LC}
+# LC_native_exisiting the data of existing native plants in the LC. 
+
+prov_items = data.frame(table(LC_native_exisiting$ProvenanceCode))
+names(prov_items) = c('Provenance', 'Items')
+# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
+prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
+prov_items <- prov_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+         pos = Items/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
+
+prov_accessions = data.frame(table(LC_native_exisiting$ProvenanceCode[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
+names(prov_accessions) = c('Provenance', 'Accessions')
+# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
+prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
+prov_accessions <- prov_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+         pos = Accessions/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
+flex_data = data.frame(prov_items$Provenance,
+                       prov_items$Items, 
+                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
+                       prov_accessions$Accessions,
+                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
+names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
+
+if(export_data){
+  exporting_data_store$Provenance_of_existing_native_plants_in_the_LC = flex_data
+}
+
+### MANAGEMENT SHEET: Wild/Wild-derived accessions of native plants
+```
+
+```{r Provenance of native plants in the LC - Table}
+if(report_kind == 'static'){
+flex_data |>
+  flextable() |>
+  set_caption(caption = paste0('Provenance of existing native plants in the LC')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  separate_header() |> 
+  align(align = "center", part = "all") |>
+  autofit()
+}
+if(report_kind == 'interactive'){
+    DT::datatable(flex_data)
+}
+
+```
+
+Putting the data into a pie charts yields
+
+```{r, Provenance of native plants in the LC pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+# Basic piechart
+pie1 = ggplot(prov_items, aes(x="", y=Items, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtheme(base_size = 18) +
+  ggtitle('Items') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('Accessions') + 
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+    if(value_on_fig){
+      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+      
+      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+  }
+
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+
+p
+
+```
+
+`r if(report_kind == 'interactive'){"#####  Provenance of native species in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r  Provenance of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(prov_items$Items, ' native items with provenance "', prov_items$Provenance, '"')
+             
+fig <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_items.html'))
+}
+
+  
+```
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r  Provenance of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+text = paste0(prov_accessions$Accessions, ' native accessions with provenance "', prov_accessions$Provenance, '"')
+             
+fig <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig <- fig %>% add_pie(hole = 0.6)
+fig <- fig %>% layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_accessions.html'))
+}
+
+  
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+`r if(do_over_time){"We will now look at how the provenance of native plants in the LC has changed over time."}`
+
+`r if(!do_over_time){"We do not have the information to explore how provenance of native plants in the LC has changed over time."}`
+
+```{r, Provenance of native plants in the LC- change over time data, eval = do_over_time}
+# LC_native_over_time contains the over time native plants.
+redlistcatA = LC_native_over_time$redList_category
+redlistcatB = LC_native_over_time$POWO_Red_category
+
+redlist_used = rep(NA, nrow(LC_native_over_time))
+redlist_used[redlistcatA == 'VU' | redlistcatB == 'VU'] = 'VU'
+redlist_used[redlistcatA == 'EN' | redlistcatB == 'EN'] = 'EN'
+redlist_used[redlistcatA == 'CR' | redlistcatB == 'CR'] = 'CR'
+redlist_used[redlistcatA == 'EW' | redlistcatB == 'EW'] = 'EW'
+redlist_used[redlistcatA == 'EX' | redlistcatB == 'EX'] = 'EX'
+
+LC_native_over_time$redlist_used = redlist_used
+
+# For each year get the number in each group (species and genera)
+over_time_info = lapply(plant_existing_LC_native, function(x){
+  garden_current = LC_native_over_time[x,]
+  
+  prov_items =  data.frame(table(garden_current$ProvenanceCode))
+  if(nrow(prov_items) == 0){
+    return(list(prov_items = prov_items,
+              prov_accessions = prov_items,
+              redlistcat_items = prov_items,
+              redlistcat_accessions = prov_items,
+              redlistcat_taxa = prov_items))
+  }
+  names(prov_items) = c('Provenance', 'Items')
+  
+  prov_accessions = data.frame(table(garden_current$ProvenanceCode[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  names(prov_accessions) = c('Provenance', 'Accessions')
+  
+  redlistcat_items = data.frame(table(garden_current$redlist_used))
+  if(ncol(redlistcat_items) != 2){redlistcat_items = data.frame(matrix(ncol = 2, nrow = 0))}
+  names(redlistcat_items) = c('RedListCategory', 'Items')
+  
+  redlistcat_accessions = data.frame(table(garden_current$redlist_used[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  if(ncol(redlistcat_accessions) != 2){redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
+  
+  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
+  redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
+  if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_taxa) = c('RedListCategory', 'Accessions')
+  
+  
+  return(list(prov_items = prov_items,
+              prov_accessions = prov_accessions,
+              redlistcat_items = redlistcat_items,
+              redlistcat_accessions = redlistcat_accessions,
+              redlistcat_taxa = redlistcat_taxa))
+})
+prov_redlist_native_over_time = over_time_info
+
+```
+
+```{r, Provenance of native plants in the LC- change over time figures, fig.fullwidth=FALSE, fig.dim = c(10, 6), , eval = report_kind == 'static' & do_over_time}
+to_do = c('items', 'accessions')
+for(i in 1:length(to_do)){
+  # Get the data from over_time_info.
+  data_wanted = NULL
+  wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+  for(jj in 1:length(over_time_info)){
+    info_year = over_time_info[[jj]][[wanted_item]]
+    if(nrow(info_year) == 0){
+      next
+    }
+    prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+    info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                           info_year = info_year,
+                           prop = prop)
+    data_wanted = rbind(data_wanted, info_year)
+
+  }
+  names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+  data_wanted[,2] = as.character(data_wanted[,2])
+  # data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+  data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+  
+  
+    if(export_data){
+    item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+  exporting_data_store$AA = data_wanted
+  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+    }
+  
+    p = ggplot(data_wanted, aes(fill=Provenance, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title="",
+        x ="Year",
+        y = "Percentage (%)") +
+    guides(fill=guide_legend(title=paste0('Provenance')))# +
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Provenance of ", to_do[i] , " that are native in the LC over time"))
+    
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+  print(p)
+
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of native species in the LC over time {.tabset}"}`
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
+```{r  Provenance of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
+to_do = c('items', 'accessions')
+i=1
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+  if(export_data){
+  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+exporting_data_store$AA = data_wanted
+names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+  }
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
+data_wanted$text = text
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}',
+               sort = FALSE)
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='Provenance Type')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_item.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Accessions"}`
+```{r  Provenance of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
+to_do = c('items', 'accessions')
+i=2
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+  if(export_data){
+  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+exporting_data_store$AA = data_wanted
+names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+  }
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
+data_wanted$text = text
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}',
+               sort = FALSE)
+fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='Provenance Type')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_accession.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
+
+
+***
+
 ### Turnover of native plants
 
 This section looks at the turnover (gain/loss) of items and accessions of native plants in the LC.
@@ -2167,11 +2232,12 @@ items_data = rbind(dataA, dataB)
 p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
   geom_line(aes(color=C)) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Gain/Loss of native items in the LC over time"),
+    labs(title="",
         x ="Year",
         y = paste0('Number of items')) +
     guides(color=guide_legend(title=paste0('Gain/Loss'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Gain/Loss of native items in the LC over time"))
   scale_color_manual(values=c("blue", "red"))
   print(p)
   
@@ -2189,10 +2255,11 @@ p = ggplot(items, aes(x = Year, y = `Net number of items`)) +
            fill = color,      # Background color
            color = "white") + # Border color
   # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  labs(title=paste0("Net turnover of native items in the LC over time"),
+  labs(title="",
       x ="Year",
       y = paste0('Number of items')) #+
-  # theme(text = element_text(size=table_font_size))
+  # theme(text = element_text(size=table_font_size)) +
+  # ggtitle(paste0("Net turnover of native items in the LC over time"))
 print(p)  
 
   if(separate_figure_folder){
@@ -2296,11 +2363,12 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
     geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
    geom_point(aes(x = year, y = native_LC))+
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Proportion of gained items that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Native Percentage (%)") +
     guides(fill=guide_legend(title=paste0('Provenance'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of gained items that are native in the LC over time"))
       labs(caption = "Black points are proportion of items in the LC that are native each year.")
   print(p)
   
@@ -2322,11 +2390,12 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
     geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
    geom_point(aes(x = year, y = native_LC))+
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Proportion of lost items that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Native Percentage (%)") +
     guides(fill=guide_legend(title=paste0('Provenance'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of lost items that are native in the LC over time"))
       labs(caption = "Black points are proportion of items in the LC that are native each year.")
   print(p)
 
@@ -2456,11 +2525,12 @@ accessions_data = rbind(dataA, dataB)
 p = ggplot(data=accessions_data, aes(x=A, y=B, group=C)) +
   geom_line(aes(color=C)) +
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Gain/Loss of native accessions in the LC over time"),
+    labs(title="",
         x ="Year",
         y = paste0('Number of accessions')) +
     guides(color=guide_legend(title=paste0('Gain/Loss'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Gain/Loss of native accessions in the LC over time"))
   scale_color_manual(values=c("blue", "red"))
   print(p)
   
@@ -2478,10 +2548,11 @@ p = ggplot(accessions, aes(x = Year, y = `Net number of accessions`)) +
            fill = color,      # Background color
            color = "white") + # Border color
   # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  labs(title=paste0("Net turnover of native accessions in the LC over time"),
+  labs(title="",
       x ="Year",
       y = paste0('Number of accessions')) #+
   # theme(text = element_text(size=table_font_size))
+  # ggtitle(paste0("Net turnover of native accessions in the LC over time"))
 print(p)  
 
     if(separate_figure_folder){
@@ -2593,11 +2664,12 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
     geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
    geom_point(aes(x = year, y = native_LC))+
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Proportion of gained accessions that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Native Percentage (%)") +
     guides(fill=guide_legend(title=paste0('Provenance'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of gained accessions that are native in the LC over time"))
       labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
   print(p)
   
@@ -2619,11 +2691,12 @@ plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
     geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
    geom_point(aes(x = year, y = native_LC))+
     # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title=paste0("Proportion of lost accessions that are native in the LC over time"),
+    labs(title="",
         x ="Year",
         y = "Native Percentage (%)") +
     guides(fill=guide_legend(title=paste0('Provenance'))) +
     # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of lost accessions that are native in the LC over time"))
       labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
   print(p)
 
@@ -2760,15 +2833,15 @@ if(export_data){
 
 ```
 
-In this section, we look at whether the survival period of native plant in longer than non-native plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
+In this section, we look at whether the survival period of native plants are longer than non-native plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
 
-Note that "lifespan" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not "perfect" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. 
+`r if(FALSE){"Note that \"lifespan\" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not \"perfect\" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. "}`
 
 In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. )
 
 Since we only have the accession year we set the accession date to be the middle of the year (1st June).
 
-Native plants are any that are from `r location_name`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r location_name`. This means that we exclude plants not matched to WCVP for the comparision (cultivars, etc). 
+Native plants are any that are from `r location_name`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r location_name`. This means that we exclude plants not matched to WCVP for the comparison (cultivars, etc). 
  
 `r if(do_survival){"Below we show the survival probability (Kaplan-Meier plots) for native and non-native plants."}`
 
@@ -2784,7 +2857,7 @@ p = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data =
   ) + 
   ggsurvfit::add_confidence_interval()+
     # theme(text = element_text(size=table_font_size))+
-  labs(title=paste0("Survival probability of native and non native plants in the LC")) +
+  # labs(title=paste0("Survival probability of native and non native plants in the LC")) +
   labs(caption = "Shaded region represents 95% confidence interval.") +
   ggtheme() + scale_colour_discrete()
 
@@ -2864,17 +2937,17 @@ fig
 # 
 ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
   gtsummary::tbl_survfit(
-    times = c(10,20,30),
+    times = c(2,5,10),
     label_header = "{time}-year survival (95% CI)")
 
 ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
   gtsummary::tbl_survfit(
-    times = c(40,50,60),
+    times = c(25,50,100),
     label_header = "{time}-year survival (95% CI)")
-ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
-  gtsummary::tbl_survfit(
-    times = c(70,80,90),
-    label_header = "{time}-year survival (95% CI)")
+# ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
+#   gtsummary::tbl_survfit(
+#     times = c(70,80,90),
+#     label_header = "{time}-year survival (95% CI)")
 ```
 
 

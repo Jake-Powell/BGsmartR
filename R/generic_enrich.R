@@ -63,7 +63,8 @@ prepare_enrich_database <- function(enrich_database,
       enrich_database,
       taxon_name_column = enrich_taxon_name_column,
       taxon_name_full_column = enrich_taxon_name_full_column,
-      taxon_author_column = enrich_taxon_authors_column)
+      taxon_author_column = enrich_taxon_authors_column,
+      console_message = console_message)
 
     enrich_database$sanitise_name = sanitised$taxon_name
     enrich_database$sanitise_author = sanitised$author
