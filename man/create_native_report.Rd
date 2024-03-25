@@ -23,6 +23,10 @@ create_native_report(
   ggtheme = NULL,
   separate_figure_folder = TRUE,
   value_on_fig = FALSE,
+  earliest_allowable_record = 1700,
+  old_accession_year_codes = NULL,
+  bru_codes = NA,
+  interactive_colour = viridis::viridis,
   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
   scale_colour_binned = ggplot2::scale_colour_viridis_b,
@@ -68,6 +72,14 @@ create_native_report(
 \item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
 
 \item{value_on_fig}{Flag (TRUE/FALSE) for whether to include values of static plots.}
+
+\item{earliest_allowable_record}{Number, corresponding to the minimum allowable year in the "AccYear" column.}
+
+\item{old_accession_year_codes}{Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on \code{earliest_allowable_record}.}
+
+\item{bru_codes}{A vector of the BRU level 3 codes that want to be considered as the native regions in the report.}
+
+\item{interactive_colour}{colours for interactive report, default is viridis::viridis.}
 
 \item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
 

@@ -286,9 +286,10 @@ if(data_type == 'Accessions'){
   LossYear_dummy = LossYear
   LossYear_dummy[is.na(LossYear_dummy)] = 4000
   ordered_items = order(LossYear_dummy,decreasing = T)
+  report = report[ordered_items, ]
   
   #Match to the ordered accessions.
-  match_to_best = match(unique_accessions,report$AccNoFull[ordered_items])
+  match_to_best = match(unique_accessions,report$AccNoFull)
   
   #Reduce the data to unique accessions with most recent death date.
   report = report[match_to_best,]
@@ -338,72 +339,72 @@ trends = pbapply::pblapply(plant_existing, function(x){
   
   return(list(accessions = accessions, breakdown_infrageneric = breakdown_infrageneric, breakdown_provenance = breakdown_provenance, breakdown_endemic = breakdown_endemic, breakdown_native = breakdown_native, breakdown_threatened = breakdown_threatened, breakdown_threatened_cateogory = breakdown_threatened_cateogory, breakdown_tree = breakdown_tree))
 })
-names(trends) = names(existing_each_year)
+names(trends) = names(plant_existing)
 ```
 
 ```{r, functions for turnover}
 turnover_items <- function(report){
   report = report[(report$LossYear >= min_year & report$LossYear <= max_year) | is.na(report$LossYear),]
   combined = data.frame(Year = years)
-
-# Items
-gain = data.frame(table(report$AccYear))
-if(nrow(gain) == 0){
-  gained = rep(0,nrow(combined))
-  combined$gain_items = gained
-}else{
-  names(gain) = c('Year', 'Items')
-  gain$Year = as.numeric(as.character(gain$Year))
-  gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
-  gained = rep(0,nrow(combined))
-  gained[match(gain$Year, combined$Year)] = gain$Items
-  combined$gain_items = gained
-}
-
-
-loss = data.frame(table(report$LossYear))
-if(nrow(loss) == 0){
-  lost = rep(0,nrow(combined))
-  combined$loss_items = lost
-}else{
-  names(loss) = c('Year', 'Items')
-  loss$Year = as.numeric(as.character(loss$Year))
-  loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
-  lost = rep(0,nrow(combined))
-  lost[match(loss$Year, combined$Year)] = loss$Items
-  combined$loss_items = lost
-}
-
-
-combined$net_items = combined$gain_items - combined$loss_items
-return(combined)
+  
+  # Items
+  gain = data.frame(table(report$AccYear))
+  if(nrow(gain) == 0){
+    gained = rep(0,nrow(combined))
+    combined$gain_items = gained
+  }else{
+    names(gain) = c('Year', 'Items')
+    gain$Year = as.numeric(as.character(gain$Year))
+    gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
+    gained = rep(0,nrow(combined))
+    gained[match(gain$Year, combined$Year)] = gain$Items
+    combined$gain_items = gained
+  }
+  
+  
+  loss = data.frame(table(report$LossYear))
+  if(nrow(loss) == 0){
+    lost = rep(0,nrow(combined))
+    combined$loss_items = lost
+  }else{
+    names(loss) = c('Year', 'Items')
+    loss$Year = as.numeric(as.character(loss$Year))
+    loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
+    lost = rep(0,nrow(combined))
+    lost[match(loss$Year, combined$Year)] = loss$Items
+    combined$loss_items = lost
+  }
+  
+  
+  combined$net_items = combined$gain_items - combined$loss_items
+  return(combined)
 }
 
 plots_turnover <- function(turnover, trend, report_kind, text = '', separate_figure_folder, data_type = 'items'){
-  if(report_kind == 'static'){
     dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
     names(dataA) = LETTERS[1:3]
     dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
     names(dataB) = LETTERS[1:3]
     items_data = rbind(dataA, dataB)
-    
+  if(report_kind == 'static'){
+
     p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
       geom_line(aes(color=C)) +
-        # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-        labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
-            x ="Year",
-            y = paste0('Number of ',data_type,'')) +
-        guides(color=guide_legend(title=paste0('Gain/Loss'))) +
-        # theme(text = element_text(size=table_font_size)) +
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,'')) +
+      guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+      # theme(text = element_text(size=table_font_size)) +
       scale_color_manual(values=c("blue", "red"))+
-        theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
-      
-      
-      if(separate_figure_folder){
+      theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
+    
+    
+    if(separate_figure_folder){
       ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.pdf'),device = 'pdf', scale = 1, width = 20, height = 12, limitsize = FALSE)
     }
     p1=p
-      
+    
     # Color based on value
     color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
     p = ggplot(turnover, aes(x = Year, y = net_items)) +
@@ -413,11 +414,11 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
                color = "white") + # Border color
       # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
       labs(title=paste0("Net turnover of ",text," in the LC (By ",data_type,")"),
-          x ="Year",
-          y = paste0('Number of ',data_type,''))
-      # theme(text = element_text(size=table_font_size))
-
-      if(separate_figure_folder){
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
       ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Net_turnover_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
     }
     p2=p
@@ -425,186 +426,192 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     
     # Trend plot.
     trend_data = data.frame(year = turnover$Year, trend = trend)
-  p = ggplot(trend_data, aes(x = year, y = trend)) +
+    p = ggplot(trend_data, aes(x = year, y = trend)) +
       geom_line(width = 1.1) +
       labs(title="",
-          x ="Year",
-          y = paste0('Number of ',data_type,''))
-  p3 = p
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    p3 = p
     return(list(gain_loss = p1, net = p2, trend = p3))
   }
   if(report_kind == 'interactive'){
-    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
-    names(dataA) = LETTERS[1:3]
-    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
-    names(dataB) = LETTERS[1:3]
-    items_data = rbind(dataA, dataB)
-    
+    # gain_loss plot
     colors = c("lightblue", "pink")
     fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
     fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
-                       xaxis = list(title = "Year"))
+                         xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
     if(separate_figure_folder){
-     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
     }
     fig1 = fig
     
+    # net plot
     colors = c("pink", "lightblue")
     color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
     texto = paste0('Net: ', turnover$net_items, '<br>',
-                  'Gain: ', turnover$gain_items, '<br>',
-                  'Loss: ', turnover$loss_items, '<br>'
-                  )
+                   'Gain: ', turnover$gain_items, '<br>',
+                   'Loss: ', turnover$loss_items, '<br>'
+    )
     fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
     fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
-                       xaxis = list(title = "Year"))
+                         xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
     if(separate_figure_folder){
-     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
     }
     fig2 = fig
     
-     # Trend plot.
+    # Trend plot.
     trend_data = data.frame(year = turnover$Year, trend = trend)
- fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
+    fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
     fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
-                       xaxis = list(title = "Year"))
+                         xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     fig3= fig
     
     # Combined trend and net.
-    
     fig <- plot_ly()
-# Add traces
-fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
-
-ay <- list(
-  tickfont = list(color = "red"),
-  overlaying = "y",
-  side = "right",
-  title = paste0('Total in LC'))
-
-fig <- fig %>% add_trace(x = years, y = trend, name = "Total", yaxis = "y2", mode = "lines+markers", type = "scatter", line = list(color = 'black'), marker = list(color = 'black'))
-
-# Set figure title, x and y-axes titles
-fig <- fig %>% layout(
-  title = "", yaxis2 = ay,
-  xaxis = list(title="Year"),
-  yaxis = list(title=paste0("Turnover"))
-)%>%
-  layout(plot_bgcolor='white',
-         xaxis = list(
-           zerolinecolor = '#ffff',
-           zerolinewidth = 2,
-           gridcolor = 'ffff'),
-         yaxis = list(
-           zerolinecolor = '#ffff',
-           zerolinewidth = 2,
-           gridcolor = 'ffff'),
-         margin = list(t = 10, l = 20, r = 70, b = 20, pad = 4),
-         autosize = T
-  )
-fig <- fig |> layout(hovermode = 'x unified')
-fig4 = fig
+    # Add traces
+    ay <- list(
+      tickfont = list(color = "black"),
+      overlaying = "y",
+      side = "right",
+      title = paste0("Total ", tolower(data_type)))
+    
+      fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+     
+    fig <- fig %>% add_trace(x = years, y = trend, name = "Total", mode = "lines+markers", type = "scatter", line = list(color = 'black'), marker = list(color = 'black'),yaxis = "y2")
+    
+  
+    # Set figure title, x and y-axes titles
+    fig <- fig |> layout(
+      title = "", yaxis2 = ay,
+      xaxis = list(title="Year"),
+      yaxis = list(title = paste0("Net turnover of ", tolower(data_type)))
+    ) |>
+      layout(plot_bgcolor='white',
+             xaxis = list(
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             yaxis2 = list(
+               zeroline = TRUE,
+               zerolinecolor = 'ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff',
+               showgrid = FALSE),
+              yaxis = list(
+                zeroline = TRUE,
+                zerolinecolor = '#f0f0f0',
+                zerolinewidth = 1,
+                gridcolor = '#f0f0f0',
+                griddash = 'solid',
+                gridwidth = 1,showgrid = T),
+             margin = list(t = 10, l = 20, r = 70, b = 20, pad = 4),
+             autosize = T
+      )
+    fig <- fig |> layout(hovermode = 'x unified')
+    fig4 = fig
     
     return(list(gain_loss = fig1, net = fig2, trend = fig3, trend_and_net = fig4))
-
+    
   }
 }
 
 proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
                                         report_kind, text = '', data_type = 'items'){
   if(report_kind == 'static'){
-     # Gain
-  plot_data = data.frame(year = turnover[,1],
-                         specific = turnover[,2], 
-                         all = overall_turnover[,2])
-  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
-  plot_data$prop_specific_collection = collection_proportion*100
-  plot_data_gain = plot_data
-   p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
       geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
-     geom_point(aes(x = year, y = prop_specific_collection))+
+      geom_point(aes(x = year, y = prop_specific_collection))+
       labs(title=paste0("Proportion of gained ",data_type," that are ",text," in the LC"),
-          x ="Year",
-          y = "Percentage (%)") +
+           x ="Year",
+           y = "Percentage (%)") +
       # theme(text = element_text(size=table_font_size)) +
-        labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
     p1 = p
     
-        if(separate_figure_folder){
-    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-      }
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
     
-  ### Plot of proportion of lost items being native.
-  
-  plot_data = data.frame(year =  turnover[,1],
-                         specific = turnover[,3], 
-                         all = overall_turnover[,3])
-  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
-  plot_data$prop_specific_collection = collection_proportion*100
-  plot_data_loss = plot_data
-
-   p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
       geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
-     geom_point(aes(x = year, y = prop_specific_collection))+
+      geom_point(aes(x = year, y = prop_specific_collection))+
       # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
       labs(title=paste0("Proportion of lost ",data_type," that are ",text," in the LC"),
-          x ="Year",
-          y = "Percentage (%)") +
+           x ="Year",
+           y = "Percentage (%)") +
       # theme(text = element_text(size=table_font_size)) +
-        labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
-  
-          if(separate_figure_folder){
-    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-          }
-   
-   return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
   }
   if(report_kind =='interactive'){
-     # Gain
-  plot_data = data.frame(year = turnover[,1],
-                         specific = turnover[,2], 
-                         all = overall_turnover[,2])
-  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
-  plot_data$prop_specific_collection = collection_proportion*100
-  plot_data_gain = plot_data
-   fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
-fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('LC'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
-}
-
-fig1 = fig
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
     
-  ### Plot of proportion of lost items being native.
-  
-  plot_data = data.frame(year =  turnover[,1],
-                         specific = turnover[,3], 
-                         all = overall_turnover[,3])
-  plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
-  plot_data$prop_specific_collection = collection_proportion*100
-  plot_data_loss = plot_data
-
-     fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
-fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('LC'), marker = list(color = 'black'))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
-}
-
-return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
-   
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    fig1 = fig
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
+    
   }
 }
 ```
@@ -672,7 +679,7 @@ plots$gain_loss
 
 ***
 
-### Turnover of types of taxa
+### Turnover by Category
 
 This section explores the turnover of types of taxa. In particular, we use the taxonomic name of plants in the LC to determine whether plants classified as:
 
@@ -941,7 +948,12 @@ plots_proportional$loss
 
 ### Turnover by Provenance
 
-This section looks at the provenance of gained and lost `r tolower(data_type)` to the collection. The provenance of an `r tolower(data_type)` can be in one of four groups, namely: Wild, Wild-derived, Garden or Unknown.
+In this section we explore the turnover in provenance. Each `r tolower(data_type)` in the garden has one of the following provenance types:
+
+- Wild: plants that were collected directly from the wild,
+- Wild-derived: cultivated plants descended from plants of known wild origin,
+- Garden: cultivated plants descended from plants not of known wild origin,
+- Unknown: plants with unknown origin.
 
 ```{r, turnover of provenance}
 ##### UNKNOWN
@@ -1074,6 +1086,7 @@ exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proporti
 ```
 
 ```{r, provenance together}
+ordered_provenance = c('Wild','Wild-derived', 'Garden', 'Unknown')
 gain_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
                       unknown = exporting_data_store$turnover_provenance_unknown$gain_items,
                       garden = exporting_data_store$turnover_provenance_garden$gain_items,
@@ -1090,7 +1103,7 @@ loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Ye
       v.names = "count", timevar = "group", times = names(gain_all)[-1], direction = "long")
  dd$group = stringr::str_to_title(dd$group)
  dd$group[dd$group == 'Wild_derived'] = 'Wild-derived'
- dd$group = factor(dd$group, levels = unique(dd$group))
+ dd$group = factor(dd$group, levels = ordered_provenance)
  
  gain_all_prop = gain_all[,-1]
  gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop)*100
@@ -1101,14 +1114,14 @@ loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Ye
       v.names = "count", timevar = "group", times = names(gain_all_prop)[-1], direction = "long")
  dd_prop$group = stringr::str_to_title(dd_prop$group)
  dd_prop$group[dd_prop$group == 'Wild_derived'] = 'Wild-derived'
- dd_prop$group = factor(dd_prop$group, levels = unique(dd_prop$group))
+ dd_prop$group = factor(dd_prop$group, levels =ordered_provenance)
  
  #loss
   ff = reshape(loss_all, idvar = "year", varying = list(2:ncol(loss_all)),
       v.names = "count", timevar = "group", times = names(loss_all)[-1], direction = "long")
  ff$group = stringr::str_to_title(ff$group)
  ff$group[ff$group == 'Wild_derived'] = 'Wild-derived'
- ff$group = factor(ff$group, levels = unique(ff$group))
+ ff$group = factor(ff$group, levels = ordered_provenance)
  
  loss_all_prop = loss_all[,-1]
  loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop)*100
@@ -1119,7 +1132,7 @@ loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Ye
       v.names = "count", timevar = "group", times = names(loss_all_prop)[-1], direction = "long")
  ff_prop$group = stringr::str_to_title(ff_prop$group)
  ff_prop$group[ff_prop$group == 'Wild_derived'] = 'Wild-derived'
- ff_prop$group = factor(ff_prop$group, levels = unique(ff_prop$group))
+ ff_prop$group = factor(ff_prop$group, levels = ordered_provenance)
  
 if(report_kind == 'interactive'){
   ## gain
@@ -1134,7 +1147,8 @@ if(report_kind == 'interactive'){
                          title = "",
                          xaxis = list(title = "Year"),
                          yaxis = list (title = stringr::str_to_title(data_type)),
-                         barmode = 'stack')
+                         barmode = 'stack',
+                         legend = list(traceorder = 'normal'))
  fig1 = fig
 
  
@@ -1152,7 +1166,8 @@ if(report_kind == 'interactive'){
                          title = "",
                          xaxis = list(title = "Year"),
                          yaxis = list (title = "Gain Percentage"),
-                         barmode = 'stack')
+                         barmode = 'stack',
+                      legend = list(traceorder = 'normal'))
  fig2 = fig
 
  
@@ -1167,7 +1182,7 @@ if(report_kind == 'interactive'){
                          title = "",
                          xaxis = list(title = "Year"),
                          yaxis = list (title = stringr::str_to_title(data_type)),
-                         barmode = 'stack')
+                         barmode = 'stack', legend = list(traceorder = 'normal'))
  fig3 = fig
 
  
@@ -1185,7 +1200,7 @@ if(report_kind == 'interactive'){
                          title = "",
                          xaxis = list(title = "Year"),
                          yaxis = list (title = "Loss Percentage"),
-                         barmode = 'stack')
+                         barmode = 'stack',legend = list(traceorder = 'normal'))
  fig4 = fig
  fig4
  plots_prov_all = list(gain = fig1, gain_prop = fig2,
@@ -1219,62 +1234,7 @@ plots_prov_all$loss_prop
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-
-
 Next we consider each provenance type individually. 
-
-
-
-
-#### Garden
-
-In this section we explore the turnover of garden origin plants.
-
-`r if(!do_garden){"There are no records with garden origin."}`
-
-```{r, Turnover of garden provenance - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_garden$gain_loss
-
-plots_garden$net
-```
-
-`r if(report_kind == 'interactive' & do_garden){"#####  Turnover of garden origin {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_garden){"###### Net"}`
-```{r  Gain/Loss of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
-plots_garden$trend_and_net
-```
-
-`r if(report_kind == 'interactive' & do_garden){"###### Gain/Loss"}`
-```{r  Net turnover of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
-plots_garden$gain_loss
-```
-
-`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
-
-`r if(do_garden){paste0("We now explore how the gain and loss of garden origin plants compare proportionally to the total number of gained and lost ", tolower(data_type), " and the overall proportion of garden origin each year. To calculate the proportion of the collection that are of garden origin each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type), " were existing on the first of January each year.")}`
-
-```{r, Proportional Turnover of garden origin - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_proportional_garden$gain
-
-plots_proportional_garden$loss
-```
-
-`r if(report_kind == 'interactive' & do_garden){"#####  Proportional Turnover of garden origin {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_garden){"###### Gain"}`
-```{r  Proportional Gain of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
-plots_proportional_garden$gain
-```
-
-`r if(report_kind == 'interactive' & do_garden){"###### Loss"}`
-```{r  Proportional Loss of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
-plots_proportional_garden$loss
-```
-
-`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
-
-
 
 #### Wild
 
@@ -1379,6 +1339,56 @@ plots_proportional_wild_derived$loss
 
 
 
+#### Garden
+
+In this section we explore the turnover of garden origin plants.
+
+`r if(!do_garden){"There are no records with garden origin."}`
+
+```{r, Turnover of garden provenance - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_garden$gain_loss
+
+plots_garden$net
+```
+
+`r if(report_kind == 'interactive' & do_garden){"#####  Turnover of garden origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_garden){"###### Net"}`
+```{r  Gain/Loss of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_garden$trend_and_net
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain/Loss"}`
+```{r  Net turnover of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_garden$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
+
+`r if(do_garden){paste0("We now explore how the gain and loss of garden origin plants compare proportionally to the total number of gained and lost ", tolower(data_type), " and the overall proportion of garden origin each year. To calculate the proportion of the collection that are of garden origin each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type), " were existing on the first of January each year.")}`
+
+```{r, Proportional Turnover of garden origin - static, eval = report_kind == 'static' & do_garden, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional_garden$gain
+
+plots_proportional_garden$loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"#####  Proportional Turnover of garden origin {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_garden){"###### Gain"}`
+```{r  Proportional Gain of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_garden$gain
+```
+
+`r if(report_kind == 'interactive' & do_garden){"###### Loss"}`
+```{r  Proportional Loss of garden origin over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_proportional_garden$loss
+```
+
+`r if(report_kind == 'interactive' & do_garden){"##### {-}"}`
+
+
+
 #### Unknown
 
 In this section we explore the turnover of unknown origin plants.
@@ -1432,181 +1442,17 @@ plots_proportional_unknown$loss
 
 ***
 
-### Turnover of Native Species
+### Turnover for Key Collections
 
-This section looks at the turnover of plants that are native to the location of `r collection` In other words plants that are native to `r location_name`. Here we use [Plants of the World Online (POWO)](https://powo.science.kew.org) to determine the geography distribution of individual plants, where we only consider regions where the plant is `r location_type_text`
+In this section we look at turnover across the key collections in the LC, this includes:
 
-```{r, turnover of native}
-trend = as.numeric(unlist(lapply(trends,function(x){
-  sum(x$breakdown_native[!grepl(' ', names(x$breakdown_native))])
-})))
-do_type = TRUE
-report_cur = report[which(report$native == 'Native'),]
-if(nrow(report_cur) == 0){
-  do_type = FALSE
-}else{
-  turnover = turnover_items(report_cur)
-exporting_data_store$turnover_native = turnover
+- Threatened species, those classed as extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's Red List](https://www.iucnredlist.org).
+- Endemic species, those in the collection that belong to a single region according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level.
+- Native species, those in the collection that belong to the same region as the collection according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level.
+- Trees accessions in the collection that are contained within [BGCI's GlobalTreeSearch](https://tools.bgci.org/global_tree_search.php) (or synonymous names found in [Plants of the World Online](https://powo.science.kew.org))
 
-plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'native', data_type = data_type)
+#### Threatened Species
 
-existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
-                        AccessionYear = report_cur$AccYear,
-                        ItemStatusDate = report_cur$ItemStatusDate,
-                        ItemStatusType = report_cur$ItemStatusType,
-                        post_date = '3000-01-01')))
-collection_proportion = existing_each_year/ existing_each_year_LC
-
-plots_proportional = proportional_plots_turnover(turnover = turnover,
-                                                 overall_turnover = overall_turnover,
-                                                 collection_proportion = collection_proportion,
-                                                 report_kind = report_kind,
-                                                 separate_figure_folder = separate_figure_folder,
-                                                 text = 'native',
-                                                 data_type = data_type)
-exporting_data_store$proportional_turnover_native_gain = plots_proportional$data_gain
-exporting_data_store$proportional_turnover_native_loss = plots_proportional$data_loss
-}
-
-```
-
-`r if(!do_type){"There are no records that are native."}`
-
-```{r, Turnover of native - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
-plots$net
-
-plots$gain_loss
-
-```
-
-`r if(report_kind == 'interactive' & do_type){"#####  Turnover of native species {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_type){"###### Net"}`
-```{r  Net turnover of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots$trend_and_net
-```
-
-`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss"}`
-```{r  Gain/Loss of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots$gain_loss
-```
-
-`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
-
-`r if(do_type){paste0("We now explore how the gain and loss of native ", tolower(data_type)," compare proportionally to the total number of gained and lost ", tolower(data_type)," and the overall proportion of native ", tolower(data_type)," each year. To calculate the proportion of the collection that is native each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type)," were existing on the 31st of December each year.")}`
-
-```{r, Proportional Turnover of native - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_proportional$gain
-
-plots_proportional$loss
-
-```
-
-`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of native species {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_type){"###### Gain"}`
-```{r  Proportional Gain of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots_proportional$gain
-```
-
-`r if(report_kind == 'interactive' & do_type){"###### Loss"}`
-```{r  Proportional Loss of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots_proportional$loss
-```
-
-`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
-
-***
-
-### Turnover of Endemic Species
-
-This section looks at the turnover of plants that are endemic, this means plants that are native to a single geography region (not only native plants). Here we use [Plants of the World Online (POWO)](https://powo.science.kew.org) to determine the geography distribution of individual plants, where we only consider regions where the plant is `r location_type_text`
-
-```{r, turnover of endemic}
-trend = as.numeric(unlist(lapply(trends,function(x){
-  sum(x$breakdown_endemic[!grepl(' ', names(x$breakdown_endemic))])
-})))
-do_type = TRUE
-report_cur = report[which(report$endemic == 'Endemic'),]
-if(nrow(report_cur) == 0){
-  do_type = FALSE
-}else{
-  turnover = turnover_items(report_cur)
-exporting_data_store$turnover_endemic = turnover
-
-plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'endemic', data_type = data_type)
-
-existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
-                        AccessionYear = report_cur$AccYear,
-                        ItemStatusDate = report_cur$ItemStatusDate,
-                        ItemStatusType = report_cur$ItemStatusType,
-                        post_date = '3000-01-01')))
-collection_proportion = existing_each_year/ existing_each_year_LC
-
-plots_proportional = proportional_plots_turnover(turnover = turnover,
-                                                 overall_turnover = overall_turnover,
-                                                 collection_proportion = collection_proportion,
-                                                 report_kind = report_kind,
-                                                 separate_figure_folder = separate_figure_folder,
-                                                 text = 'endemic',
-                                                 data_type = data_type)
-exporting_data_store$proportional_turnover_endemic_gain = plots_proportional$data_gain
-exporting_data_store$proportional_turnover_endemic_loss = plots_proportional$data_loss
-}
-
-```
-
-`r if(!do_type){"There are no records that are endemic."}`
-
-```{r, Turnover of endemic - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
-plots$net
-
-plots$gain_loss
-
-```
-
-`r if(report_kind == 'interactive' & do_type){"#####  Turnover of endemic species {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_type){"###### Net"}`
-```{r  Net turnover of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots$trend_and_net
-```
-
-`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss"}`
-```{r  Gain/Loss of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots$gain_loss
-```
-
-`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
-
-`r if(do_type){paste0("We now explore how the gain and loss of endemic ", tolower(data_type)," compare proportionally to the total number of gained and lost ", tolower(data_type)," and the overall proportion of endemic ", tolower(data_type)," each year. To calculate the proportion of the collection that is endemic each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type)," were existing on the 31st of December each year.")}`
-
-```{r, Proportional Turnover of endemic - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_proportional$gain
-
-plots_proportional$loss
-
-```
-
-`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of endemic species {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_type){"###### Gain"}`
-```{r  Proportional Gain of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots_proportional$gain
-```
-
-`r if(report_kind == 'interactive' & do_type){"###### Loss"}`
-```{r  Proportional Loss of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
-plots_proportional$loss
-```
-
-`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
-
-***
-
-### Turnover of Threatened Species
-
-This section looks at the turnover of plants that are threatened. 
 
 ```{r, turnover of threatened}
 trend = as.numeric(unlist(lapply(trends,function(x){
@@ -1690,9 +1536,179 @@ plots_proportional$loss
 
 ***
 
-### Turnover of Trees
+#### Endemic Species
 
-This section looks at the turnover of plants that are trees. Here we use [BGCI's GlobalTreeSearch](https://tools.bgci.org/global_tree_search.php) combined with [Plants of the World Online (POWO)](https://powo.science.kew.org) (to look at synonymy) to determine which plants in the LC are trees. Note that we use the Genus and Species base to determine trees therefore, this will also include cultivated trees if any exist.
+```{r, turnover of endemic}
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_endemic[!grepl(' ', names(x$breakdown_endemic))])
+})))
+do_type = TRUE
+report_cur = report[which(report$endemic == 'Endemic'),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+exporting_data_store$turnover_endemic = turnover
+
+plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'endemic', data_type = data_type)
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'endemic',
+                                                 data_type = data_type)
+exporting_data_store$proportional_turnover_endemic_gain = plots_proportional$data_gain
+exporting_data_store$proportional_turnover_endemic_loss = plots_proportional$data_loss
+}
+
+```
+
+`r if(!do_type){"There are no records that are endemic."}`
+
+```{r, Turnover of endemic - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+plots$net
+
+plots$gain_loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of endemic species {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Net"}`
+```{r  Net turnover of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots$trend_and_net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss"}`
+```{r  Gain/Loss of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(do_type){paste0("We now explore how the gain and loss of endemic ", tolower(data_type)," compare proportionally to the total number of gained and lost ", tolower(data_type)," and the overall proportion of endemic ", tolower(data_type)," each year. To calculate the proportion of the collection that is endemic each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type)," were existing on the 31st of December each year.")}`
+
+```{r, Proportional Turnover of endemic - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of endemic species {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain"}`
+```{r  Proportional Gain of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss"}`
+```{r  Proportional Loss of endemic over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+***
+
+#### Native Species
+
+This section looks at the turnover of plants that are native to the location of `r collection` In other words plants that are native to `r location_name`. 
+
+```{r, turnover of native}
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_native[!grepl(' ', names(x$breakdown_native))])
+})))
+do_type = TRUE
+report_cur = report[which(report$native == 'Native'),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  turnover = turnover_items(report_cur)
+exporting_data_store$turnover_native = turnover
+
+plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'native', data_type = data_type)
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = report_cur$AccYear,
+                        ItemStatusDate = report_cur$ItemStatusDate,
+                        ItemStatusType = report_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'native',
+                                                 data_type = data_type)
+exporting_data_store$proportional_turnover_native_gain = plots_proportional$data_gain
+exporting_data_store$proportional_turnover_native_loss = plots_proportional$data_loss
+}
+
+```
+
+`r if(!do_type){"There are no records that are native."}`
+
+```{r, Turnover of native - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+plots$net
+
+plots$gain_loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Turnover of native species {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Net"}`
+```{r  Net turnover of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots$trend_and_net
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain/Loss"}`
+```{r  Gain/Loss of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+`r if(do_type){paste0("We now explore how the gain and loss of native ", tolower(data_type)," compare proportionally to the total number of gained and lost ", tolower(data_type)," and the overall proportion of native ", tolower(data_type)," each year. To calculate the proportion of the collection that is native each year we only consider records that have an accession year and item status date and extract which ", tolower(data_type)," were existing on the 31st of December each year.")}`
+
+```{r, Proportional Turnover of native - static, eval = report_kind == 'static' & do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
+plots_proportional$gain
+
+plots_proportional$loss
+
+```
+
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of native species {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_type){"###### Gain"}`
+```{r  Proportional Gain of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_type){"###### Loss"}`
+```{r  Proportional Loss of native over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive' & do_type){"##### {-}"}`
+
+***
+
+
+
+#### Turnover of Trees
 
 ```{r, turnover of tree}
 trend = as.numeric(unlist(lapply(trends,function(x){
@@ -1760,7 +1776,7 @@ plots_proportional$loss
 
 ```
 
-`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of tree species {.tabset}"}`
+`r if(report_kind == 'interactive' & do_type){"#####  Proportional Turnover of trees {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_type){"###### Gain"}`
 ```{r  Proportional Gain of tree over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_type}
@@ -1859,7 +1875,8 @@ p
 
 ```{r, geography gain - interactive, eval = do_geography_trend & report_kind == 'interactive', fig.fullwidth=TRUE, fig.dim = c(10, 6)}
 # Convert geometry into a format accepted by plotly
-mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp 
+mapp = sf::st_cast(wgsrpd3_level3_simp , "MULTIPOLYGON")
 geo_sf = geojsonsf::sf_geojson(mapp)
 data = rjson::fromJSON(geo_sf)
 feat = data$features

@@ -152,7 +152,7 @@ create_geography_report <- function(enriched_report,
                                     value_on_fig = value_on_fig),
                       output_file = output_file,
                       output_dir = output_dir,
-                      output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4))
+                      output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4,  toc_float =  TRUE, theme = 'cerulean', highlight = 'tango'))
   }
 
 

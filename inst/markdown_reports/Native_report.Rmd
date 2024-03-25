@@ -12,19 +12,22 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+library(downloadthis)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
 ```
 
 ```{r, imported parameters}
-
+# 
 # collection = 'CUBG'
 # load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
 # coordinates = c(52.19378853629289,0.1277234065606053)
-
-
-# 
-# collection = 'LC'
-# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/Vilnius_enriched_report.rda')
-# coordinates = c(54.737851403492456, 25.413512725031616)
 # load('/Users/jakepowell/Cambridge/WCVP/Version 11/wcvp_with_redlistcategory.rda')
 # load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
 # 
@@ -38,7 +41,20 @@ library(ggrepel)
 # ggtheme = NULL
 # separate_figure_folder = FALSE
 # value_on_fig = TRUE
-# report_kind = 'static'
+# report_kind = 'interactive'
+# old_accession_year_codes = 1000
+# earliest_allowable_record = 1650
+# bru_codes = c("IRE", "GRB")
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# output_dir =  '/Users/jakepowell/Desktop/module_native_example'
+```
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -75,6 +91,280 @@ scale_colour_binned     <- scale_colour_binned
 scale_fill_continuous <- scale_fill_continuous
 scale_fill_discrete <- scale_fill_discrete
 scale_fill_binned <- scale_fill_binned
+```
+
+```{r, functions for turnover}
+turnover_items <- function(report){
+  report = report[(report$LossYear >= min_year & report$LossYear <= max_year) | is.na(report$LossYear),]
+  combined = data.frame(Year = years)
+  
+  # Items
+  gain = data.frame(table(report$AccYear))
+  if(nrow(gain) == 0){
+    gained = rep(0,nrow(combined))
+    combined$gain_items = gained
+  }else{
+    names(gain) = c('Year', 'Items')
+    gain$Year = as.numeric(as.character(gain$Year))
+    gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
+    gained = rep(0,nrow(combined))
+    gained[match(gain$Year, combined$Year)] = gain$Items
+    combined$gain_items = gained
+  }
+  
+  
+  loss = data.frame(table(report$LossYear))
+  if(nrow(loss) == 0){
+    lost = rep(0,nrow(combined))
+    combined$loss_items = lost
+  }else{
+    names(loss) = c('Year', 'Items')
+    loss$Year = as.numeric(as.character(loss$Year))
+    loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
+    lost = rep(0,nrow(combined))
+    lost[match(loss$Year, combined$Year)] = loss$Items
+    combined$loss_items = lost
+  }
+  
+  
+  combined$net_items = combined$gain_items - combined$loss_items
+  return(combined)
+}
+
+plots_turnover <- function(turnover, trend, report_kind, text = '', separate_figure_folder, data_type = 'items'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+  if(report_kind == 'static'){
+
+    p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
+      geom_line(aes(color=C)) +
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,'')) +
+      guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+      # theme(text = element_text(size=table_font_size)) +
+      scale_color_manual(values=c("blue", "red"))+
+      theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
+    
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.pdf'),device = 'pdf', scale = 1, width = 20, height = 12, limitsize = FALSE)
+    }
+    p1=p
+    
+    # Color based on value
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    p = ggplot(turnover, aes(x = Year, y = net_items)) +
+      geom_bar(stat = "identity",
+               show.legend = FALSE,
+               fill = color,      # Background color
+               color = "white") + # Border color
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Net turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Net_turnover_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    p2=p
+    
+    
+    # Trend plot.
+    trend_data = data.frame(year = turnover$Year, trend = trend)
+    p = ggplot(trend_data, aes(x = year, y = trend)) +
+      geom_line(width = 1.1) +
+      labs(title="",
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    p3 = p
+    return(list(gain_loss = p1, net = p2, trend = p3))
+  }
+  if(report_kind == 'interactive'){
+    # gain_loss plot
+    colors = c("lightblue", "pink")
+    fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
+    }
+    fig1 = fig
+    
+    # net plot
+    colors = c("pink", "lightblue")
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    texto = paste0('Net: ', turnover$net_items, '<br>',
+                   'Gain: ', turnover$gain_items, '<br>',
+                   'Loss: ', turnover$loss_items, '<br>'
+    )
+    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
+    }
+    fig2 = fig
+    
+    # Trend plot.
+    trend_data = data.frame(year = turnover$Year, trend = trend)
+    fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    fig3= fig
+    
+    # Combined trend and net.
+    fig <- plot_ly()
+    # Add traces
+    ay <- list(
+      tickfont = list(color = "black"),
+      overlaying = "y",
+      side = "right",
+      title = paste0("Total ", tolower(data_type)))
+    
+      fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+     
+    fig <- fig %>% add_trace(x = years, y = trend, name = "Total", mode = "lines+markers", type = "scatter", line = list(color = 'black'), marker = list(color = 'black'),yaxis = "y2")
+    
+  
+    # Set figure title, x and y-axes titles
+    fig <- fig |> layout(
+      title = "", yaxis2 = ay,
+      xaxis = list(title="Year"),
+      yaxis = list(title = paste0("Net turnover of ", tolower(data_type)))
+    ) |>
+      layout(plot_bgcolor='white',
+             xaxis = list(
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             yaxis2 = list(
+               zeroline = TRUE,
+               zerolinecolor = 'ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff',
+               showgrid = FALSE),
+              yaxis = list(
+                zeroline = TRUE,
+                zerolinecolor = '#f0f0f0',
+                zerolinewidth = 1,
+                gridcolor = '#f0f0f0',
+                griddash = 'solid',
+                gridwidth = 1,showgrid = T),
+             margin = list(t = 10, l = 20, r = 70, b = 20, pad = 4),
+             autosize = T
+      )
+    fig <- fig |> layout(hovermode = 'x unified')
+    fig4 = fig
+    
+    return(list(gain_loss = fig1, net = fig2, trend = fig3, trend_and_net = fig4))
+    
+  }
+}
+
+proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
+                                        report_kind, text = '', data_type = 'items'){
+  if(report_kind == 'static'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      labs(title=paste0("Proportion of gained ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    p1 = p
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Proportion of lost ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
+  }
+  if(report_kind =='interactive'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    fig1 = fig
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
+    
+  }
+}
 ```
 
 ```{r, Add combined geography column to enriched report}
@@ -114,7 +404,7 @@ enriched_report$geography_codes = level3codes
 ```{r, Get location_type_text}
 location_type_text = ''
 if(native == 'Naturally occurring only'){
- location_type_text = paste0(location_type_text, 'naturally occurringonly,', collapse = ' ')  
+ location_type_text = paste0(location_type_text, 'naturally occurring only,', collapse = ' ')  
 }else if(native == 'Introduced only'){
   location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
  
@@ -142,6 +432,45 @@ if(doubtful_locations){
 `r if(!'ItemStatusType' %in% names(enriched_report)){"- AccNoFull: Cannot do analyses over time.\n"}`
 
 `r if(any(! c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
+
+```{r, Find LC location, echo = FALSE}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+
+
+
+# If we are given bru_codes set the location codes to these. 
+coord_location = location_code
+coord_name = location_name
+
+if(!is.na(bru_codes[1])){
+  location_code = bru_codes
+  location_name = wgsrpd3$LEVEL3_NAM[match(bru_codes, wgsrpd3$LEVEL3_COD)]
+  collection_geog_details = wgsrpd3[match(bru_codes, wgsrpd3$LEVEL3_COD),-5]
+}
+
+```
 
 
 ```{r, Extracting information from enriched report, echo = F}
@@ -196,6 +525,13 @@ for(i in 1:length(threat_cat)){
 enriched_report$threatened_category = threatened_category
 rm(threatened_category)
 
+# Extract native.
+nativeo = rep('Not Native', nrow(enriched_report))
+native_index = grepl(location_code,enriched_report$geography_codes)
+nativeo[native_index] = 'Native'
+enriched_report$native = nativeo
+rm(nativeo)
+
 # Convert Provenance code to text.
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
@@ -204,12 +540,32 @@ enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-de
 
 # Create a sanitised taxonomic name.
 enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
-
 best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
 best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
 enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+enriched_report$best_name = best_name
+
+# Add the year items are lost (if they are no longer existing)
+LossYear = rep(NA,nrow(enriched_report))
+ItemStatusYear = as.numeric(stringr::str_extract(enriched_report$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[enriched_report$ItemStatusType == 'NotExisting'] = ItemStatusYear[enriched_report$ItemStatusType == 'NotExisting']
+enriched_report$LossYear = LossYear
+
+
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+if(!is.null(old_accession_year_codes)){
+  enriched_report$AccYearOrig  =enriched_report$AccYear
+  has_old_accessions_code = which(enriched_report$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  enriched_report$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+to_keep = which(as.numeric(enriched_report$AccYear) >= earliest_allowable_record  & as.numeric(enriched_report$AccYear) <= max_year)
+still_issue = nrow(enriched_report) - length(to_keep)
+# report = report[to_keep,]
 
 report_original = enriched_report
+
 
 if(separate_figure_folder){
   figures_dir = paste0(output_dir,'/',collection,'_Figures')
@@ -219,33 +575,7 @@ if(separate_figure_folder){
 exporting_data_store = list()
 ```
 
-```{r, Find LC location, echo = FALSE}
-coord_contained = TRUE
-# Extract the location of the collection.
-pnts <- data.frame( x = coordinates[2], y = coordinates[1])
-
-# create a points collection
-pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
-                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
-
-pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
-tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
-
-intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
-collection_geog_details = wgsrpd3[which(intersect),-5]
-location_name = collection_geog_details$LEVEL3_NAM
-location_code = collection_geog_details$LEVEL3_COD
-
-if(length(location_name) == 0){
-  coord_contained = FALSE
-  # Try and find the nearest polygon.
-  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
-  location_name = collection_geog_details$LEVEL3_NAM
-  location_code = collection_geog_details$LEVEL3_COD
-}
-```
-
-This report explores the taxa existing in `r collection` that are native to `r location_name`, and how the representation of native species has varied over time.
+This report explores the native taxa existing in `r collection`, and how the representation of native species has varied over time.
 
  To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
 
@@ -255,18 +585,24 @@ This report explores the taxa existing in `r collection` that are native to `r l
 
 This document considers locations that are: `r location_type_text` 
  
-`r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",location_name,".")}`
-`r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",location_name,".")}`
-Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise, taxa are classed as non-native.
+`r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",coord_name,".")}`
+`r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",coord_name,".")}`
 
-The location of the LC and the native region are shown below.
+`r if(is.na(bru_codes[1])){paste0("Therefore, any taxa whose geographic distribution includes ", location_name, " is classed as native to the LC. Otherwise, taxa are classed as non-native.")}`
 
-```{r, LC location and native region plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), results='hide',fig.keep='all', message=FALSE}
+`r if(is.na(bru_codes[1])){paste0("The location of the LC and the native region are shown below.")}`
+
+`r if(!is.na(bru_codes[1])){paste0("In this document we consider plants that are native to ", paste0(location_name, collapse = ', '), " (i.e the plants whose geographic distribution overlaps with those regions), all other plants are classed as non-native.")}`
+
+`r if(!is.na(bru_codes[1])){paste0("The native region, and LC location (if within the native region) are shown below.")}`
+
+
+```{r, LC location and native region plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE}
 collection_geog_details$occurrence_type = 'native'
 lims <- st_bbox(collection_geog_details)
 p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=TRUE) + 
   theme(legend.position="none") +
-  geom_sf(data=pnts_sf, fill="purple",col="purple", shape=20, size = 3) +
+  geom_sf(data=pnts_sf, fill="black",col="black", shape=20, size = 5) +
   coord_sf(xlim=lims[c(1,3)], ylim=lims[c(2,4)]) +
   theme(legend.position = "none",
         axis.line=element_blank(),
@@ -285,7 +621,6 @@ p
 ```
 
 ***
-
 ### How many native species are in the LC?
 
 ```{r, How many native species are in the LC - data}
@@ -319,7 +654,7 @@ if(length(want) > 1){
 }
 level3codes_wcvp = level3codes
 
-native_index = grepl(location_code,level3codes_wcvp)
+native_index = grepl(paste0(location_code,collapse = '|'),level3codes_wcvp)
 native_plant_ids =  wcvp$geography$plant_name_id[native_index]
 native_plant_ids = native_plant_ids[!is.na(native_plant_ids)]
 
@@ -351,11 +686,28 @@ LC  = c(no_native_families_LC, no_native_genus_LC, no_native_species_LC, no_nati
 proportion = paste0(round(LC/WCVP*100, digits = 2),'%')
 
 df = data.frame(category, WCVP,LC, proportion)
-names(df) = c('Category', 'Number found in WCVP', ' Number found in LC', 'Proportion of WCVP found in LC')
+names(df) = c('Category', 'Native', ' Number found in LC', 'Proportion in LC')
 
 if(export_data){
   exporting_data_store$Representative_of_native_species_in_LC_current = df
 }
+
+# Find the native families that are missing from the LC.
+family_not_in = unique(native_wcvp$family)[!unique(native_wcvp$family) %in% unique(LC_native_exisiting$POWO_family)]
+if(length(family_not_in) > 0){
+  wcvp_wanted = native_wcvp[native_wcvp$family %in% family_not_in,]
+  wcvp_wanted_format <- wcvp_wanted |>
+    dplyr::group_by(.data$family) |>
+    dplyr::summarise(total_taxa = length(.data$taxon_name)) |>
+    dplyr::ungroup()
+  names(wcvp_wanted_format) = c('Family', 'Total Native Taxa')
+  
+  wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
+  wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+  wcvp_wanted = wcvp_wanted[order(wcvp_wanted$family),]
+
+}
+
 
 # MANAGEMENT SHEET: Export the management sheet of all native accessions.
 native_accessions = LC_native_exisiting
@@ -370,7 +722,7 @@ writexl::write_xlsx(native_accessions, path =paste0(output_dir,'/',collection,'_
 
 ```
 
-In the LC there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants. In the following table we show how many families/genus/species/taxa of native plants are represented in the LC (compared to all plants from `r location_name` in WCVP). Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
+In the LC there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants. In the following table we show how many families/genus/species/taxa of native plants are represented in the LC (compared to all plants from `r paste0(location_name, collapse = ', ')` in WCVP). Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
 
 ```{r, How many native species are in the LC - table}
 if(report_kind == 'static'){
@@ -386,10 +738,98 @@ if(report_kind == 'static'){
   autofit()
 }
 if(report_kind == 'interactive'){
-  DT::datatable(df)
+  DT::datatable(df, rownames = FALSE,
+                # caption = paste0('Native plants in the LC compared to ',
+                #                                       paste0(location_name, collapse = ', '),
+                #                                       ''),
+                options = list(dom = 't'))
 }
 
 ```
+
+`r if(length(family_not_in) > 0){"The native families missing from the collection are outlined below, together with the total number of native taxa in each family."}`
+
+```{r families not in the LC - Table, eval = length(family_not_in) > 0}
+if(report_kind == 'static'){
+  wcvp_wanted_format |>
+  flextable() |>
+  set_caption(caption = "Native Families not in the LC") |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(wcvp_wanted_format, rownames = FALSE,
+                 options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
+}
+
+```
+
+
+`r if(length(family_not_in) > 0){"Further information about the plants from the missing families can be downloaded using the button below."}`
+
+
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2098D1;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+```
+
+```{r link to download missing native family plants, eval = report_kind == 'interactive' & length(family_not_in) > 0}
+wcvp_wanted |>
+  download_this(
+    output_name = "WCVP native plants not in the LC",
+    output_extension = ".xlsx",
+    button_label = "Download native families not in the LC (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left"
+  )
+```
+
+<br>
 
 `r if(do_over_time){"Below we produce figures detailing how the representation of native families/genus/species/taxa has changed over time in the LC."}`
 
@@ -452,7 +892,7 @@ titles  = c('Families', 'Genera', 'Species', 'Taxa')
 # Loop over to_do.
 for(i in 1:length(to_do)){
   count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+  percent = round(count/df$Native[which(df$Category == to_do[i])]*100, digits = 3)
   
   plot_dataA = data.frame(date =years, 
                                percent = percent,
@@ -472,7 +912,9 @@ for(i in 1:length(to_do)){
     labs(x ="Year",
         y = "Percentage (%)") +
     guides(fill=guide_legend(title=paste0("Native ", titles[i]))) +
-    scale_fill_discrete() #+
+    scale_color_manual(values = c('#f46d43', '#e6e6e6')
+)
+    # scale_fill_discrete() #+
     # ggtitle(paste0("Representation of ", titles[i] , " over time"))
   
   if(separate_figure_folder){
@@ -488,14 +930,11 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_sp
 `r if(report_kind == 'interactive' & do_over_time){"##### Representation over time graphs {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Families"}`
-```{r  How many native species are in the LC - interactive Family plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
-titles  = c('Families', 'Genera', 'Species', 'Taxa')
-# Loop over to_do.
-i=1
-  count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
-  
+```{r  How many native species are in the LC - interactive Family plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+# type = 'Family' ;whole_collection = df; data = over_time_info ; title = 'families'
+represented_figure <- function(data,whole_collection, type, title){
+  count = as.numeric(unlist(over_time_info[match(type, names(over_time_info))]))
+  percent = round(count/whole_collection$Native[which(whole_collection$Category == type)]*100, digits = 3)
   plot_dataA = data.frame(date =years, 
                                percent = percent,
                                represented = rep('Represented', length(date)))
@@ -504,149 +943,66 @@ i=1
                               represented = rep('Not Represented', length(date)))
   
   plot_data = rbind(plot_dataA, plot_dataB)
+  plot_data$represented = factor(plot_data$represented, levels = c('Represented', 'Not Represented'))
   
-  
-  names(plot_data) = c('dates', 'percentage', 'represented')
+  fig <- plot_ly(plot_data, x = ~date, y = ~percent, color = ~represented, type = 'bar', colors = interactive_colour(2))
+  fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',title)),
+                       xaxis = list(title = "Year"),
+                       legend=list(title=list(text=paste0("Native ", title))),
+                       barmode = 'stack',
+                       hoverlabel = list(namelength = -1))
+  fig <- fig |> layout(hovermode = 'x unified',
+                       bargap =0,
+                       yaxis = list(ticksuffix  ='%', hoverformat = '.1f')
+                       
+  )
 
-  # plot_data$text = paste0(round(plot_data$percent,digits = 2), '% of accessions have ', plot_data$total_items, ' items')
-  # hoverinfo = "text",  hovertext = ~text
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-  
- 
-  if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_native_',titles[i],'_represented_over_time.html'))
+return(fig)
 }
 
- 
+fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Family', title = 'families')
+
+  if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_family_represented_over_time.html'))
+}
+
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Genera"}`
-```{r  How many native species are in the LC - interactive Genera plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
-titles  = c('Families', 'Genera', 'Species', 'Taxa')
-# Loop over to_do.
-i=2
-  count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+```{r  How many native species are in the LC - interactive Genera plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Genus', title = 'genera')
   
-  plot_dataA = data.frame(date =years, 
-                               percent = percent,
-                               represented = rep('Represented', length(date)))
-  plot_dataB = data.frame(date =years, 
-                             percent = 100-percent,
-                              represented = rep('Not Represented', length(date)))
-  
-  plot_data = rbind(plot_dataA, plot_dataB)
-  
-  
-  names(plot_data) = c('dates', 'percentage', 'represented')
-
-  # plot_data$text = paste0(round(plot_data$percent,digits = 2), '% of accessions have ', plot_data$total_items, ' items')
-  # hoverinfo = "text",  hovertext = ~text
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-  
- 
   if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_native_',titles[i],'_represented_over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_genera_represented_over_time.html'))
 }
-
  
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
-```{r  How many native species are in the LC - interactive Species plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
-titles  = c('Families', 'Genera', 'Species', 'Taxa')
-# Loop over to_do.
-i=3
-  count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+```{r  How many native species are in the LC - interactive Species plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Species', title = 'species')
   
-  plot_dataA = data.frame(date =years, 
-                               percent = percent,
-                               represented = rep('Represented', length(date)))
-  plot_dataB = data.frame(date =years, 
-                             percent = 100-percent,
-                              represented = rep('Not Represented', length(date)))
-  
-  plot_data = rbind(plot_dataA, plot_dataB)
-  
-  
-  names(plot_data) = c('dates', 'percentage', 'represented')
-
-  # plot_data$text = paste0(round(plot_data$percent,digits = 2), '% of accessions have ', plot_data$total_items, ' items')
-  # hoverinfo = "text",  hovertext = ~text
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-  
- 
   if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_native_',titles[i],'_represented_over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_species_represented_over_time.html'))
 }
-
  
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
-```{r  How many native species are in the LC - interactive Taxa plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=4
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
-titles  = c('Families', 'Genera', 'Species', 'Taxa')
-# Loop over to_do.
-  count = as.numeric(unlist(over_time_info[match(to_do[i], names(over_time_info))]))
-  percent = round(count/df$`Number found in WCVP`[which(df$Category == to_do[i])]*100, digits = 3)
+```{r  How many native species are in the LC - interactive Taxa plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Taxa', title = 'taxa')
   
-  plot_dataA = data.frame(date =years, 
-                               percent = percent,
-                               represented = rep('Represented', length(date)))
-  plot_dataB = data.frame(date =years, 
-                             percent = 100-percent,
-                              represented = rep('Not Represented', length(date)))
-  
-  plot_data = rbind(plot_dataA, plot_dataB)
-  
-  
-  names(plot_data) = c('dates', 'percentage', 'represented')
-
-  # plot_data$text = paste0(round(plot_data$percent,digits = 2), '% of accessions have ', plot_data$total_items, ' items')
-  # hoverinfo = "text",  hovertext = ~text
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-  
- 
   if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_native_',titles[i],'_represented_over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_taxa_represented_over_time.html'))
 }
-
  
+fig
 ```
 
+***
 
 ### What proportion of the LC at `r collection` is native and how has this varied over time?
 
@@ -696,7 +1052,7 @@ if(export_data){
 if(report_kind == 'static'){
   to_show |>
     flextable() |>
-    set_caption(caption = paste0('Native / non native plants (', location_name, ') in the LC')) |> 
+    set_caption(caption = paste0('Native / non native plants (', paste0(location_name, collapse = ', '), ') in the LC')) |> 
     font(fontname = "Calibri (Body)", part = "all") |> 
     fontsize(size = table_font_size, part = "body") |> 
     # add footer if you want
@@ -706,7 +1062,10 @@ if(report_kind == 'static'){
     autofit()
 }
 if(report_kind == 'interactive'){
-  DT::datatable(to_show)
+  DT::datatable(to_show, rownames = FALSE,
+                # caption = paste0('Native plants in the LC (',paste0(location_name, collapse = ', '),')'),
+                 options = list(dom = 't')
+                )
 }
 ```
 
@@ -770,95 +1129,58 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','number_native_over
 `r if(report_kind == 'interactive' & do_over_time){"##### Representation of number of native plants over time graphs {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
-```{r  Number of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=1
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
-
-counts = native_data[,match(to_do[i], names(native_data))]
+```{r  Number of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+number_native_over_time <- function(native_data, type, title){
+  counts = native_data[,match(type, names(native_data))]
 plot_data = data.frame(date = years, counts = counts)
 
-fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
+fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers', line = list(color = interactive_colour(1)), marker = list(color = interactive_colour(1)))
 
-fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
+fig <- fig |> layout(yaxis = list(title = paste0("Number of ",title)),
                    xaxis = list(title = "Year"))
 fig <- fig |> layout(hovermode = 'x unified')
-fig
-  
-  
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_native_',titles[i],'__over_time.html'))
+return(fig)
 }
-  
+fig = number_native_over_time(native_data = native_data, type = 'Items', title = 'items')
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_number_items_over_time.html'))
+}
+
+fig  
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Accessions"}`
-```{r  Number of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=2
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
+```{r  Number of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = number_native_over_time(native_data = native_data, type = 'Accessions', title = 'accessions')
 
-counts = native_data[,match(to_do[i], names(native_data))]
-plot_data = data.frame(date = years, counts = counts)
-
-fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
-
-fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
-                   xaxis = list(title = "Year"))
-fig <- fig |> layout(hovermode = 'x unified')
-fig
-  
-  
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_native_',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_number_accessions_over_time.html'))
 }
-  
+
+fig  
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
-```{r  Number of taxa accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=3
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
+```{r  Number of taxa accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = number_native_over_time(native_data = native_data, type = 'Taxa', title = 'taxa')
 
-counts = native_data[,match(to_do[i], names(native_data))]
-plot_data = data.frame(date = years, counts = counts)
-
-fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
-
-fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
-                   xaxis = list(title = "Year"))
-fig <- fig |> layout(hovermode = 'x unified')
-fig
-  
-  
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_native_',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_number_taxa_over_time.html'))
 }
-  
+
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
-```{r  Number of native species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=4
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
+```{r  Number of native species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = number_native_over_time(native_data = native_data, type = 'Species', title = 'species')
 
-counts = native_data[,match(to_do[i], names(native_data))]
-plot_data = data.frame(date = years, counts = counts)
-
-fig <- plot_ly(plot_data, x = ~date, y = ~counts, type = 'scatter', mode = 'lines+markers')
-
-fig <- fig |> layout(yaxis = list(title = paste0("Number of ",titles[i])),
-                   xaxis = list(title = "Year"))
-fig <- fig |> layout(hovermode = 'x unified')
-fig
-  
-  
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-number_of_native_',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_number_species_over_time.html'))
 }
-  
+
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
@@ -944,165 +1266,1037 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','proportion_native_
 
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of native plants over time graphs {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of the collection that is native  {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
-```{r  Proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=1
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
+```{r  Proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+native_data = native_data ; LC_data = LC_data ; type = 'Items' ; title = 'items'
+proportion_native <- function(native_data,LC_data, type, title){
+  native_counts = native_data[,match(type, names(native_data))]
+  total_counts = LC_data[,match(paste0(type), names(LC_data))]
 
-native_counts = native_data[,match(to_do[i], names(native_data))]
-total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
+  percent = round(native_counts/total_counts*100, digits = 3)
+  
 
-percent = round(native_counts/total_counts*100, digits = 3)
+  # Line graph of only the native plants. 
+  plot_data = data.frame(date =years, 
+                               percent = percent
+                               )
+  fig <- plot_ly(plot_data, x = ~date, y = ~percent, type = 'scatter', mode = 'lines+markers', line = list(color = interactive_colour(1)), marker = list(color = interactive_colour(1)))
 
-plot_dataA = data.frame(date =years, 
-                             percent = percent,
-                             represented = rep('Native', length(date)))
-plot_dataB = data.frame(date =years, 
-                           percent = 100-percent,
-                            represented = rep('Non Native', length(date)))
+fig <- fig |> layout(yaxis = list(title = paste0("Percentage of ",title)),
+                   xaxis = list(title = "Year"))
+fig <- fig |> layout(hovermode = 'x unified',
+                     yaxis = list(ticksuffix  ='%', hoverformat = '.1f'))
+  
 
-plot_data = rbind(plot_dataA, plot_dataB)
-plot_data$represented = factor(plot_data$represented,levels = c('Non Native','Native'))
+  # Stacked Bar version. 
+   # plot_dataA = data.frame(date =years, 
+   #                             percent = percent,
+   #                             represented = rep('Native', length(date)))
+   # 
+  # plot_dataB = data.frame(date =years, 
+  #                            percent = 100-percent,
+  #                             represented = rep('Non-Native', length(date)))
+  
+  # plot_data = rbind(plot_dataA, plot_dataB)
+  # plot_data$represented = factor(plot_data$represented, levels = c('Native', 'Non-Native'))
+  # fig <- plot_ly(plot_data, x = ~date, y = ~percent, color = ~represented, type = 'bar', colors = interactive_colour(2))
+  # fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',title)),
+  #                      xaxis = list(title = "Year"),
+  #                      legend=list(title=list(text=paste0("Native ", title))),
+  #                      barmode = 'stack',
+  #                      hoverlabel = list(namelength = -1))
+  # fig <- fig |> layout(hovermode = 'x unified',
+  #                      bargap =0,
+  #                      yaxis = list(ticksuffix  ='%', hoverformat = '.1f')
+                       
+  
 
-names(plot_data) = c('dates', 'percentage', 'represented')
+return(fig)
+}
 
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
+fig = proportion_native(native_data = native_data,LC_data = LC_data, type = 'Items', title = 'items')
 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native_items_over_time.html'))
 }
   
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Accessions"}`
-```{r  Proportion of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=2
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
+```{r  Proportion of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = proportion_native(native_data = native_data,LC_data = LC_data, type = 'Accessions', title = 'accessions')
 
-native_counts = native_data[,match(to_do[i], names(native_data))]
-total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
-
-percent = round(native_counts/total_counts*100, digits = 3)
-
-plot_dataA = data.frame(date =years, 
-                             percent = percent,
-                             represented = rep('Native', length(date)))
-plot_dataB = data.frame(date =years, 
-                           percent = 100-percent,
-                            represented = rep('Non Native', length(date)))
-
-plot_data = rbind(plot_dataA, plot_dataB)
-plot_data$represented = factor(plot_data$represented,levels = c('Non Native','Native'))
-
-names(plot_data) = c('dates', 'percentage', 'represented')
-
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-  
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native_accessions_over_time.html'))
 }
   
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
-```{r  Proportion of native taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=3
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
-
-native_counts = native_data[,match(to_do[i], names(native_data))]
-total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
-
-percent = round(native_counts/total_counts*100, digits = 3)
-
-plot_dataA = data.frame(date =years, 
-                             percent = percent,
-                             represented = rep('Native', length(date)))
-plot_dataB = data.frame(date =years, 
-                           percent = 100-percent,
-                            represented = rep('Non Native', length(date)))
-
-plot_data = rbind(plot_dataA, plot_dataB)
-plot_data$represented = factor(plot_data$represented,levels = c('Non Native','Native'))
-
-names(plot_data) = c('dates', 'percentage', 'represented')
-
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
+```{r  Proportion of native taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = proportion_native(native_data = native_data,LC_data = LC_data, type = 'Taxa', title = 'taxa')
 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native_taxa_over_time.html'))
 }
   
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
-```{r  Proportion of native species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-i=4
-to_do = c('Items', 'Accessions', 'Taxa', 'Species')
-titles = c('items', 'accessions', 'taxa', 'species')
-
-native_counts = native_data[,match(to_do[i], names(native_data))]
-total_counts = LC_data[,match(paste0(to_do[i]), names(LC_data))]
-
-percent = round(native_counts/total_counts*100, digits = 3)
-
-plot_dataA = data.frame(date =years, 
-                             percent = percent,
-                             represented = rep('Native', length(date)))
-plot_dataB = data.frame(date =years, 
-                           percent = 100-percent,
-                            represented = rep('Non Native', length(date)))
-
-plot_data = rbind(plot_dataA, plot_dataB)
-plot_data$represented = factor(plot_data$represented,levels = c('Non Native','Native'))
-
-names(plot_data) = c('dates', 'percentage', 'represented')
-
-fig <- plot_ly(plot_data, x = ~dates, y = ~percentage, color = ~represented, type = 'bar')
-fig <- fig |> layout(yaxis = list(title = paste0('Percentage of ',titles[i])),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text=paste0("Native ", titles[i]))),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
+```{r  Proportion of native species over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+fig = proportion_native(native_data = native_data,LC_data = LC_data, type = 'Species', title = 'species')
 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native',titles[i],'__over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native_species_over_time.html'))
 }
   
+fig
 ```
 
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
 
 ***
 
-### Among the native plants in a LC, how many of them are endemic or redlisted?
+### What is the provenance of native plants?
+
+In this section we are exploring the provenance of native plants in the collection. Each accession in the garden has one of the following provenance types:
+
+- Wild: plants that were collected directly from the wild,
+- Wild-derived: cultivated plants descended from plants of known wild origin,
+- Garden: cultivated plants descended from plants not of known wild origin,
+- Unknown: plants with unknown origin.
+
+Below we produce a table of provenance for items and accessions.
+
+```{r, Provenance of native plants in the LC}
+# LC_native_exisiting the data of existing native plants in the LC. 
+wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+prov_items = data.frame(table(LC_native_exisiting$ProvenanceCode))
+rows = match(wanted_order, prov_items[,1])
+other = which(!prov_items[,1] %in% wanted_order)
+o = c(rows,other)
+o = o[!is.na(o)]
+prov_items = prov_items[o,]
+names(prov_items) = c('Provenance', 'Items')
+# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
+prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
+prov_items <- prov_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+         pos = Items/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
+
+prov_accessions = data.frame(table(LC_native_exisiting$ProvenanceCode[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
+rows = match(wanted_order, prov_accessions[,1])
+other = which(!prov_accessions[,1] %in% wanted_order)
+o = c(rows,other)
+o = o[!is.na(o)]
+prov_accessions = prov_accessions[o,]
+names(prov_accessions) = c('Provenance', 'Accessions')
+# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
+prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
+prov_accessions <- prov_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+         pos = Accessions/2 + dplyr::lead(csum, 1),
+         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
+flex_data = data.frame(prov_items$Provenance,
+                       prov_items$Items, 
+                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
+                       prov_accessions$Accessions,
+                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
+names(flex_data) = c('Provenance', 'Native items', '% of items in LC', 'Native accessions', '% of accessions in LC')
+
+rows = match(wanted_order, flex_data$Provenance)
+other = which(!flex_data$Provenance %in% wanted_order)
+o = c(rows,other)
+o = o[!is.na(o)]
+flex_data = flex_data[o,]
+
+if(export_data){
+  exporting_data_store$Provenance_of_existing_native_plants_in_the_LC = flex_data
+}
+
+### MANAGEMENT SHEET: Wild/Wild-derived accessions of native plants
+```
+
+```{r Provenance of native plants in the LC - Table}
+if(report_kind == 'static'){
+flex_data |>
+  flextable() |>
+  set_caption(caption = paste0('Provenance of existing native plants in the LC')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  separate_header() |> 
+  align(align = "center", part = "all") |>
+  autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(flex_data, rownames = FALSE,
+                # caption = paste0('Provenance of exisiting native plants in the LC'),
+                options = list(dom = 't'))
+}
+
+```
+
+Putting the data into a pie charts yields
+
+```{r, Provenance of native plants in the LC pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+# Basic piechart
+pie1 = ggplot(prov_items, aes(x="", y=Items, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtheme(base_size = 18) +
+  ggtitle('Items') +
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  ggtheme(base_size = 18) +
+  coord_polar("y", start=0) +
+  ggtitle('Accessions') + 
+  scale_fill_discrete() +
+  theme(legend.position = "none",
+        axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        plot.background=element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+    if(value_on_fig){
+      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
+      
+      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
+  }
+
+p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+
+p
+
+```
+
+`r if(report_kind == 'interactive'){"#####  Provenance of native species in the LC {.tabset}"}`
+
+<!-- `r if(report_kind == 'interactive'){"###### Items"}` -->
+```{r  Provenance of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+figs = list()
+
+# Items
+text = paste0(prov_items$Items, ' ',prov_items$Provenance,' origin native items')
+fig1 <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig1 <- fig1 |> add_pie(hole = 0.6)
+fig1 <- fig1 |> layout(title = "Items",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+figs$items = fig1
+#Accessions
+text = paste0(prov_accessions$Accessions, ' ',prov_accessions$Provenance,' origin native items')
+fig2 <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig2 <- fig2 |> add_pie(hole = 0.6)
+fig2 <- fig2 |> layout(title = "Accessions",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+figs$accessions = fig2
+
+# Together
+p <- plot_ly() |>
+  add_pie(data = prov_items, labels = ~Provenance, values = ~Items, hole = 0.6,
+          title = "Items", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+          domain = list(row = 0, column = 0)) |>
+  add_pie(data = prov_accessions, labels = ~Provenance, values = ~Accessions, hole = 0.6,
+          title = "Accessions", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+         domain = list(row = 0, column = 1))  |>
+  layout(title = "", showlegend = TRUE,
+          grid=list(rows=1, columns=2),
+         plot_bgcolor="#f0f0f0",
+         legend = list(orientation = 'h', xanchor = "center", x = 0.5),
+         xaxis = list(title=paste0('Items', 'Accessions'), showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         margin = c(0,0,0,0))
+
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(figs$items, file = paste0(figures_dir, '/','native_provenance_existing_items.html'))
+  htmlwidgets::saveWidget(figs$accessions, file = paste0(figures_dir, '/','native_provenance_existing_accessions.html'))
+}
+
+p
+  
+```
+
+<!-- `r if(report_kind == 'interactive'){"###### Accessions"}` -->
+<!-- ```{r  Provenance of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'} -->
+
+
+<!-- ``` -->
+
+<!-- `r if(report_kind == 'interactive'){"##### {-}"}` -->
+
+`r if(do_over_time){"We will now look at how the provenance of native plants in the LC has changed over time."}`
+
+`r if(!do_over_time){"We do not have the information to explore how provenance of native plants in the LC has changed over time."}`
+
+```{r, Provenance of native plants in the LC- change over time data, eval = do_over_time}
+# LC_native_over_time contains the over time native plants.
+redlistcatA = LC_native_over_time$redList_category
+redlistcatB = LC_native_over_time$POWO_Red_category
+
+redlist_used = rep(NA, nrow(LC_native_over_time))
+redlist_used[redlistcatA == 'VU' | redlistcatB == 'VU'] = 'VU'
+redlist_used[redlistcatA == 'EN' | redlistcatB == 'EN'] = 'EN'
+redlist_used[redlistcatA == 'CR' | redlistcatB == 'CR'] = 'CR'
+redlist_used[redlistcatA == 'EW' | redlistcatB == 'EW'] = 'EW'
+redlist_used[redlistcatA == 'EX' | redlistcatB == 'EX'] = 'EX'
+
+LC_native_over_time$redlist_used = redlist_used
+
+# For each year get the number in each group (species and genera)
+over_time_info = lapply(plant_existing_LC_native, function(x){
+  garden_current = LC_native_over_time[x,]
+  
+  prov_items =  data.frame(table(garden_current$ProvenanceCode))
+  if(nrow(prov_items) == 0){
+    return(list(prov_items = prov_items,
+              prov_accessions = prov_items,
+              redlistcat_items = prov_items,
+              redlistcat_accessions = prov_items,
+              redlistcat_taxa = prov_items))
+  }
+  names(prov_items) = c('Provenance', 'Items')
+  
+  prov_accessions = data.frame(table(garden_current$ProvenanceCode[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  names(prov_accessions) = c('Provenance', 'Accessions')
+  
+  redlistcat_items = data.frame(table(garden_current$redlist_used))
+  if(ncol(redlistcat_items) != 2){redlistcat_items = data.frame(matrix(ncol = 2, nrow = 0))}
+  names(redlistcat_items) = c('RedListCategory', 'Items')
+  
+  redlistcat_accessions = data.frame(table(garden_current$redlist_used[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
+  if(ncol(redlistcat_accessions) != 2){redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
+  
+  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
+  redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
+  if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
+  
+  names(redlistcat_taxa) = c('RedListCategory', 'Accessions')
+  
+  
+  return(list(prov_items = prov_items,
+              prov_accessions = prov_accessions,
+              redlistcat_items = redlistcat_items,
+              redlistcat_accessions = redlistcat_accessions,
+              redlistcat_taxa = redlistcat_taxa))
+})
+prov_redlist_native_over_time = over_time_info
+
+```
+
+```{r, Provenance of native plants in the LC- change over time figures, fig.fullwidth=FALSE, fig.dim = c(10, 6), , eval = report_kind == 'static' & do_over_time}
+to_do = c('items', 'accessions')
+for(i in 1:length(to_do)){
+  # Get the data from over_time_info.
+  data_wanted = NULL
+  wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+  for(jj in 1:length(over_time_info)){
+    info_year = over_time_info[[jj]][[wanted_item]]
+    if(nrow(info_year) == 0){
+      next
+    }
+    prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+    info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                           info_year = info_year,
+                           prop = prop)
+    data_wanted = rbind(data_wanted, info_year)
+
+  }
+  names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+  data_wanted[,2] = as.character(data_wanted[,2])
+  # data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+  data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+  
+  
+    if(export_data){
+    item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+  exporting_data_store$AA = data_wanted
+  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+    }
+  
+    p = ggplot(data_wanted, aes(fill=Provenance, y=prop, x=year)) + 
+    geom_bar(position="stack", stat="identity", width = 1) +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title="",
+        x ="Year",
+        y = "Percentage (%)") +
+    guides(fill=guide_legend(title=paste0('Provenance')))# +
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Provenance of ", to_do[i] , " that are native in the LC over time"))
+    
+    if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+  print(p)
+
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of native species in the LC over time {.tabset}"}`
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
+```{r  Provenance of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'& do_over_time}
+wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+to_do = c('items', 'accessions')
+i=1
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  rows = match(wanted_order, info_year[,1])
+  other = which(!info_year[,1] %in% wanted_order)
+  o = c(rows,other)
+  o = o[!is.na(o)]
+  info_year = info_year[o,]
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+  if(export_data){
+  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+exporting_data_store$AA = data_wanted
+names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+  }
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
+data_wanted$text = text
+data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}', colors = interactive_colour(4))
+fig <- fig |> layout(yaxis = list(title = 'Percentage', ticksuffix  ='%', hoverformat = '.1f'),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_provenance_over_time_by_item.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"###### Accessions"}`
+```{r  Provenance of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'& do_over_time}
+to_do = c('items', 'accessions')
+i=2
+
+# Get the data from over_time_info.
+data_wanted = NULL
+wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
+for(jj in 1:length(over_time_info)){
+  info_year = over_time_info[[jj]][[wanted_item]]
+  if(nrow(info_year) == 0){
+    next
+  }
+  rows = match(wanted_order, info_year[,1])
+  other = which(!info_year[,1] %in% wanted_order)
+  o = c(rows,other)
+  o = o[!is.na(o)]
+  info_year = info_year[o,]
+  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
+  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
+                         info_year = info_year,
+                         prop = prop)
+  data_wanted = rbind(data_wanted, info_year)
+
+}
+names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
+data_wanted[,2] = as.character(data_wanted[,2])
+# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
+data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+
+  if(export_data){
+  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
+exporting_data_store$AA = data_wanted
+names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
+  }
+
+
+text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
+data_wanted$text = text
+data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
+fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
+               hovertemplate = '%{text}',
+               sort = FALSE, colors = interactive_colour(4))
+fig <- fig |> layout(yaxis = list(title = 'Percentage',ticksuffix  ='%', hoverformat = '.1f' ),
+                     xaxis = list(title = "Year", hoverformat = 'Year: '),
+                     legend=list(title=list(text='')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_provenance_over_time_by_accession.html'))
+}
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
+
+
+***
+
+### What is the turnover of native plants?
+
+This section looks at the turnover (gain/loss) of accessions of native plants in the LC.
+
+`r if(!do_over_time){"As we do not have information to explore the data over time we cannot perform turnover analysis."}`
+
+`r if(do_over_time){"We can also view the gain/loss of native accessions as a proportion of all gained/lost items each year. This will show if the incoming proportion of native plants was more or less than the proportion of native plants in the collection."}` 
+
+```{r, Native Turnover - Accessions, eval = do_over_time}
+# Start from the original_report
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+years = min_year:max_year
+report = report_original
+report = report[report$AccYear > 1650 & report$AccYear<=max_year,]
+report = report[!is.na(report$ItemStatusDate),]
+
+## Convert report into accessions
+unique_accessions = unique(report$AccNoFull)
+LossYear = rep(NA,nrow(report))
+ItemStatusYear = as.numeric(stringr::str_extract(report$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[report$ItemStatusType %in% c('NotExisting', 'Not Existing')] = ItemStatusYear[report$ItemStatusType %in% c('NotExisting', 'Not Existing')]
+report$LossYear = LossYear
+# Order the items where the lower indices have the most recent death date.
+LossYear_dummy = LossYear
+LossYear_dummy[is.na(LossYear_dummy)] = 4000
+ordered_items = order(LossYear_dummy,decreasing = T)
+report = report[ordered_items, ]
+# Match to the ordered accessions.
+match_to_best = match(unique_accessions,report$AccNoFull)
+#Reduce the data to unique accessions with most recent death date.
+report = report[match_to_best,]
+
+
+#Get the number of accessions existing each year for whole collection/
+existing_each_year_LC = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                                                                   AccessionYear = as.character(report$AccYear),
+                                                                   ItemStatusDate = as.character(report$ItemStatusDate),
+                                                                   ItemStatusType = as.character(report$ItemStatusType),
+                                                                   post_date = '3000-01-01')))
+## Get the turnover for the whole collection.
+overall_turnover = turnover_items(report)
+exporting_data_store$overall_turnover = overall_turnover
+
+## Get the trends for native accessions.
+date = paste0(years, '-12-31')
+plant_existing = BGSmartR::exist_at_date(date, AccessionYear = report$AccYear,
+                                         ItemStatusDate = report$ItemStatusDate,
+                                         ItemStatusType = report$ItemStatusType,
+                                         post_date = '3000-01-01')
+names(plant_existing) = date
+trends = pbapply::pblapply(plant_existing, function(x){
+  garden_current = report[x,]
+  
+  accessions = nrow(garden_current)
+  
+  breakdown_native = table(garden_current$native)
+  
+  return(list(accessions = accessions, breakdown_native = breakdown_native))
+})
+names(trends) = names(plant_existing)
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_native[!grepl(' ', names(x$breakdown_native))])
+})))
+
+
+do_type = TRUE
+report_cur = report[which(report$native == 'Native'),]
+if(nrow(report_cur) == 0){
+  do_type = FALSE
+}else{
+  
+  
+  turnover = turnover_items(report_cur)
+  exporting_data_store$turnover_native = turnover
+  
+  plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'native', data_type = 'Accessions')
+  
+  existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                                                                  AccessionYear = report_cur$AccYear,
+                                                                  ItemStatusDate = report_cur$ItemStatusDate,
+                                                                  ItemStatusType = report_cur$ItemStatusType,
+                                                                  post_date = '3000-01-01')))
+  collection_proportion = existing_each_year/ existing_each_year_LC
+  
+  plots_proportional = proportional_plots_turnover(turnover = turnover,
+                                                   overall_turnover = overall_turnover,
+                                                   collection_proportion = collection_proportion,
+                                                   report_kind = report_kind,
+                                                   separate_figure_folder = separate_figure_folder,
+                                                   text = 'native',
+                                                   data_type = 'Accessions')
+  exporting_data_store$proportional_turnover_native_gain = plots_proportional$data_gain
+  exporting_data_store$proportional_turnover_native_loss = plots_proportional$data_loss
+}
+
+# 
+# #Lost items
+# lost_items = data.frame(t(data.frame(lapply(years, function(year){
+#   # Accessions for the year
+#   have_status_year = LC_native_over_time[which(LC_native_over_time$status_year == year),]
+#   # Number of items lost.
+#   lost_items = have_status_year[which(have_status_year$ItemStatusType == 'NotExisting'),]
+#   no_lost_items = nrow(lost_items)
+#   
+#   return(c(year,no_lost_items))
+# }))))
+# names(lost_items) = c('Year', 'Number of items')
+# row.names(lost_items) = 1:nrow(lost_items)
+# 
+# # Gained items
+# gain_items = data.frame(t(data.frame(lapply(years, function(year){
+#   # Accessions for the year
+#   have_accYear = LC_native_over_time[which(LC_native_over_time$AccYear == year),]
+# 
+#   no_gain_items = nrow(have_accYear)
+#   
+#   return(c(year,no_gain_items))
+# }))))
+# names(gain_items) = c('Year', 'Number of items')
+# row.names(gain_items) = 1:nrow(gain_items)
+# 
+# # items
+# items = data.frame(lost_items, gain_items[,2], gain_items[,2] - lost_items[,2])
+# names(items) = c('Year', 'Number of lost items', 'Number of gained items', 'Net number of items')
+# 
+# 
+# if(export_data){
+#   exporting_data_store$Native_turnover_items = items
+# }
+# DT::datatable(items, rownames = FALSE, caption = paste0('Native turnover (items)'),
+#               options = list(scrollX =  TRUE,
+#                              scrollY = '70vh',
+#                              pageLength =  min(nrow(items),200),
+#                              columnDefs = list(list(className = 'dt-center', targets = 0:3))
+#                              ),
+#               escape = FALSE)
+```
+
+
+```{r, Native Turnover - Gain/Loss items figures,  fig.fullwidth=FALSE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE, eval = report_kind == 'static' & do_over_time}
+dataA = data.frame(items[,c(1,2)], rep('Lost', nrow(items)))
+names(dataA) = LETTERS[1:3]
+dataB = data.frame(items[,c(1,3)], rep('Gain', nrow(items)))
+names(dataB) = LETTERS[1:3]
+items_data = rbind(dataA, dataB)
+
+p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
+  geom_line(aes(color=C)) +
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title="",
+        x ="Year",
+        y = paste0('Number of items')) +
+    guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Gain/Loss of native items in the LC over time"))
+  scale_color_manual(values=c("blue", "red"))
+  print(p)
+  
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+  
+# Color based on value
+color <- ifelse(items$`Net number of items` < 0, "pink", "lightblue")
+
+p = ggplot(items, aes(x = Year, y = `Net number of items`)) +
+  geom_bar(stat = "identity",
+           show.legend = FALSE,
+           fill = color,      # Background color
+           color = "white") + # Border color
+  # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  labs(title="",
+      x ="Year",
+      y = paste0('Number of items')) #+
+  # theme(text = element_text(size=table_font_size)) +
+  # ggtitle(paste0("Net turnover of native items in the LC over time"))
+print(p)  
+
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_net_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Net"}`
+```{r  Gain/Loss of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+plots$trend_and_net
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Gain/Loss"}`
+```{r  Net turnover of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+plots$gain_loss
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
+
+`r if(do_over_time){"As proportion of loss/gained items each year"}`
+
+```{r, Native Turnover - Gain/Loss items proportion figures, fig.fullwidth=TRUE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE,  eval = report_kind == 'static' & do_over_time}
+### Plot of proportion of gained items being native.
+plot_data = data.frame(year = gain_items$Year,
+                       native = gain_items$`Number of items`, 
+                       all = gain_items_all$`Number of items`)
+plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
+native_counts = native_data$Items
+total_counts = LC_data$Items
+plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
+
+ p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
+    geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
+   geom_point(aes(x = year, y = native_LC))+
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title="",
+        x ="Year",
+        y = "Native Percentage (%)") +
+    guides(fill=guide_legend(title=paste0('Provenance'))) +
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of gained items that are native in the LC over time"))
+      labs(caption = "Black points are proportion of items in the LC that are native each year.")
+  print(p)
+  
+      if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_gain_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+  
+### Plot of proportion of lost items being native.
+
+plot_data = data.frame(year = lost_items$Year,
+                       native = lost_items$`Number of items`, 
+                       all = lost_items_all$`Number of items`)
+plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
+native_counts = native_data$Items
+total_counts = LC_data$Items
+plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
+
+ p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
+    geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
+   geom_point(aes(x = year, y = native_LC))+
+    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+    labs(title="",
+        x ="Year",
+        y = "Native Percentage (%)") +
+    guides(fill=guide_legend(title=paste0('Provenance'))) +
+    # theme(text = element_text(size=table_font_size)) +
+    # ggtitle(paste0("Proportion of lost items that are native in the LC over time"))
+      labs(caption = "Black points are proportion of items in the LC that are native each year.")
+  print(p)
+
+        if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_loss_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures (proportion) {.tabset}"}`
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Gain"}`
+```{r  Gain proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+plots_proportional$gain
+```
+
+`r if(report_kind == 'interactive' & do_over_time){"###### Loss"}`
+```{r  Loss proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+plots_proportional$loss
+```
+
+`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
+
+***
+
+### How long do native plants survive? 
+
+```{r, survival analysis, echo = FALSE}
+# Remove those without accession year.
+do_survival = TRUE
+if(!do_over_time){
+  do_survival = FALSE
+}
+enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYearOrig) > 1650 & as.numeric(enriched_report$AccYearOrig) < as.numeric(format(Sys.Date(),'%Y')),]
+
+# Create a data-frame of the information we want.
+wanted_data = data.frame(enriched_report_wanted$TaxonNameFull, enriched_report_wanted$AccYear, enriched_report_wanted$ItemStatusDate, enriched_report_wanted$ItemStatusType)
+names(wanted_data) = c('TaxonNameFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+
+wanted_data = wanted_data[!is.na(wanted_data$ItemStatusDate),]
+wanted_data = wanted_data[!is.na(wanted_data$AccYear),]
+if(nrow(wanted_data) == 0){
+  do_survival = FALSE
+}
+if(do_survival){
+  #Set accession date (just chose the first of June)
+pre_date = rep(NA, length(wanted_data$AccYear))
+pre_date = paste(wanted_data$AccYear, "06", "01", sep = "-")
+
+# Convert ItemStatusDate into all dates (i.e if month or day missing add one)
+post_date = rep(as.character(Sys.Date()), length(wanted_data$AccYear))
+post_date[which(wanted_data$ItemStatusType == "NotExisting")] = as.character(wanted_data$ItemStatusDate[which(wanted_data$ItemStatusType == 
+  "NotExisting")])
+
+post_date[which(stringr::str_length(post_date) == 4)] = paste(post_date[which(stringr::str_length(post_date) == 
+  4)], "12", "28", sep = "-")
+post_date[which(stringr::str_length(post_date) == 7)] = paste(post_date[which(stringr::str_length(post_date) == 
+  7)], "28", sep = "-")
+
+# Create the time difference between accession and ItemStatusDate.
+time = as.numeric(as.Date(post_date) - as.Date(pre_date)) /365.25
+
+# Create status to tell whether the last item status date was item death or just a check.
+status = rep(0,length(wanted_data$AccYear))
+status[wanted_data$ItemStatusType == 'NotExisting'] = 1
+
+wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
+                         StatusDate = post_date,
+                         time = time,
+                         Alive_dead = status)
+
+
+# We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
+missing_itemstatusdate_index = which(wanted_data$time > 0)
+wanted_data = wanted_data[missing_itemstatusdate_index,]
+enriched_report = enriched_report[missing_itemstatusdate_index,]
+
+
+## 1) Native or non-native (or doesn't have geography info.)
+location = location_code
+#Get which records are native.
+native_non_native = rep('Not Native',nrow(enriched_report))
+native_non_native[which(enriched_report$POWO_plant_name_id %in% native_plant_ids)] = 'Native'
+native_non_native[is.na(enriched_report$POWO_Dist_000_area_code_l3)] = NA
+
+data_to_analyse = data.frame(wanted_data$TaxonNameFull,
+                             wanted_data$time,
+                             wanted_data$Alive_dead,
+                             native_non_native)
+names(data_to_analyse) = c("TaxonNameFull", "time", "Alive_dead", "native_status")
+
+if(export_data){
+  exporting_data_store$Data_for_survival = data_to_analyse
+}
+}
+
+```
+
+In this section, we look at whether the survival period of native plants are longer than non-native plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
+
+`r if(FALSE){"Note that \"lifespan\" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not \"perfect\" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. "}`
+
+In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. )
+
+Since we only have the accession year we set the accession date to be the middle of the year (1st June).
+
+Native plants are any that are from `r paste0(location_name, collapse = ', ')`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r paste0(location_name, collapse = ', ')`. This means that we exclude plants not matched to WCVP for the comparison (cultivars, etc). 
+ 
+`r if(do_survival){"Below we show the survival probability (Kaplan-Meier plots) for native and non-native plants."}`
+
+`r if(!do_survival){"Survival analysis cannot be performed. (This could be due to lack of accession year or item status date."}`
+
+```{r, survival analysis - figure, echo  = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), results='hide',fig.keep='all', message=FALSE, eval = do_survival}
+# Create Kaplan-Meier plots comparing native and not native
+fit = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse)
+p = fit |> 
+  ggsurvfit::ggsurvfit() +
+  ggplot2::labs(
+    x = "Years",
+    y = "Overall survival probability"
+  ) + 
+  ggsurvfit::add_confidence_interval()+
+    # theme(text = element_text(size=table_font_size))+
+  # labs(title=paste0("Survival probability of native and non native plants in the LC")) +
+  labs(caption = "Shaded region represents 95% confidence interval.") +
+  ggtheme() + scale_colour_manual(values = c('#f46d43', '#e6e6e6'))
+
+if(report_kind == 'static'){
+  if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','native_notnative_survival.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  p
+} 
+```
+
+```{r survival_analysis - interactive figure, eval = do_survival}
+if(report_kind == 'interactive'){
+  # figgo = plot_ly(data = survival_data_plot, x =~p.data.time, y = ~p.data.estimate, color = ~p.data.strata, mode = 'lines', type = 'scatter', colors = interactive_colour(2))
+  # figgo = figgo |> layout(legend = list(orientation = 'h'),
+  #                         yaxis = list(title = paste0("Overall Survival Probability")),
+  #                        xaxis = list(title = "Years"),
+  #                        hovermode = 'x unified')
+  # 
+  # 
+  
+  
+  fig = ggplotly(p)
+  fig$x$layout$title$text =''
+  fig$x$layout$legend$title$text = ''
+  fig$x$layout$hovermode = 'x unified'
+  fig$x$data[[2]]$name = 'Not-native'
+  fig$x$data[[2]]$legendgroup = 'Non-native'
+  fig$x$data[[1]]$name = 'Native'
+  fig$x$data[[1]]$legendgroup = 'Native'
+  fig$x$data[[4]]$hoverinfo = 'none'
+  fig$x$data[[3]]$hoverinfo = 'none'
+  
+  time_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
+    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
+    as.numeric(), digits = 3) 
+  lower_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100,digits = 2)
+  upper_region = round(fig$x$data[[4]]$text |>
+    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100, digits = 2)
+  time = round(fig$x$data[[2]]$x,digits = 3)
+  lower = lower_region[match(time, time_region)]
+  upper = upper_region[match(time, time_region)]
+  
+  fig$x$data[[2]]$text = paste0(#'Age (years): ',round(fig$x$data[[2]]$x,digits = ), '<br>',
+                                'Survival probability: ', round(fig$x$data[[2]]$y*100,digits = 2),'% <br>',
+                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
+  
+    time_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
+    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
+    as.numeric(), digits = 3) 
+  lower_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100,digits = 2)
+  upper_region = round(fig$x$data[[3]]$text |>
+    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
+    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
+    as.numeric()*100, digits = 2)
+  time = round(fig$x$data[[1]]$x,digits = 3)
+  lower = lower_region[match(time, time_region)]
+  upper = upper_region[match(time, time_region)]
+  
+  fig$x$data[[1]]$text = paste0('Age (years): ',round(fig$x$data[[1]]$x,digits = ), '<br>',
+                                'Survival probability: ', round(fig$x$data[[1]]$y*100,digits = 2),'% <br>',
+                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
+  
+  fig = fig |> layout(legend = list(orientation = 'h'))
+  if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Native_survival_analysis.html'))
+}
+
+fig
+}
+```
+
+`r if(do_survival){"Next we give the survival probability for 10-year intervals."}`
+
+```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
+# We can also get survival probabilities in a table
+# 
+table_data = fit |> 
+  gtsummary::tbl_survfit(
+    times = c(2,5,10,25,50,100),
+    label_header = "{time}-year survival (95% CI)")
+
+table_data = table_data$table_body
+  table_data = table_data[,-c(1:4)]
+  table_data = table_data[-1,]
+  names(table_data) = c('Status', '2-year survival (95% CI)',
+                        '5-year survival (95% CI)',
+                        '10-year survival (95% CI)',
+                        '25-year survival (95% CI)',
+                        '50-year survival (95% CI)',
+                        '100-year survival (95% CI)')
+  table_data = data.frame(t(table_data))
+  table_data = table_data[-1,]
+  names(table_data) = c('Native', 'Non-native')
+  
+if(report_kind == 'static'){
+  table_data |>
+  flextable() |>
+  set_caption(caption = paste0('Survival probability table')) |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit() |>
+  set_table_properties(width = 1, layout = "autofit")
+}
+if(report_kind == 'interactive'){
+    DT::datatable(table_data,
+                  # caption = 'Survival probability table',
+                   options = list(dom = 't'))
+
+}
+```
+
+***
+
+### How many of native plants are endemic or threatened?
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Data}
 # LC_native_exisiting, native and existing part of LC database.
@@ -1118,18 +2312,23 @@ total_threatened = sum(threatened)
 
 total_threat_endemic = sum(endemic & threatened)
 need_venn = total_endemic > 0 | total_threatened > 0
-
+overlap = FALSE
+if(total_threat_endemic > 0){
+  overlap = TRUE
+}
 ```
 
-`r if(need_venn){paste0("In this section, we concentrate on native plants in the LC that are either endemic to ", location_name ," or redlisted by the IUCN.")}`
+`r if(need_venn){paste0("In this section, we concentrate on native plants in the LC that are either endemic to ", paste0(location_name, collapse = ', ') ," or on IUCN's Red List.")}`
 
-`r if(need_venn){"Below we produce a Venn diagram of endemic and threatened plants that are native in the LC."}`
+`r if(overlap & need_venn){paste0("Withn the native sub-collection of ", collection, " there are ", total_endemic, " endemic items and ", total_threatened, " threatened items, where ", total_threat_endemic, " are both. Therefore, ",round(total_endemic/nrow(LC_native_exisiting)*100,digits = 2), "% of the native items are endemic and ",round(total_threatened/nrow(LC_native_exisiting)*100,digits = 2),"% are threatened.")}`
+
+`r if((!overlap) & need_venn){paste0("Withn the native sub-collection of ", collection, " there are ", total_endemic, " endemic items and ", total_threatened, " threatened items. No items are both endemic and threatened."," Therefore, ",round(total_endemic/nrow(LC_native_exisiting)*100,digits = 2), "% of the native items are endemic and ",round(total_threatened/nrow(LC_native_exisiting)*100,digits = 2),"% are threatened.")}`
 
 `r if(!need_venn){"There are no endemic or threatened plants that are native in the LC."}`
 
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Venn Diagram, echo = FALSE, results='hide',fig.keep='all', message=FALSE}
-if(need_venn){
+if(FALSE){
   library("VennDiagram") 
 
 # move to new plotting page 
@@ -1172,6 +2371,11 @@ ggplot2::ggsave(filename = paste0(figures_dir, '/','Native_threatened_endemic_Ve
 `r if(need_venn){"For these native and endemic/threatened plants we produce a table below detailing how many of each species is in the collection together with the accession number and when each item was last checked."}`
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, ft.keepnext = FALSE, eval = need_venn}
+if('ItemAccNoFull' %in% names(LC_native_exisiting)){
+  acc_item = LC_native_exisiting$ItemAccNoFull
+}else{
+  acc_item = LC_native_exisiting$AccNoFull
+}
 accessions = LC_native_exisiting$AccNoFull
 taxa = paste0(LC_native_exisiting$POWO_taxon_name, ' ', LC_native_exisiting$POWO_taxon_authors)
 ItemStatusDate = LC_native_exisiting$ItemStatusDate
@@ -1180,8 +2384,8 @@ data = data.frame(accessions =accessions,
                   taxa = taxa,
                   ItemStatusDate = ItemStatusDate, 
                   endemic = endemic, 
-                  threatened = threatened)
-
+                  threatened = threatened,
+                  acc_item = acc_item)
 data_compressed <- data |>
   dplyr::group_by(.data$taxa) |>
   dplyr::summarise(endemic = .data$endemic[1],
@@ -1194,6 +2398,15 @@ data_compressed <- data |>
   dplyr::ungroup()
 
 data_compressed = data_compressed[data_compressed$endemic | data_compressed$threatened,]
+
+endemic_val = rep('No', nrow(data_compressed))
+endemic_val[data_compressed$endemic] = 'Yes'
+data_compressed$endemic = endemic_val
+
+threat_val = rep('No', nrow(data_compressed))
+threat_val[data_compressed$threatened] = 'Yes'
+data_compressed$threatened = threat_val
+ names(data_compressed) = c("Taxa", "Endemic", "Threatened", "Item Status Dates", "Accession IDs", "Number of items" )
 
 if(export_data){
   exporting_data_store$Detail_threatened_and_endemic_native_plants_in_LC = data.frame(data_compressed)
@@ -1209,7 +2422,7 @@ writexl::write_xlsx(data_compressed, path =paste0(output_dir,'/',collection,'_na
 if(report_kind == 'static'){
   data_compressed |>
   flextable() |>
-  set_caption(caption = paste0('Native plants in the LC that are endemic or threatened')) |> 
+  set_caption(caption = paste0('Endemic and threatened plants in the native sub-collection')) |> 
   font(fontname = "Calibri (Body)", part = "all") |> 
   fontsize(size = table_font_size, part = "body") |> 
   # add footer if you want
@@ -1220,15 +2433,46 @@ if(report_kind == 'static'){
   set_table_properties(width = 1, layout = "autofit")
 }
 if(report_kind == 'interactive'){
-    DT::datatable(data_compressed)
+    DT::datatable(data_compressed,rownames = F,
+                  # caption = 'Endemic and threatened plants in the native sub-collection',
+                  options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
 
 }
 
 ```
 
+For further information you can download the endemic/threatened native plants using the button below. 
+
+```{r link to download  threatened/endemic native plants, eval = report_kind == 'interactive'}
+data_save = data
+data_save = data_save[data_save$endemic | data_save$threatened,]
+data_save = data_save[order(data_save$taxa),]
+
+endemic_val = rep('No', nrow(data_save))
+endemic_val[data_save$endemic] = 'Yes'
+data_save$endemic = endemic_val
+
+threat_val = rep('No', nrow(data_save))
+threat_val[data_save$threatened] = 'Yes'
+data_save$threatened = threat_val
+data_save = data_save[,c(6,2:5)]
+names(data_save) = c("Accession + Item Number", "Taxonomic Name", "ItemStatusDate","Is endemic?", "Is Threatened?")
+
+data_save |>
+  download_this(
+    output_name = "Endemic or threatened Native plants in the LC",
+    output_extension = ".xlsx",
+    button_label = "Download native endemic/threatened plants (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left"
+  )
+```
+
 ***
 
-### Threatened, native plants in the LC
+### What are the Red List categories of threatened native plants and how has this varied over time?
 
 In this section we are exploring the threatened, native plants in the collection. We shall do this in two parts: existing plants in the LC and how this has changed over time.
 
@@ -1317,7 +2561,7 @@ if(report_kind == 'static'){
   autofit()
 }
 if(report_kind == 'interactive'){
-    DT::datatable(flex_data)
+    DT::datatable(flex_data, options = list(dom = 't'))
 
 }
 
@@ -1386,47 +2630,94 @@ p
 
 ```
 
-`r if(report_kind == 'interactive' & have_redlist){"#####  Threatened category of native species in the LC {.tabset}"}`
+<!-- `r if(report_kind == 'interactive' & have_redlist){"#####  Threatened category of native species in the LC {.tabset}"}` -->
 
-`r if(report_kind == 'interactive' & have_redlist){"###### Items"}`
-```{r  Threatened Category of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& have_redlist}
+<!-- `r if(report_kind == 'interactive' & have_redlist){"###### Items"}` -->
+```{r  Threatened Category of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'& have_redlist}
+figs = list()
+
+   endangered_cat =  c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, redlistcat_accessions$RedListCategory)))]
+  redlistcat_accessions$RedListCategory = factor(redlistcat_accessions$RedListCategory, levels = endangered_cat_order)
+  redlistcat_accessions = redlistcat_accessions[order(redlistcat_accessions$RedListCategory),]
+
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, redlistcat_items$RedListCategory)))]
+  redlistcat_items$RedListCategory = factor(redlistcat_items$RedListCategory, levels = endangered_cat_order)
+  redlistcat_items = redlistcat_items[order(redlistcat_items$RedListCategory),]
+ 
+
+# Items
 text = paste0(redlistcat_items$Items, ' native items with red list category "', redlistcat_items$RedListCategory, '"')
-             
-fig <- plot_ly(redlistcat_items, labels = ~RedListCategory, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
+fig1 <- plot_ly(redlistcat_items, labels = ~RedListCategory, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig1 <- fig1 %>% add_pie(hole = 0.6)
+fig1 <- fig1 %>% layout(title = "Items",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-red_list_category_native_items.html'))
-}
-
-  
-```
-
-`r if(report_kind == 'interactive' & have_redlist){"###### Accessions"}`
-```{r  Threatened category of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist}
+figs$items = fig1
+#Accessions
 text = paste0(redlistcat_accessions$Accessions, ' native accessions with red list category "', redlistcat_accessions$RedListCategory, '"')
              
-fig <- plot_ly(redlistcat_accessions, labels = ~RedListCategory, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
+fig2 <- plot_ly(redlistcat_accessions, labels = ~RedListCategory, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
+fig2 <- fig2 %>% add_pie(hole = 0.6)
+fig2 <- fig2 %>% layout(title = "Accessions",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 
-fig
+figs$accessions = fig2
+
+colo = c("Vulnerable" = rgb(242,141,60, max = 255),
+         "Endangered" = rgb(238,81,53, max = 255),
+         "Critically Endangered" = rgb(129,27,39, max = 255),
+         "Extinct in the Wild" = rgb(88,88,88, max = 255)
+         )
+colo = colo[match(redlistcat_items$RedListCategory, names(colo))]
+# Together
+p <- plot_ly() |>
+  add_pie(data = redlistcat_items, labels = ~RedListCategory, values = ~Items, hole = 0.6,
+          title = "Items", name ='', sort = FALSE, marker = list(colors = colo),
+          domain = list(row = 0, column = 0)) |>
+  add_pie(data = redlistcat_accessions, labels = ~RedListCategory, values = ~Accessions, hole = 0.6,
+          title = "Accessions", name ='', sort = FALSE, marker = list(colors = colo),
+         domain = list(row = 0, column = 1))  |>
+  layout(title = "", showlegend = TRUE,
+          grid=list(rows=1, columns=2),
+         plot_bgcolor="#f0f0f0",
+         legend = list(orientation = 'h', xanchor = "center", x = 0.5),
+         xaxis = list(title=paste0('Items', 'Accessions'), showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         margin = c(0,0,0,0))
+
 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-red_list_category_native_accessions.html'))
+  htmlwidgets::saveWidget(figs$items, file = paste0(figures_dir, '/','native_threatened_cat_existing_items.html'))
+  htmlwidgets::saveWidget(figs$accessions, file = paste0(figures_dir, '/','native_threatened_cat_existing_accessions.html'))
 }
+
+p
+
+```
+
+<!-- `r if(report_kind == 'interactive' & have_redlist){"###### Accessions"}` -->
+```{r  Threatened category of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist}
+# text = paste0(redlistcat_accessions$Accessions, ' native accessions with red list category "', redlistcat_accessions$RedListCategory, '"')
+#              
+# fig <- plot_ly(redlistcat_accessions, labels = ~RedListCategory, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
+# fig <- fig %>% add_pie(hole = 0.6)
+# fig <- fig %>% layout(title = "",
+#                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+#                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+# 
+# fig
+# 
+# if(separate_figure_folder){
+#   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-red_list_category_native_accessions.html'))
+# }
 
   
 ```
 
-`r if(report_kind == 'interactive'){"##### {-}"}`
+<!-- `r if(report_kind == 'interactive'){"##### {-}"}` -->
 
 
 
@@ -1567,7 +2858,8 @@ for(i in 1:length(to_do)){
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"#####  Threatened plants over time graphs {.tabset}"}`
 
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"###### Items (Number)"}`
-```{r  Number of threatened native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
+```{r  Number of threatened native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
+
 i=1
 to_do = c('items', 'accessions', 'taxa')
 if(nrow(flex_data) > 0){
@@ -1586,9 +2878,18 @@ if(nrow(flex_data) > 0){
   }
  data_wanted[,2]  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(data_wanted[,2], c('VU', 'EN', 'CR', 'EW', 'EX'))]  
   data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+
+  colo = c("Vulnerable" = rgb(242,141,60, max = 255),
+         "Endangered" = rgb(238,81,53, max = 255),
+         "Critically Endangered" = rgb(129,27,39, max = 255),
+         "Extinct in the Wild" = rgb(88,88,88, max = 255)
+         )
+  endangered_cat =  c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, data_wanted$RedListCategory)))]
+  data_wanted$RedListCategory = factor(data_wanted$RedListCategory, levels = endangered_cat_order)
+colo = colo[match(levels(data_wanted$RedListCategory), names(colo))]
   
-  
-  fig <- plot_ly(data_wanted, x = ~year, y = ~Items, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers')
+  fig <- plot_ly(data_wanted, x = ~year, y = ~Items, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers', colors =  colo)
 
   fig <- fig |> layout(yaxis = list(title = paste0("Number of ",to_do[i])),
                    xaxis = list(title = "Year"))
@@ -1605,7 +2906,7 @@ if(separate_figure_folder){
 ```
 
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"###### Accessions (Number)"}`
-```{r  Number of threatened native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist & do_over_time}
+```{r  Number of threatened native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & have_redlist & do_over_time}
 i=2
 to_do = c('items', 'accessions', 'taxa')
 if(nrow(flex_data) > 0){
@@ -1624,9 +2925,12 @@ if(nrow(flex_data) > 0){
   }
  data_wanted[,2]  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(data_wanted[,2], c('VU', 'EN', 'CR', 'EW', 'EX'))]  
   data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
+   endangered_cat =  c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, data_wanted$RedListCategory)))]
+  data_wanted$RedListCategory = factor(data_wanted$RedListCategory, levels = endangered_cat_order)
+colo = colo[match(levels(data_wanted$RedListCategory), names(colo))]
   
-  
-  fig <- plot_ly(data_wanted, x = ~year, y = ~Accessions, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers')
+  fig <- plot_ly(data_wanted, x = ~year, y = ~Accessions, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers',colors =  colo)
 
   fig <- fig |> layout(yaxis = list(title = paste0("Number of ",to_do[i])),
                    xaxis = list(title = "Year"))
@@ -1643,7 +2947,7 @@ if(separate_figure_folder){
 ```
 
 `r if(report_kind == 'interactive'& have_redlist & do_over_time){"###### Taxa (Number)"}`
-```{r  Number of threatened native taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist & do_over_time}
+```{r  Number of threatened native taxa over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & have_redlist & do_over_time}
 i=3
 to_do = c('items', 'accessions', 'taxa')
 if(nrow(flex_data) > 0){
@@ -1663,8 +2967,11 @@ if(nrow(flex_data) > 0){
  data_wanted[,2]  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(data_wanted[,2], c('VU', 'EN', 'CR', 'EW', 'EX'))]  
   data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
   
-  
-  fig <- plot_ly(data_wanted, x = ~year, y = ~Accessions, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers')
+   endangered_cat =  c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, data_wanted$RedListCategory)))]
+  data_wanted$RedListCategory = factor(data_wanted$RedListCategory, levels = endangered_cat_order)
+colo = colo[match(levels(data_wanted$RedListCategory), names(colo))]
+  fig <- plot_ly(data_wanted, x = ~year, y = ~Accessions, color = ~RedListCategory, type = 'scatter', mode = 'lines+markers', colors =  colo)
 
   fig <- fig |> layout(yaxis = list(title = paste0("Number of ",to_do[i])),
                    xaxis = list(title = "Year"))
@@ -1681,7 +2988,7 @@ if(separate_figure_folder){
 ```
 
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"###### Items (Proportion)"}`
-```{r  Proportion of threatened native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist & do_over_time}
+```{r  Proportion of threatened native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & have_redlist & do_over_time}
 i=1
 to_do = c('items', 'accessions')
 if(nrow(flex_data) > 0){
@@ -1700,6 +3007,10 @@ if(nrow(flex_data) > 0){
  data_wanted[,2]  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(data_wanted[,2], c('VU', 'EN', 'CR', 'EW', 'EX'))]  
   data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
   
+   endangered_cat =  rev(c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct'))
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, data_wanted$RedListCategory)))]
+  data_wanted$RedListCategory = factor(data_wanted$RedListCategory, levels = endangered_cat_order)
+colo = colo[match(levels(data_wanted$RedListCategory), names(colo))]
   if(export_data){
     item_name = paste0('Threatened_native_plants_in_the_LC_proportion_over_time_',to_do[i])
   exporting_data_store$AA = data_wanted
@@ -1710,10 +3021,10 @@ if(nrow(flex_data) > 0){
 data_wanted$text = text
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~RedListCategory, type = 'bar', text = ~text,
                hovertemplate = '%{text}',
-               sort = FALSE)
+               sort = FALSE,colors =  colo)
 fig <- fig |> layout(yaxis = list(title = 'Percentage'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Red List Category')),
+                     legend=list(title=list(text=''),  traceorder= 'reversed'),
                      barmode = 'stack')
 fig <- fig |> layout(hovermode = 'x unified', bargap =0)
 
@@ -1729,7 +3040,7 @@ fig
 ```
 
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"###### Accessions (Proportion)"}`
-```{r  Proportion of threatened native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & have_redlist & do_over_time}
+```{r  Proportion of threatened native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & have_redlist & do_over_time}
 i=2
 to_do = c('items', 'accessions')
 if(nrow(flex_data) > 0){
@@ -1748,6 +3059,10 @@ if(nrow(flex_data) > 0){
  data_wanted[,2]  = c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')[match(data_wanted[,2], c('VU', 'EN', 'CR', 'EW', 'EX'))]  
   data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
   
+   endangered_cat =  rev(c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct'))
+  endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, data_wanted$RedListCategory)))]
+  data_wanted$RedListCategory = factor(data_wanted$RedListCategory, levels = endangered_cat_order)
+colo = colo[match(levels(data_wanted$RedListCategory), names(colo))]
   if(export_data){
     item_name = paste0('Threatened_native_plants_in_the_LC_proportion_over_time_',to_do[i])
   exporting_data_store$AA = data_wanted
@@ -1758,10 +3073,10 @@ if(nrow(flex_data) > 0){
 data_wanted$text = text
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~RedListCategory, type = 'bar', text = ~text,
                hovertemplate = '%{text}',
-               sort = FALSE)
+                colors =  colo)
 fig <- fig |> layout(yaxis = list(title = 'Percentage'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Red List Category')),
+                     legend=list(title=list(text=''),  traceorder= 'reversed'),
                      barmode = 'stack')
 fig <- fig |> layout(hovermode = 'x unified', bargap =0)
 
@@ -1782,1173 +3097,8 @@ fig
 
 ***
 
-### Provenance of native plants in the LC
 
-In this section we are exploring the provenance of native plants in the collection. We shall do this in two parts: existing plants in the LC and how this has changed over time.
 
-Below we produce a table of provenance for items and accessions.
-
-```{r, Provenance of native plants in the LC}
-# LC_native_exisiting the data of existing native plants in the LC. 
-
-prov_items = data.frame(table(LC_native_exisiting$ProvenanceCode))
-names(prov_items) = c('Provenance', 'Items')
-# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
-prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
-prov_items <- prov_items %>% 
-  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
-         pos = Items/2 + dplyr::lead(csum, 1),
-         pos = dplyr::if_else(is.na(pos), Items/2, pos))
-
-
-prov_accessions = data.frame(table(LC_native_exisiting$ProvenanceCode[match(unique(LC_native_exisiting$AccNoFull), LC_native_exisiting$AccNoFull)]))
-names(prov_accessions) = c('Provenance', 'Accessions')
-# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
-prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
-prov_accessions <- prov_accessions %>% 
-  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
-         pos = Accessions/2 + dplyr::lead(csum, 1),
-         pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
-
-flex_data = data.frame(prov_items$Provenance,
-                       prov_items$Items, 
-                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
-                       prov_accessions$Accessions,
-                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
-names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
-
-if(export_data){
-  exporting_data_store$Provenance_of_existing_native_plants_in_the_LC = flex_data
-}
-
-### MANAGEMENT SHEET: Wild/Wild-derived accessions of native plants
-```
-
-```{r Provenance of native plants in the LC - Table}
-if(report_kind == 'static'){
-flex_data |>
-  flextable() |>
-  set_caption(caption = paste0('Provenance of existing native plants in the LC')) |> 
-  font(fontname = "Calibri (Body)", part = "all") |> 
-  fontsize(size = table_font_size, part = "body") |> 
-  # add footer if you want
-  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
-  #                colwidths = 4) |> 
-  theme_booktabs() |> # default theme
-  separate_header() |> 
-  align(align = "center", part = "all") |>
-  autofit()
-}
-if(report_kind == 'interactive'){
-    DT::datatable(flex_data)
-}
-
-```
-
-Putting the data into a pie charts yields
-
-```{r, Provenance of native plants in the LC pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
-# Basic piechart
-pie1 = ggplot(prov_items, aes(x="", y=Items, fill=Provenance)) +
-  geom_bar(stat="identity", width=1, color="white") +
-  ggtheme(base_size = 18) +
-  coord_polar("y", start=0) +
-  ggtheme(base_size = 18) +
-  ggtitle('Items') +
-  scale_fill_discrete() +
-  theme(legend.position = "none",
-        axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        plot.background=element_blank(),
-        plot.title = element_text(hjust = 0.5))
-
-pie2 = ggplot(prov_accessions, aes(x="", y=Accessions, fill=Provenance)) +
-  geom_bar(stat="identity", width=1, color="white") +
-  ggtheme(base_size = 18) +
-  coord_polar("y", start=0) +
-  ggtitle('Accessions') + 
-  scale_fill_discrete() +
-  theme(legend.position = "none",
-        axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        plot.background=element_blank(),
-        plot.title = element_text(hjust = 0.5))
-
-    if(value_on_fig){
-      pie1 = pie1 + geom_label_repel(aes(y = pos,label = percent),
-                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")   
-      
-      pie2 = pie2 + geom_label_repel(aes(y = pos,label = percent),
-                   size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white") 
-  }
-
-p = ggpubr::ggarrange(pie1, pie2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
-
-if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_plants.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-
-p
-
-```
-
-`r if(report_kind == 'interactive'){"#####  Provenance of native species in the LC {.tabset}"}`
-
-`r if(report_kind == 'interactive'){"###### Items"}`
-```{r  Provenance of existing native items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
-text = paste0(prov_items$Items, ' native items with provenance "', prov_items$Provenance, '"')
-             
-fig <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_items.html'))
-}
-
-  
-```
-
-`r if(report_kind == 'interactive'){"###### Accessions"}`
-```{r  Provenance of existing native accessions in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
-text = paste0(prov_accessions$Accessions, ' native accessions with provenance "', prov_accessions$Provenance, '"')
-             
-fig <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-provenance_native_accessions.html'))
-}
-
-  
-```
-
-`r if(report_kind == 'interactive'){"##### {-}"}`
-
-`r if(do_over_time){"We will now look at how the provenance of native plants in the LC has changed over time."}`
-
-`r if(!do_over_time){"We do not have the information to explore how provenance of native plants in the LC has changed over time."}`
-
-```{r, Provenance of native plants in the LC- change over time data, eval = do_over_time}
-# LC_native_over_time contains the over time native plants.
-redlistcatA = LC_native_over_time$redList_category
-redlistcatB = LC_native_over_time$POWO_Red_category
-
-redlist_used = rep(NA, nrow(LC_native_over_time))
-redlist_used[redlistcatA == 'VU' | redlistcatB == 'VU'] = 'VU'
-redlist_used[redlistcatA == 'EN' | redlistcatB == 'EN'] = 'EN'
-redlist_used[redlistcatA == 'CR' | redlistcatB == 'CR'] = 'CR'
-redlist_used[redlistcatA == 'EW' | redlistcatB == 'EW'] = 'EW'
-redlist_used[redlistcatA == 'EX' | redlistcatB == 'EX'] = 'EX'
-
-LC_native_over_time$redlist_used = redlist_used
-
-# For each year get the number in each group (species and genera)
-over_time_info = lapply(plant_existing_LC_native, function(x){
-  garden_current = LC_native_over_time[x,]
-  
-  prov_items =  data.frame(table(garden_current$ProvenanceCode))
-  if(nrow(prov_items) == 0){
-    return(list(prov_items = prov_items,
-              prov_accessions = prov_items,
-              redlistcat_items = prov_items,
-              redlistcat_accessions = prov_items,
-              redlistcat_taxa = prov_items))
-  }
-  names(prov_items) = c('Provenance', 'Items')
-  
-  prov_accessions = data.frame(table(garden_current$ProvenanceCode[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
-  names(prov_accessions) = c('Provenance', 'Accessions')
-  
-  redlistcat_items = data.frame(table(garden_current$redlist_used))
-  if(ncol(redlistcat_items) != 2){redlistcat_items = data.frame(matrix(ncol = 2, nrow = 0))}
-  names(redlistcat_items) = c('RedListCategory', 'Items')
-  
-  redlistcat_accessions = data.frame(table(garden_current$redlist_used[match(unique(garden_current$AccNoFull), garden_current$AccNoFull)]))
-  if(ncol(redlistcat_accessions) != 2){redlistcat_accessions = data.frame(matrix(ncol = 2, nrow = 0))}
-  
-  names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
-  
-  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
-  redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
-  if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
-  
-  names(redlistcat_taxa) = c('RedListCategory', 'Accessions')
-  
-  
-  return(list(prov_items = prov_items,
-              prov_accessions = prov_accessions,
-              redlistcat_items = redlistcat_items,
-              redlistcat_accessions = redlistcat_accessions,
-              redlistcat_taxa = redlistcat_taxa))
-})
-prov_redlist_native_over_time = over_time_info
-
-```
-
-```{r, Provenance of native plants in the LC- change over time figures, fig.fullwidth=FALSE, fig.dim = c(10, 6), , eval = report_kind == 'static' & do_over_time}
-to_do = c('items', 'accessions')
-for(i in 1:length(to_do)){
-  # Get the data from over_time_info.
-  data_wanted = NULL
-  wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-  for(jj in 1:length(over_time_info)){
-    info_year = over_time_info[[jj]][[wanted_item]]
-    if(nrow(info_year) == 0){
-      next
-    }
-    prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-    info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                           info_year = info_year,
-                           prop = prop)
-    data_wanted = rbind(data_wanted, info_year)
-
-  }
-  names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-  data_wanted[,2] = as.character(data_wanted[,2])
-  # data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-  data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-  
-  
-    if(export_data){
-    item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-  exporting_data_store$AA = data_wanted
-  names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-    }
-  
-    p = ggplot(data_wanted, aes(fill=Provenance, y=prop, x=year)) + 
-    geom_bar(position="stack", stat="identity", width = 1) +
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = "Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance')))# +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Provenance of ", to_do[i] , " that are native in the LC over time"))
-    
-    if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Provenance_of_native_over_time', to_do[i] ,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-  print(p)
-
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of native species in the LC over time {.tabset}"}`
-
-`r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
-```{r  Provenance of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
-to_do = c('items', 'accessions')
-i=1
-
-# Get the data from over_time_info.
-data_wanted = NULL
-wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-for(jj in 1:length(over_time_info)){
-  info_year = over_time_info[[jj]][[wanted_item]]
-  if(nrow(info_year) == 0){
-    next
-  }
-  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                         info_year = info_year,
-                         prop = prop)
-  data_wanted = rbind(data_wanted, info_year)
-
-}
-names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-data_wanted[,2] = as.character(data_wanted[,2])
-# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-
-
-  if(export_data){
-  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-exporting_data_store$AA = data_wanted
-names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-  }
-
-
-text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
-data_wanted$text = text
-fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',
-               sort = FALSE)
-fig <- fig |> layout(yaxis = list(title = 'Percentage'),
-                     xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Provenance Type')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_item.html'))
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"###### Accessions"}`
-```{r  Provenance of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'& do_over_time}
-to_do = c('items', 'accessions')
-i=2
-
-# Get the data from over_time_info.
-data_wanted = NULL
-wanted_item = which(grepl('prov',names(over_time_info[[1]])) & grepl(to_do[i],names(over_time_info[[1]])) )
-for(jj in 1:length(over_time_info)){
-  info_year = over_time_info[[jj]][[wanted_item]]
-  if(nrow(info_year) == 0){
-    next
-  }
-  prop = round(info_year[,2] / sum(info_year[,2]) *100,digits = 3)
-  info_year = data.frame(year = rep(names(over_time_info)[jj], nrow(info_year)),
-                         info_year = info_year,
-                         prop = prop)
-  data_wanted = rbind(data_wanted, info_year)
-
-}
-names(data_wanted) = c('year', 'Provenance', 'Items', 'prop')
-data_wanted[,2] = as.character(data_wanted[,2])
-# data_wanted[,2]  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(data_wanted[,2], c('G', 'U', 'W', 'Z') )]
-data_wanted$year = as.numeric(stringr::str_extract(data_wanted$year,'[0-9]{4}'))
-
-
-  if(export_data){
-  item_name = paste0('Provenance_of_native_plants_in_the_LC_proportion_over_time_',to_do[i])
-exporting_data_store$AA = data_wanted
-names(exporting_data_store)[names(exporting_data_store) == 'AA'] = item_name
-  }
-
-
-text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
-data_wanted$text = text
-fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',
-               sort = FALSE)
-fig <- fig |> layout(yaxis = list(title = 'Percentage'),
-                     xaxis = list(title = "Year", hoverformat = 'Year: '),
-                     legend=list(title=list(text='Provenance Type')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-native_provenance_over_time_by_accession.html'))
-}
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
-
-
-***
-
-### Turnover of native plants
-
-This section looks at the turnover (gain/loss) of items and accessions of native plants in the LC.
-
-`r if(!do_over_time){"As we do not have information to explore the data over time we cannot perform turnover analysis."}`
-
-`r if(do_over_time){"We can also view the gain/loss of native items/accessions as a proportion of all gained/lost items each year. This will show if the incoming proportion of native plants was more or less than the proportion of native plants in the collection."}` 
-
-`r if(do_over_time){"##### Items"}`
-
-```{r, Native Turnover - Analyse items, eval = do_over_time}
-#Lost items
-lost_items = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_status_year = LC_native_over_time[which(LC_native_over_time$status_year == year),]
-  # Number of items lost.
-  lost_items = have_status_year[which(have_status_year$ItemStatusType == 'NotExisting'),]
-  no_lost_items = nrow(lost_items)
-  
-  return(c(year,no_lost_items))
-}))))
-names(lost_items) = c('Year', 'Number of items')
-row.names(lost_items) = 1:nrow(lost_items)
-
-# Gained items
-gain_items = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_accYear = LC_native_over_time[which(LC_native_over_time$AccYear == year),]
-
-  no_gain_items = nrow(have_accYear)
-  
-  return(c(year,no_gain_items))
-}))))
-names(gain_items) = c('Year', 'Number of items')
-row.names(gain_items) = 1:nrow(gain_items)
-
-# items
-items = data.frame(lost_items, gain_items[,2], gain_items[,2] - lost_items[,2])
-names(items) = c('Year', 'Number of lost items', 'Number of gained items', 'Net number of items')
-
-
-if(export_data){
-  exporting_data_store$Native_turnover_items = items
-}
-# DT::datatable(items, rownames = FALSE, caption = paste0('Native turnover (items)'),
-#               options = list(scrollX =  TRUE,
-#                              scrollY = '70vh',
-#                              pageLength =  min(nrow(items),200),
-#                              columnDefs = list(list(className = 'dt-center', targets = 0:3))
-#                              ),
-#               escape = FALSE)
-```
-
-
-```{r, Native Turnover - Gain/Loss items figures,  fig.fullwidth=FALSE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE, eval = report_kind == 'static' & do_over_time}
-dataA = data.frame(items[,c(1,2)], rep('Lost', nrow(items)))
-names(dataA) = LETTERS[1:3]
-dataB = data.frame(items[,c(1,3)], rep('Gain', nrow(items)))
-names(dataB) = LETTERS[1:3]
-items_data = rbind(dataA, dataB)
-
-p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
-  geom_line(aes(color=C)) +
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = paste0('Number of items')) +
-    guides(color=guide_legend(title=paste0('Gain/Loss'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Gain/Loss of native items in the LC over time"))
-  scale_color_manual(values=c("blue", "red"))
-  print(p)
-  
-  if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-  
-# Color based on value
-color <- ifelse(items$`Net number of items` < 0, "pink", "lightblue")
-
-p = ggplot(items, aes(x = Year, y = `Net number of items`)) +
-  geom_bar(stat = "identity",
-           show.legend = FALSE,
-           fill = color,      # Background color
-           color = "white") + # Border color
-  # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  labs(title="",
-      x ="Year",
-      y = paste0('Number of items')) #+
-  # theme(text = element_text(size=table_font_size)) +
-  # ggtitle(paste0("Net turnover of native items in the LC over time"))
-print(p)  
-
-  if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_net_turnover_items.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Gain/Loss"}`
-```{r  Gain/Loss of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-dataA = data.frame(items[,c(1,2)], rep('Lost', nrow(items)))
-names(dataA) = LETTERS[1:3]
-dataB = data.frame(items[,c(1,3)], rep('Gain', nrow(items)))
-names(dataB) = LETTERS[1:3]
-items_data = rbind(dataA, dataB)
-
-colors = c("lightblue", "pink")
-fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
-fig <- fig |> layout(yaxis = list(title = paste0("Number of items")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-Gain_Loss_of_native_items.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Net"}`
-```{r  Net turnover of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-colors = c("pink", "lightblue")
-color <- ifelse(items$`Net number of items` < 0, "pink", "lightblue")
-text = paste0('Net: ', items$`Net number of items`, '<br>',
-              'Gain: ', items$`Number of gained items`, '<br>',
-              'Loss: ', items$`Number of lost items`, '<br>'
-              )
-fig = plot_ly(items, x = ~Year, y = ~`Net number of items`, type = 'bar', hoverinfo = "text",  hovertext = text, color = color, colors = rev(colors), showlegend = FALSE)
-fig <- fig |> layout(yaxis = list(title = paste0("Net number of items")),
-                   xaxis = list(title = "Year"))
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_turnover_of_native_items.html'))
-}
-
-fig
-
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
-
-`r if(do_over_time){"As proportion of loss/gained items each year"}`
-
-```{r, Native Turnover - Gain/Loss items proportion data, message=FALSE, eval = do_over_time}
-lost_items_all = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_status_year = report[report$status_year == year,]
-  
-  # Number of items lost.
-  lost_items = have_status_year[have_status_year$ItemStatusType == 'NotExisting',]
-  no_lost_items = nrow(lost_items)
-  
-  return(c(year,no_lost_items))
-}))))
-names(lost_items_all) = c('Year', 'Number of items')
-row.names(lost_items_all) = 1:nrow(lost_items_all)
-
-# Gained items
-gain_items_all = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_accYear = report[report$AccYear == year,]
-
-  no_gain_items = nrow(have_accYear)
-  
-  return(c(year,no_gain_items))
-}))))
-names(gain_items_all) = c('Year', 'Number of items')
-row.names(gain_items_all) = 1:nrow(gain_items_all)
-
-# items
-items_all = data.frame(lost_items_all, gain_items_all[,2], gain_items_all[,2] - lost_items_all[,2])
-names(items_all) = c('Year', 'Number of lost items', 'Number of gained items', 'Net number of items')
-
-if(export_data){
-  exporting_data_store$Whole_LC_turnover_items = items_all
-}
-```
-
-```{r, Native Turnover - Gain/Loss items proportion figures, fig.fullwidth=TRUE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE,  eval = report_kind == 'static' & do_over_time}
-### Plot of proportion of gained items being native.
-plot_data = data.frame(year = gain_items$Year,
-                       native = gain_items$`Number of items`, 
-                       all = gain_items_all$`Number of items`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Items
-total_counts = LC_data$Items
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
- p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
-    geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
-   geom_point(aes(x = year, y = native_LC))+
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = "Native Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Proportion of gained items that are native in the LC over time"))
-      labs(caption = "Black points are proportion of items in the LC that are native each year.")
-  print(p)
-  
-      if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_gain_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-  
-### Plot of proportion of lost items being native.
-
-plot_data = data.frame(year = lost_items$Year,
-                       native = lost_items$`Number of items`, 
-                       all = lost_items_all$`Number of items`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Items
-total_counts = LC_data$Items
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
- p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
-    geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
-   geom_point(aes(x = year, y = native_LC))+
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = "Native Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Proportion of lost items that are native in the LC over time"))
-      labs(caption = "Black points are proportion of items in the LC that are native each year.")
-  print(p)
-
-        if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_loss_items_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures (proportion) {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Gain"}`
-```{r  Gain proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-### Plot of proportion of gained items being native.
-plot_data = data.frame(year = gain_items$Year,
-                       native = gain_items$`Number of items`, 
-                       all = gain_items_all$`Number of items`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Items
-total_counts = LC_data$Items
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
-fig = plot_ly(plot_data, x = ~year, y = ~prop_native, type = 'bar', name = '% Native items gained', marker = list(color = 'lightblue'))
-fig <- fig |> layout(yaxis = list(title = paste0("Native percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~native_LC, type = 'scatter', mode = 'markers', name = '% Native items in LC', marker = list(color = 'black'))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_native_items.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Loss"}`
-```{r  Loss proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-plot_data = data.frame(year = lost_items$Year,
-                       native = lost_items$`Number of items`, 
-                       all = lost_items_all$`Number of items`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Items
-total_counts = LC_data$Items
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
-fig = plot_ly(plot_data, x = ~year, y = ~prop_native, type = 'bar', name = '% Native items lost',  marker = list(color = 'pink'))
-fig <- fig |> layout(yaxis = list(title = paste0("Native percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~native_LC, type = 'scatter', mode = 'markers', name = '% Native items in LC',  marker = list(color = 'black'))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_native_items.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
-
-
-`r if(do_over_time){"##### Accessions"}`
-
-`r if(do_over_time){"We now create the same figures using accessions rather than items, where an accession is lost only when all the items from the accession are not existing. "}`
-
-```{r, Native Turnover - Analyse accessions, eval = do_over_time}
-
-accessions_alive = unique(LC_native_over_time$AccNoFull[LC_native_over_time$ItemStatusType == 'Existing'])
-accessions = LC_native_over_time[!LC_native_over_time$AccNoFull %in% accessions_alive,]
-
-# To reduce from items to accessions only use the most recent status_year
-accessions = accessions[rev(order(accessions$status_year)),]
-unique_accessions = unique(accessions$AccNoFull)
-accessions = accessions[match(unique_accessions, accessions$AccNoFull),]  
-
-
-#Lost accessions
-lost_accessions = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_status_year = accessions[which(accessions$status_year == year),]
-  
-  # Number of accessions lost.
-  lost_accessions = have_status_year[which(have_status_year$ItemStatusType == 'NotExisting'),]
-  no_lost_accessions = nrow(lost_accessions)
-  
-  return(c(year,no_lost_accessions))
-}))))
-names(lost_accessions) = c('Year', 'Number of accessions')
-row.names(lost_accessions) = 1:nrow(lost_accessions)
-
-# Gained accessions
-gain_accessions = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_accYear = accessions[which(accessions$AccYear == year),]
-
-  no_gain_accessions = nrow(have_accYear)
-  
-  return(c(year,no_gain_accessions))
-}))))
-names(gain_accessions) = c('Year', 'Number of accessions')
-row.names(gain_accessions) = 1:nrow(gain_accessions)
-
-# accessions
-accessions = data.frame(lost_accessions, gain_accessions[,2], gain_accessions[,2] - lost_accessions[,2])
-names(accessions) = c('Year', 'Number of lost accessions', 'Number of gained accessions', 'Net number of accessions')
-
-
-if(export_data){
-  exporting_data_store$Native_turnover_accessions = accessions
-}
-
-# DT::datatable(accessions, rownames = FALSE, caption = paste0('Native turnover (accessions)'),
-#               options = list(scrollX =  TRUE,
-#                              scrollY = '70vh',
-#                              pageLength =  min(nrow(accessions),200),
-#                              columnDefs = list(list(className = 'dt-center', targets = 0:3))
-#                              ),
-#               escape = FALSE)
-```
-
-```{r, Native Turnover - Gain/Loss accessions figures,  fig.fullwidth=FALSE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE, eval = report_kind == 'static' & do_over_time}
-dataA = data.frame(accessions[,c(1,2)], rep('Lost', nrow(accessions)))
-names(dataA) = LETTERS[1:3]
-dataB = data.frame(accessions[,c(1,3)], rep('Gain', nrow(accessions)))
-names(dataB) = LETTERS[1:3]
-accessions_data = rbind(dataA, dataB)
-
-p = ggplot(data=accessions_data, aes(x=A, y=B, group=C)) +
-  geom_line(aes(color=C)) +
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = paste0('Number of accessions')) +
-    guides(color=guide_legend(title=paste0('Gain/Loss'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Gain/Loss of native accessions in the LC over time"))
-  scale_color_manual(values=c("blue", "red"))
-  print(p)
-  
-  
-    if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_turnover_accessions.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-  
-# Color based on value
-color <- ifelse(accessions$`Net number of accessions` < 0, "pink", "lightblue")
-
-p = ggplot(accessions, aes(x = Year, y = `Net number of accessions`)) +
-  geom_bar(stat = "identity",
-           show.legend = FALSE,
-           fill = color,      # Background color
-           color = "white") + # Border color
-  # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-  labs(title="",
-      x ="Year",
-      y = paste0('Number of accessions')) #+
-  # theme(text = element_text(size=table_font_size))
-  # ggtitle(paste0("Net turnover of native accessions in the LC over time"))
-print(p)  
-
-    if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_net_turnover_accessions.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-```
-
-
-`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Gain/Loss"}`
-```{r  Gain/Loss of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-dataA = data.frame(accessions[,c(1,2)], rep('Lost', nrow(accessions)))
-names(dataA) = LETTERS[1:3]
-dataB = data.frame(accessions[,c(1,3)], rep('Gain', nrow(accessions)))
-names(dataB) = LETTERS[1:3]
-accessions_data = rbind(dataA, dataB)
-
-colors = c("lightblue", "pink")
-fig <- plot_ly(accessions_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
-fig <- fig |> layout(yaxis = list(title = paste0("Number of accessions")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-Gain_Loss_of_native_accessions.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Net"}`
-```{r  Net turnover of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-colors = c("pink", "lightblue")
-color <- ifelse(accessions$`Net number of accessions` < 0, "pink", "lightblue")
-text = paste0('Net: ', accessions$`Net number of accessions`, '<br>',
-              'Gain: ', accessions$`Number of gained accessions`, '<br>',
-              'Loss: ', accessions$`Number of lost accessions`, '<br>'
-              )
-fig = plot_ly(accessions, x = ~Year, y = ~`Net number of accessions`, type = 'bar', hoverinfo = "text",  hovertext = text, color = color, colors = rev(colors), showlegend = FALSE)
-fig <- fig |> layout(yaxis = list(title = paste0("Net number of accessions")),
-                   xaxis = list(title = "Year"))
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_turnover_of_native_accessions.html'))
-}
-
-fig
-
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
-
-`r if(do_over_time){"As proportion of loss/gained items each year"}`
-
-```{r, Native Turnover - Gain/Loss accessions proportion data, eval = do_over_time}
-accessions_all = report[rev(order(report$status_year)),]
-unique_accessions_all = unique(accessions_all$AccNoFull)
-accessions_all = accessions_all[match(unique_accessions_all, accessions_all$AccNoFull),]  
-
-
-lost_accessions_all = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_status_year = accessions_all[accessions_all$status_year == year,]
-  
-  # Number of accessions lost.
-  lost_accessions = have_status_year[have_status_year$ItemStatusType == 'NotExisting',]
-  no_lost_accessions = nrow(lost_accessions)
-  
-  return(c(year,no_lost_accessions))
-}))))
-names(lost_accessions_all) = c('Year', 'Number of accessions')
-row.names(lost_accessions_all) = 1:nrow(lost_accessions_all)
-
-# Gained accessions
-gain_accessions_all = data.frame(t(data.frame(lapply(years, function(year){
-  # Accessions for the year
-  have_accYear = accessions_all[accessions_all$AccYear == year,]
-
-  no_gain_accessions = nrow(have_accYear)
-  
-  return(c(year,no_gain_accessions))
-}))))
-names(gain_accessions_all) = c('Year', 'Number of accessions')
-row.names(gain_accessions_all) = 1:nrow(gain_accessions_all)
-
-# accessions
-accessions_all = data.frame(lost_accessions_all, gain_accessions_all[,2], gain_accessions_all[,2] - lost_accessions_all[,2])
-names(accessions_all) = c('Year', 'Number of lost accessions', 'Number of gained accessions', 'Net number of accessions')
-
-
-if(export_data){
-  exporting_data_store$Whole_LC_turnover_accessions = accessions_all
-}
-```
-
-```{r, Native Turnover - Gain/Loss accessions proportion figures, fig.fullwidth=TRUE, fig.dim = c(10, 4), results='hide',fig.keep='all', message=FALSE, eval = report_kind == 'static' & do_over_time}
-### Plot of proportion of gained accessions being native.
-
-plot_data = data.frame(year = gain_accessions$Year,
-                       native = gain_accessions$`Number of accessions`, 
-                       all = gain_accessions_all$`Number of accessions`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Accessions
-total_counts = LC_data$Accessions
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
- p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
-    geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
-   geom_point(aes(x = year, y = native_LC))+
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = "Native Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Proportion of gained accessions that are native in the LC over time"))
-      labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
-  print(p)
-  
-          if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_gain_accessions_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-  
-### Plot of proportion of lost accessions being native.
-
-plot_data = data.frame(year = lost_accessions$Year,
-                       native = lost_accessions$`Number of accessions`, 
-                       all = lost_accessions_all$`Number of accessions`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Accessions
-total_counts = LC_data$Accessions
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
- p = ggplot(plot_data, aes(y=prop_native, x=year)) + 
-    geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
-   geom_point(aes(x = year, y = native_LC))+
-    # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-    labs(title="",
-        x ="Year",
-        y = "Native Percentage (%)") +
-    guides(fill=guide_legend(title=paste0('Provenance'))) +
-    # theme(text = element_text(size=table_font_size)) +
-    # ggtitle(paste0("Proportion of lost accessions that are native in the LC over time"))
-      labs(caption = "Black points are proportion of accessions in the LC that are native each year.")
-  print(p)
-
-          if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Native_loss_accessions_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-```
-
-
-`r if(report_kind == 'interactive' & do_over_time){"#####  Turnover of native plants over time figures (proportion) {.tabset}"}`
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Gain"}`
-```{r  Gain proportion of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-### Plot of proportion of gained items being native.
-plot_data = data.frame(year = gain_accessions$Year,
-                       native = gain_accessions$`Number of accessions`, 
-                       all = gain_accessions_all$`Number of accessions`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Accessions
-total_counts = LC_data$Accessions
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
-fig = plot_ly(plot_data, x = ~year, y = ~prop_native, type = 'bar', name = '% Native accessions gained', marker = list(color = 'lightblue'))
-fig <- fig |> layout(yaxis = list(title = paste0("Native percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~native_LC, type = 'scatter', mode = 'markers', name = '% Native accessions in LC', marker = list(color = 'black'))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_native_accessions.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"###### Loss"}`
-```{r  Loss proportion of native accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive' & do_over_time}
-plot_data = data.frame(year = lost_accessions$Year,
-                       native = lost_accessions$`Number of accessions`, 
-                       all = lost_accessions_all$`Number of accessions`)
-plot_data$prop_native = round(plot_data$native / plot_data$all *100,digits=2)
-native_counts = native_data$Accessions
-total_counts = LC_data$Accessions
-plot_data$native_LC = round(native_counts / total_counts *100,digits=2)
-
-fig = plot_ly(plot_data, x = ~year, y = ~prop_native, type = 'bar', name = '% Native accessions lost',  marker = list(color = 'pink'))
-fig <- fig |> layout(yaxis = list(title = paste0("Native percentage")),
-                   xaxis = list(title = "Year"))
-fig <- fig |> add_trace(x = ~year, y = ~native_LC, type = 'scatter', mode = 'markers', name = '% Native accessions in LC',  marker = list(color = 'black'))
-fig <- fig |> layout(hovermode = 'x unified')
-
-if(separate_figure_folder){
- htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_native_accessions.html'))
-}
-
-fig
-```
-
-`r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
-
-
-***
-
-### Survival of native plants in the LC 
-
-```{r, survival analysis, echo = FALSE}
-# Remove those without accession year.
-do_survival = TRUE
-if(!do_over_time){
-  do_survival = FALSE
-}
-enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
-
-# Create a data-frame of the information we want.
-wanted_data = data.frame(enriched_report_wanted$TaxonNameFull, enriched_report_wanted$AccYear, enriched_report_wanted$ItemStatusDate, enriched_report_wanted$ItemStatusType)
-names(wanted_data) = c('TaxonNameFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
-
-wanted_data = wanted_data[!is.na(wanted_data$ItemStatusDate),]
-wanted_data = wanted_data[!is.na(wanted_data$AccYear),]
-if(nrow(wanted_data) == 0){
-  do_survival = FALSE
-}
-if(do_survival){
-  #Set accession date (just chose the first of June)
-pre_date = rep(NA, length(wanted_data$AccYear))
-pre_date = paste(wanted_data$AccYear, "06", "01", sep = "-")
-
-# Convert ItemStatusDate into all dates (i.e if month or day missing add one)
-post_date = rep(as.character(Sys.Date()), length(wanted_data$AccYear))
-post_date[which(wanted_data$ItemStatusType == "NotExisting")] = as.character(wanted_data$ItemStatusDate[which(wanted_data$ItemStatusType == 
-  "NotExisting")])
-
-post_date[which(stringr::str_length(post_date) == 4)] = paste(post_date[which(stringr::str_length(post_date) == 
-  4)], "12", "28", sep = "-")
-post_date[which(stringr::str_length(post_date) == 7)] = paste(post_date[which(stringr::str_length(post_date) == 
-  7)], "28", sep = "-")
-
-# Create the time difference between accession and ItemStatusDate.
-time = as.numeric(as.Date(post_date) - as.Date(pre_date)) /365.25
-
-# Create status to tell whether the last item status date was item death or just a check.
-status = rep(0,length(wanted_data$AccYear))
-status[wanted_data$ItemStatusType == 'NotExisting'] = 1
-
-wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
-                         StatusDate = post_date,
-                         time = time,
-                         Alive_dead = status)
-
-
-# We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
-missing_itemstatusdate_index = which(wanted_data$time > 0)
-wanted_data = wanted_data[missing_itemstatusdate_index,]
-enriched_report = enriched_report[missing_itemstatusdate_index,]
-
-
-## 1) Native or non-native (or doesn't have geography info.)
-location = location_code
-#Get which records are native.
-native_non_native = rep('Not Native',nrow(enriched_report))
-native_non_native[which(enriched_report$POWO_plant_name_id %in% native_plant_ids)] = 'Native'
-native_non_native[is.na(enriched_report$POWO_Dist_000_area_code_l3)] = NA
-
-data_to_analyse = data.frame(wanted_data$TaxonNameFull,
-                             wanted_data$time,
-                             wanted_data$Alive_dead,
-                             native_non_native)
-names(data_to_analyse) = c("TaxonNameFull", "time", "Alive_dead", "native_status")
-
-if(export_data){
-  exporting_data_store$Data_for_survival = data_to_analyse
-}
-}
-
-```
-
-In this section, we look at whether the survival period of native plants are longer than non-native plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
-
-`r if(FALSE){"Note that \"lifespan\" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not \"perfect\" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. "}`
-
-In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. )
-
-Since we only have the accession year we set the accession date to be the middle of the year (1st June).
-
-Native plants are any that are from `r location_name`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r location_name`. This means that we exclude plants not matched to WCVP for the comparison (cultivars, etc). 
- 
-`r if(do_survival){"Below we show the survival probability (Kaplan-Meier plots) for native and non-native plants."}`
-
-`r if(!do_survival){"Survival analysis cannot be performed. (This could be due to lack of accession year or item status date."}`
-
-```{r, survival analysis - figure, echo  = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), results='hide',fig.keep='all', message=FALSE, eval = do_survival}
-# Create Kaplan-Meier plots comparing native and not native
-p = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
-  ggsurvfit::ggsurvfit() +
-  ggplot2::labs(
-    x = "Years",
-    y = "Overall survival probability"
-  ) + 
-  ggsurvfit::add_confidence_interval()+
-    # theme(text = element_text(size=table_font_size))+
-  # labs(title=paste0("Survival probability of native and non native plants in the LC")) +
-  labs(caption = "Shaded region represents 95% confidence interval.") +
-  ggtheme() + scale_colour_discrete()
-
-if(report_kind == 'static'){
-  if(separate_figure_folder){
-  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','native_notnative_survival.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-  }
-  p
-} 
-```
-
-```{r survival_analysis - interactive figure, eval = do_survival}
-if(report_kind == 'interactive'){
-  fig = ggplotly(p)
-  fig$x$layout$title$text =''
-  fig$x$layout$legend$title$text = 'Type of Taxa'
-  fig$x$layout$hovermode = 'x unified'
-  fig$x$data[[2]]$name = 'Not Native'
-  fig$x$data[[2]]$legendgroup = 'Not Native'
-  fig$x$data[[1]]$name = 'Native'
-  fig$x$data[[1]]$legendgroup = 'Native'
-  fig$x$data[[4]]$hoverinfo = 'none'
-  fig$x$data[[3]]$hoverinfo = 'none'
-  
-  time_region = round(fig$x$data[[4]]$text |>
-    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
-    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
-    as.numeric(), digits = 3) 
-  lower_region = round(fig$x$data[[4]]$text |>
-    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
-    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
-    as.numeric()*100,digits = 2)
-  upper_region = round(fig$x$data[[4]]$text |>
-    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
-    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
-    as.numeric()*100, digits = 2)
-  time = round(fig$x$data[[2]]$x,digits = 3)
-  lower = lower_region[match(time, time_region)]
-  upper = upper_region[match(time, time_region)]
-  
-  fig$x$data[[2]]$text = paste0(#'Age (years): ',round(fig$x$data[[2]]$x,digits = ), '<br>',
-                                'Survival probability: ', round(fig$x$data[[2]]$y*100,digits = 2),'% <br>',
-                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
-  
-    time_region = round(fig$x$data[[3]]$text |>
-    stringr::str_extract(pattern = 'time:[ ]+[0-9\\.]+') |>
-    stringr::str_extract(pattern = '[0-9]+\\.[0-9]+') |>
-    as.numeric(), digits = 3) 
-  lower_region = round(fig$x$data[[3]]$text |>
-    stringr::str_extract(pattern = 'conf.low: [0-9\\.]+') |>
-    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
-    as.numeric()*100,digits = 2)
-  upper_region = round(fig$x$data[[3]]$text |>
-    stringr::str_extract(pattern = 'conf.high: [0-9\\.]+') |>
-    stringr::str_extract(pattern = '[01]\\.[0-9]+') |>
-    as.numeric()*100, digits = 2)
-  time = round(fig$x$data[[1]]$x,digits = 3)
-  lower = lower_region[match(time, time_region)]
-  upper = upper_region[match(time, time_region)]
-  
-  fig$x$data[[1]]$text = paste0('Age (years): ',round(fig$x$data[[1]]$x,digits = ), '<br>',
-                                'Survival probability: ', round(fig$x$data[[1]]$y*100,digits = 2),'% <br>',
-                                '95% confidence Interval: (', lower,'%, ', upper, '%)')
-  
-  if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Native_survival_analysis.html'))
-}
-
-fig
-}
-```
-
-`r if(do_survival){"Next we give the survival probability for 10-year intervals."}`
-
-```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
-# We can also get survival probabilities in a table
-# 
-ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
-  gtsummary::tbl_survfit(
-    times = c(2,5,10),
-    label_header = "{time}-year survival (95% CI)")
-
-ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
-  gtsummary::tbl_survfit(
-    times = c(25,50,100),
-    label_header = "{time}-year survival (95% CI)")
-# ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ native_status, data = data_to_analyse) |> 
-#   gtsummary::tbl_survfit(
-#     times = c(70,80,90),
-#     label_header = "{time}-year survival (95% CI)")
-```
 
 
 ```{r, export data, echo = FALSE}
@@ -2992,4 +3142,3 @@ for(i in 1:length(datas)){
 saveWorkbook(wb, file = file)
 
 ```
-***

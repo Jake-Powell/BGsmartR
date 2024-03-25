@@ -360,7 +360,6 @@ match_collection_to_enrich_database <- function(collection, enrich_database,
 
   ################################################
   # 7) If the matched author is different after exact matching try to find a similar taxon name.
-  # THIS NEEDS CHECKING.
   ################################################
   if(do_taxon_author){
     # Find the records which have disagreeing authors.
