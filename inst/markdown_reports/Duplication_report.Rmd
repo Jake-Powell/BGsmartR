@@ -3,6 +3,8 @@ title: "Duplication and rarity at the global and local scales"
 output: html_document
 ---
 
+###### {-} 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(plotly)
@@ -11,6 +13,24 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
+color_binary <- rev(c('#f46d43', '#e6e6e6'))
+palette = 'Oranges'
+```
+
+```{css, echo=FALSE}
+.boxBorder {
+     border: 2px solid #990066;
+     padding: 20px;
+     outline: #990066 solid 1px;
+   }
 ```
 
 ```{r, imported parameters}
@@ -21,12 +41,13 @@ library(ggrepel)
 # separate_figure_folder = FALSE
 # output_dir = '/Users/jakepowell/Desktop/Reports/ICCP at Royal Botanic Gardens Edinburgh'
 # report_kind = 'static'
-# ggtheme = NULL
+ggtheme = NULL
 # value_on_fig = TRUE
-# min_year = 1970
-# join_bigger_than = 4
+min_year = 1970
+join_bigger_than = 4
 # export_data  =T
 # save_excel = T
+bru_codes = NA
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -65,6 +86,102 @@ scale_fill_discrete <- scale_fill_discrete
 scale_fill_binned <- scale_fill_binned
 ```
 
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+ location_type_text = paste0(location_type_text, 'naturally occurring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+   location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+   location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+```{r, Find LC location, echo = FALSE}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+
+
+
+# If we are given bru_codes set the location codes to these. 
+coord_location = location_code
+coord_name = location_name
+
+if(!is.na(bru_codes[1])){
+  location_code = bru_codes
+  location_name = wgsrpd3$LEVEL3_NAM[match(bru_codes, wgsrpd3$LEVEL3_COD)]
+  collection_geog_details = wgsrpd3[match(bru_codes, wgsrpd3$LEVEL3_COD),-5]
+}
+
+```
+
 `r if(any(!c('no_gardens','AccNoFull') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
 
 `r if(!'no_gardens' %in% names(enriched_report)){"- no_gardens: cannot perform global scale analysis.\n"}`
@@ -80,9 +197,9 @@ report = enriched_report
 no_records = nrow(report)
 
 # Reduce the report to existing (non-cultivars or hybrids)
-index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
-no_want = length(index_want)
-report = report[index_want,]
+# index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
+# no_want = length(index_want)
+# report = report[index_want,]
 
 # Get the best name from POWO first o/w original report.
 report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
@@ -94,8 +211,6 @@ report$powo_name = powo_name
 best_name = powo_name
 best_name[which(is.na(best_name))] = report$good_name[which(is.na(best_name))]
 report$best_name =best_name
-
-
 
 #Extract endemic information from enriched_report
 endemic = rep('Not Endemic', nrow(report))
@@ -112,8 +227,18 @@ threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
 report$threatened = threatened
 rm(threatened)
 
+# Extract native.
+nativeo = rep('Not Native', nrow(report))
+native_index = grepl(location_code,report$geography_codes)
+nativeo[native_index] = 'Native'
+report$native = nativeo
+rm(nativeo)
+
 #Select columns of interest
-interest = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'no_gardens', 'endemic', 'threatened'), names(report))]
+report = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'best_name', 'no_gardens', 'endemic', 'threatened', 'native', 'ItemStatusType', 'taxon_type', 'AccYear'), names(report))]
+index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
+no_want = length(index_want)
+interest = report[index_want,]
 
 # Create a column with the name if we want to print the taxa. (latin words with italic, others plain.)
 print_name = interest$sanitised_taxon
@@ -156,7 +281,7 @@ writexl::write_xlsx(deaccessioning_list_format, path =paste0(output_dir,'/',coll
 
 # -Sheet of taxa in 0-10 LCs including at least taxon name according to POWO, original name, and accession number. Can these be fake rare taxa (typos, non-matching names)? If so, add warning to plot and management sheet.
 
-rare_global_list = interest[which(interest$no_gardens <= 10),]
+rare_global_list = interest[which(interest$no_gardens <= 10 | is.na(interest$no_gardens)),]
 rare_global_list$match_powo_issue = rare_global_list$POWO_taxon_name == rare_global_list$POWO_taxon_name
 rare_global_list$match_powo_issue[is.na(rare_global_list$match_powo_issue)] = FALSE
 
@@ -209,27 +334,31 @@ Moreover, where possible we will use the taxonomic name from matching to POWO on
 
 `r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the LC classed as very rare (<= 10 LCs globally) where the original taxonomic name from the report and POWO's taxonomic name differ. See 'rare global list' management sheet for further detail.")}`
 
-`r if(do_global){"Below we show the number of taxa in the LC against the number of sites the taxa is held globally. \n"}`
+`r if(do_global){"Below we show the number of taxa in the LC against the number of sites the taxa is held globally. This is shown for all taxa as well as key collections - threatened, endemic, native. \n"}`
 
 
 ```{r, taxa in collection against how many sites globally - data, eval = do_global}
 # only unique records.
 report_unique = unique(interest[,-1]) # Remove the accession number as it's not needed for unique species.
+report_unique = interest[match(unique(interest$best_name), interest$best_name),]
 no_unique_records = nrow(report_unique)
 report_unique$no_gardens[is.na(report_unique$no_gardens)] = 0
 
 # Reduce report unique by the number in each.
-report_unique$count = rep(1,nrow(report_unique))
+# report_unique$count = rep(1,nrow(report_unique))
 data_plot <- report_unique |>
     dplyr::group_by(.data$no_gardens) |>
-    dplyr::summarise(plants = toString(.data$sanitised_taxon),
-                     no_species_in_garden = sum(.data$count),
-                     one_plant = .data$sanitised_taxon[1]
+    dplyr::summarise(plants = toString(sanitised_taxon),
+                     one_plant = sanitised_taxon[1],
+                     no_species_in_garden = length(no_gardens),
+                     threatened = sum(threatened == 'Threatened'),
+                     endemic = sum(endemic == 'Endemic'),
+                     native = sum(native == 'Native'),
     ) |>
-    dplyr::ungroup() 
+    dplyr::ungroup() |> as.data.frame()
 
 # data formatted if we want to export/save it.
-globally_held_taxa = data_plot[,c(1,3,4,2)]
+globally_held_taxa = data_plot[,c(1,4,3,2)]
 names(globally_held_taxa) = c("Number of global LCs", "Number of species in LC", "Example taxa", "All taxa")
 
 ```
@@ -268,60 +397,139 @@ if(report_kind == 'static'){
 
 ```{r, taxa in collection against how many sites globally - interactive figure, fig.dim = c(10, 4), eval = do_global}
 if(report_kind == 'interactive'){
-  text = paste0(data_plot$no_species_in_garden, ' species in the garden are found in ', data_plot$no_gardens, ' collections globally. <br> For example: ', data_plot$one_plant)
 
-fig <- plot_ly(data_plot, x = ~no_gardens, y = ~no_species_in_garden, 
-         type = 'scatter',  mode = 'markers', hoverinfo = "text",  hovertext = text, colors = rgb(0,0,0,alpha=0.7), color = 'color')
+figs = list()
+for(i in 4:ncol(data_plot)){
+    text = paste0(as.vector(data_plot[,i]), ' ', rep(names(data_plot)[i],nrow(data_plot)), ' species in the garden are found in ', data_plot$no_gardens, ' collections globally')
+  if(i == 4){
+     text = paste0(data_plot$no_species_in_garden, ' species in the garden are found in ', data_plot$no_gardens, ' collections globally. <br> For example: ', data_plot$one_plant)
+  }
+    data_plot_cur = data_plot
+    data_plot_cur$text = text
+  data_plot_cur = data_plot_cur[data_plot_cur[,i] != 0,]  
+  
+  fig <- plot_ly(data_plot_cur, x = ~no_gardens, y = data_plot_cur[,i], 
+         type = 'scatter',  mode = 'markers', hoverinfo = "text",  hovertext = ~text, colors = rgb(0,0,0,alpha=0.7), color = 'color')
 fig <- fig |> layout(title = "",
   xaxis = list(title = "Number of LCs holding the taxa worldwide"),
   yaxis = list (title = "Number of taxa grown at the collection")) 
 fig <- layout(fig,
              shapes = list(
                list(type = "rect",
+                    fillcolor = "#f46d43", line = list(color = "#f46d43"), opacity = 0.3,
+                    x0 = 0, x1 = 1.5, xref = "x",
+                    y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
+               list(type = "rect",
                     fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
-                    x0 = 0, x1 = 10.5, xref = "x",
-                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+                    x0 = 1.5, x1 = 10.5, xref = "x",
+                    y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                 list(type = "rect",
                     fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
                     x0 = 10.5, x1 = 50.5, xref = "x",
-                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+                    y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                list(type = "rect",
                     fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
                     x0 = 50.5, x1 = 100.5, xref = "x",
-                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y"),
+                    y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                 list(type = "rect",
                     fillcolor = "#d9f0a3", line = list(color = "#d9f0a3"), opacity = 0.3,
                     x0 = 100.5, x1 = max(data_plot$no_gardens), xref = "x",
-                    y0 = 0, y1 = max(data_plot$no_species_in_garden), yref = "y")               
+                    y0 = 0, y1 = max(data_plot[,i]), yref = "y")               
               ))
 
 if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Scatter-grown_in_LC_against_global.html'))
 }
+figs[[i-3]] = fig
+}
+names(figs) = c('all',names(data_plot)[5:ncol(data_plot)])
 
-fig
+# figs$all
 }
 ```
+
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
+
+```{r detailed rarity  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$all
+```
+
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r detailed rarity threatened  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$threatened
+```
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r detailed rarity endemic  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$endemic
+```
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r detailed rarity native  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$native
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
 
 
 Next we group taxa by the number of collections they are found in globally. These are:
 
-- **Very Rare**: found in 10 or less collections.
+- **Unique**: found in 0 or 1 collection.
+- **Very Rare**: found in between 2 and 10 collections.
 - **Rare**: found in between 11 and 50 collections.
 - **Common**: found in between 51 and 100 collections.
 - **Very Common**: found in more than 100 collections.
 
+Moreover, we do this for all taxa in the collection as well as the key collections (threatened, endemic and native). 
+
 Rarity of species at the LC
 
 ```{r, grouped rarity - data, fig.dim = c(10, 4), eval = do_global}
-v_rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 0:10])  
+counter <- 1
+columns = names(data_plot)[4:ncol(data_plot)]
+plot_data = lapply(columns, function(column){
+  unique_ = sum(data_plot[[column]][data_plot$no_gardens %in% 0:1])
+  v_rare = sum(data_plot[[column]][data_plot$no_gardens %in% 2:10])  
+  rare = sum(data_plot[[column]][data_plot$no_gardens %in% 11:50]) 
+  common = sum(data_plot[[column]][data_plot$no_gardens %in% 51:100]) 
+  v_common = sum(data_plot[[column]][data_plot$no_gardens %in% 100:1500])
+  
+  doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
+                        no_items = c(unique_, v_rare, rare, common, v_common),
+                        color = c("#f46d43",'#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+doughnut_data$percent = round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1)
+doughnut_data$type = rep(column, nrow(doughnut_data))
+doughnut_data
+})
+plot_data = do.call('rbind',plot_data)
+plot_data$type[plot_data$type == "no_species_in_garden"] = 'all'
+plot_data$rarity = factor(plot_data$rarity, levels = unique(plot_data$rarity))
+plot_data$type = stringr::str_to_title(plot_data$type)
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_items,') of taxa are classed as ',plot_data$rarity,'' )
+hor_stack_bar_plot = plot_ly(plot_data,
+                             type = 'bar',
+                             y = ~type,
+                             x = ~percent,
+                             color = ~rarity,
+                             colors = unique(plot_data$color),
+                             orientation = 'h',
+                            hovertext = ~hover, hoverinfo = 'text')
+hor_stack_bar_plot_acc <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
+                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
+
+
+unique_ = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 0:1])
+v_rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 2:10])  
 rare = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 11:50]) 
 common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 51:100]) 
 v_common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 100:1500]) 
 
-doughnut_data = data.frame(rarity = c('Very Rare', 'Rare', 'Common', 'Very Common'),
-                        no_items = c(v_rare, rare, common, v_common),
-                        color = c('#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
+                        no_items = c(unique_, v_rare, rare, common, v_common),
+                        color = c("#f46d43",'#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
 doughnut_data$percent = paste0(round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1),'%')
 
 
@@ -388,7 +596,7 @@ if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-grouped_global_rarity.html'))
 }
 
-fig
+hor_stack_bar_plot_acc
 }
 
 ```
@@ -398,590 +606,942 @@ fig
 
 ## Duplication in the LC
 
-### Number of accessions per taxa
+Top 20 most common taxa (removing cultivars and hybrids) in the collection
+
+```{r, Headline table and stats}
+taxa_count = sort(table(interest$best_name), decreasing = T)
+rare = interest$no_gardens ==1 
+not_in_no_gardens = is.na(interest$no_gardens )
+unique_in_collection = names(taxa_count)[which(taxa_count == 1)]
+unique = interest$best_name %in% unique_in_collection
+
+unique_records = interest[which(rare & unique),]
+unique_not_in_BGCI = interest[which(not_in_no_gardens & unique),]
+no_unique = nrow(unique_records)
+no_unique_not_in_BGCI = nrow(unique_not_in_BGCI)
+
+unique_sum = data.frame(name = unique_records$best_name, in_BGCI = 'True')
+unique_not_in_sum = data.frame(name = unique_not_in_BGCI$best_name, in_BGCI = 'False')
+
+most_rare = rbind(unique_sum, unique_not_in_sum)
+names(most_rare) = c('Taxa', "Is in BGCI's PlantSearch?")
+ most_rare_table = DT::datatable(data = most_rare, rownames = FALSE, options = list(dom = 'tp',pageLength =  10))
+ 
+ 
+most_common = data.frame(taxa_count[1:20])
+names(most_common) = c('Taxa', 'Number of Individuals in the LC')
+  most_common_table = DT::datatable(data = most_common, rownames = FALSE, options = list(dom = 'tp',pageLength =  5))
+
+```
+
+`r most_common_table`
+
+In the LC there are `r no_unique +  no_unique_not_in_BGCI` taxa that are unique to the collection (either not contained (`r no_unique_not_in_BGCI`) or belongs to a single garden in BGCI's PlantSearch (`r no_unique`)) and only a single individual exists in the collection. There are shown in the table below. 
+
+`r most_rare_table`
+
+Further information (such as accession number, threatened status, etc) can be found in 'rare_global_list.xlsx'. management sheet. 
+
+
+```{r}
+count_per_taxa <- interest |>
+  dplyr::group_by(.data$best_name) |>
+  dplyr::summarise(Accessions = length(unique(.data$AccNoFull)),
+                   items = length(.data$AccNoFull),
+                   Threatened = .data$threatened[1],
+                   endemic = .data$endemic[1]) |>
+  dplyr::ungroup()
+
+#Accessions
+column = 'items'
+# All
+all = table(count_per_taxa[[column]])
+all_big_20 = sum(all[as.numeric(names(all))>=20])
+all_simp = data.frame(all[as.numeric(names(all))<20])
+names(all_simp) = c('Accessions', 'Taxonomic Names')
+all_simp$Accessions = as.numeric(all_simp$Accessions)
+all_simp[nrow(all_simp)+1,] = c(20, all_big_20)
+
+# threat
+threat = table(count_per_taxa[[column]][count_per_taxa$Threatened == 'Threatened'])
+threat_big_20 = sum(threat[as.numeric(names(threat))>=20])
+threat_simp = data.frame(threat[as.numeric(names(threat))<20])
+names(threat_simp) = c('Accessions', 'Taxonomic Names')
+threat_simp$Accessions = as.numeric(threat_simp$Accessions)
+threat_simp[nrow(threat_simp)+1,] = c(20, threat_big_20)
+
+# endemic
+endemic = table(count_per_taxa[[column]][count_per_taxa$endemic == 'Endemic'])
+endemic_big_20 = sum(endemic[as.numeric(names(endemic))>=20])
+endemic_simp = data.frame(endemic[as.numeric(names(endemic))<20])
+names(endemic_simp) = c('Accessions', 'Taxonomic Names')
+endemic_simp$Accessions = as.numeric(endemic_simp$Accessions)
+endemic_simp[nrow(endemic_simp)+1,] = c(20, endemic_big_20)
+
+# combine 
+accessions = 1:20
+no_values = data.frame(all_taxa = rep(0, length(accessions)), threat = 0, endemic = 0)
+no_values$all_taxa[match(all_simp$Accessions, accessions)] = all_simp$`Taxonomic Names`
+no_values$threat[match(threat_simp$Accessions, accessions)] = threat_simp$`Taxonomic Names`
+no_values$endemic[match(endemic_simp$Accessions,accessions)] = endemic_simp$`Taxonomic Names`
+
+densities = lapply(no_values, function(x){ x/sum(x)*100}) |> data.frame() #|> t() |> data.frame()
+names(densities) = c('all_den', 'threat_den', 'endemic_den')
+cum_densities = lapply(no_values, function(x){ cumsum(x)/max(cumsum(x))}) |> data.frame() #|> t() |> data.frame()
+names(cum_densities) = c('all_cum_den', 'threat_cum_den', 'endemic_cum_den')
+
+plot_data = data.frame(accessions, cum_densities)
+
+   dd = reshape(plot_data, idvar = "Items", varying = list(2:ncol(plot_data)),
+                 v.names = "count", timevar = "group", times = names(plot_data)[-1], direction = "long")
+    # dd$group = factor(dd$group, levels = c('Threatened', 'Not Threatened' ))
+    p=ggplot(dd, aes(x = Items, y = count, color = group, linetype = group))+
+      geom_line(aes(linetype = group), linewidth = 1.1) +
+      # scale_color_manual(values = c(colours[1:3]))+
+      # scale_linetype_manual(values = c(1,1,1,1)) +
+      labs(x = 'Number of individuals per species', y = '% of species', caption = '') +
+      labs(color  = "", linetype = "") +
+      scale_y_continuous(label = scales::label_number(suffix = ""))+
+      scale_x_continuous(
+        breaks = c(1,5,10,15,20),
+        labels = ~ ifelse(.x == 20, paste0(.x, '+'), .x)) + 
+      theme(
+        legend.position = c(0.85, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)
+      )
+
+```
+
+
+### Duplication of taxa
+
+In this section we explore the duplication of taxa in the collection across both individuals and accessions. 
 
 ```{r, number of accessions per taxa - data}
 # Reduced to only unique accessions.
 accessions = interest[match(unique(interest$AccNoFull),interest$AccNoFull),]
 
 # Get a vector of all the plant names in unique accessions and work out frequencies. 
-taxa_no_accessions = table(accessions$good_name)
-taxa_no_accessions = data.frame(taxa = names(taxa_no_accessions), no_accessions = as.numeric(taxa_no_accessions))
-taxa_no_accessions = taxa_no_accessions[order(taxa_no_accessions$no_accessions,decreasing = T),]
+# taxa_no_accessions = table(accessions$good_name)
+# taxa_no_accessions = data.frame(taxa = names(taxa_no_accessions), no_accessions = as.numeric(taxa_no_accessions))
+# taxa_no_accessions = taxa_no_accessions[order(taxa_no_accessions$no_accessions,decreasing = T),]
 
-# Group the number of species by the number of accessions they have. 
-accession_taxa = table(taxa_no_accessions$no_accessions)
+accession_taxa_group = accessions |> dplyr::group_by(best_name) |>
+  dplyr::summarise(threatened = .data$threatened[1],
+                   endemic = .data$endemic[1],
+                   native = .data$native[1],
+                   total = length(.data$best_name)
+                   )
+
+# Group the number of taxa by the number of accessions they have. 
+accession_taxa = table(accession_taxa_group$total)
 accession_taxa = data.frame(total_accessions = as.numeric(names(accession_taxa)), 
                             no_species = as.numeric(accession_taxa))
+top_name = accession_taxa_group$best_name[which(accession_taxa_group$total == max(accession_taxa$total_accessions))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
 
-top_name = taxa_no_accessions$taxa[taxa_no_accessions$no_accessions == max(accession_taxa$total_accessions)][1]
-top_name = interest$print_name[match(top_name,interest$good_name)]
+# Group the number of threatened taxa by the number of accessions they have 
+acc_threat = accession_taxa_group[accession_taxa_group$threatened =='Threatened',]
+accession_taxa_threat = table(acc_threat$total)
+accession_taxa_threat = data.frame(total_accessions = as.numeric(names(accession_taxa_threat)), 
+                            no_species = as.numeric(accession_taxa_threat))
+top_name_threat = acc_threat$best_name[which(acc_threat$total == max(accession_taxa_threat$total_accessions))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of endemic taxa by the number of accessions they have 
+acc_endemic = accession_taxa_group[accession_taxa_group$endemic =='Endemic',]
+accession_taxa_endemic = table(acc_endemic$total)
+accession_taxa_endemic = data.frame(total_accessions = as.numeric(names(accession_taxa_endemic)), 
+                            no_species = as.numeric(accession_taxa_endemic))
+top_name_endemic = acc_endemic$best_name[which(acc_endemic$total == max(accession_taxa_endemic$total_accessions))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of native taxa by the number of accessions they have 
+acc_nat = accession_taxa_group[accession_taxa_group$native =='Native',]
+accession_taxa_nat = table(acc_nat$total)
+accession_taxa_nat = data.frame(total_accessions = as.numeric(names(accession_taxa_nat)), 
+                            no_species = as.numeric(accession_taxa_nat))
+top_name_nat = acc_nat$best_name[which(acc_nat$total == max(accession_taxa_nat$total_accessions))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+accession_taxa_all_type = list(all = accession_taxa,
+                               threatened = accession_taxa_threat,
+                               endemic = accession_taxa_endemic,
+                               native = accession_taxa_nat
+                               )
+
 
 # data formatted if we want to export/save it.
 Local_accession_taxa = accession_taxa
 Local_accession_taxa$percent = paste0(round(Local_accession_taxa$no_species / sum(Local_accession_taxa$no_species)*100,digits = 2),'%')
 names(Local_accession_taxa) = c("Number of Accessions in LC", "Number of species in LC", "Percentage")
-```
 
-```{r, number of accessions per taxa - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
-p<-ggplot(data=accession_taxa, aes(x=total_accessions, y=no_species+0.01)) +
-geom_bar(stat="identity") +
-   labs(title=paste0(""),
-      x ="Number of Accessions",
-      y = "Number of Taxa")
-p = p + scale_y_continuous(trans='log10', expand = expansion(mult = c(0.01, .1)))
-p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0)), n.breaks = 10)
 
-if(value_on_fig){
-  p = p +geom_text(aes(label = no_species),vjust=-0.2)
-}
-
-if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar-accessions_per_taxa.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-```
-
-```{r, number of accessions per taxa - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-accession_taxa$text = paste0(accession_taxa$no_species, ' Taxa in the LC have ', accession_taxa$total_accessions, ' accessions')
-
-fig <- plot_ly(accession_taxa, x = ~total_accessions, y = ~no_species, type = "bar",  hoverinfo = "text",  hovertext = ~text)
-
+## Create number of taxa against number of accessions for each key collection and all. 
+counter <- 1
+figs_acc = lapply(accession_taxa_all_type, function(accession_taxa){
+  accession_taxa$text = paste0(accession_taxa$no_species, ' Taxa in the LC have ', accession_taxa$total_accessions, ' accessions')
+fig <- plot_ly(accession_taxa,
+               x = ~total_accessions,
+               y = ~no_species,
+               type = "bar",
+               hoverinfo = "text",
+               hovertext = ~text,
+               marker = list(color = interactive_colour(1))
+)
 fig <- fig |> layout(title = "",
-         xaxis = list(title = "Number of Accessions"),
-         yaxis = list (title = "Number of Taxa", type = 'log')) 
-
+         xaxis = list(title = "Number of accessions"),
+         yaxis = list (title = paste0("Number of ",names(accession_taxa_all_type)[counter] ," taxa"), type = 'log')) 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-accessions_per_taxa.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-accessions_per_taxa_',names(accession_taxa_all_type)[counter],'.html'))
 }
-
+counter <<- counter + 1
 fig
+})
+
+## Create horizontal stacked bar for key collection and all in one plot. 
+counter <- 1
+plot_data = lapply(accession_taxa_all_type, function(d){
+partA = d[match(c(1,2,3,4),d$total_accessions),]
+four_plus = sum(d$no_species[as.numeric(d$total_accessions)>4])
+data_supp = rbind(partA, c('>4',four_plus))
+data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+data_supp$type = names(accession_taxa_all_type)[counter]
+counter <<- counter+1
+
+data_supp
+})
+plot_data = do.call('rbind',plot_data)
+plot_data$total_accessions = factor(plot_data$total_accessions, levels = c(1,2,3,4,'>4'))
+plot_data$type = stringr::str_to_title(plot_data$type)
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of taxa have ',plot_data$total_accessions,' accession/s.' )
+hor_stack_bar_plot = plot_ly(plot_data,
+                             type = 'bar',
+                             y = ~type,
+                             x = ~percent,
+                             color = ~total_accessions,
+                             colors = scales::brewer_pal(palette = palette, direction = 1)(5),
+                             orientation = 'h',
+                            hovertext = ~hover, hoverinfo = 'text')
+hor_stack_bar_plot_acc <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
+                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 ```
 
-Statistics from number of accessions per taxa:
+```{r, number of items per taxa - data}
+# Reduced to only unique accessions.
+items = interest
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name`**. 
-- The mean number of accessions per taxa is **`r round(mean(taxa_no_accessions$no_accessions),digits=2)`**.
-- The median number of accessions per taxa is **`r median(taxa_no_accessions$no_accessions)`**.
-- **`r format(accession_taxa$no_species[accession_taxa$total_accessions == 1], big.mark =',')`** taxa have a single accession.
+# Get a vector of all the plant names in unique accessions and work out frequencies. 
+# taxa_no_accessions = table(accessions$good_name)
+# taxa_no_accessions = data.frame(taxa = names(taxa_no_accessions), no_accessions = as.numeric(taxa_no_accessions))
+# taxa_no_accessions = taxa_no_accessions[order(taxa_no_accessions$no_accessions,decreasing = T),]
 
+item_taxa_group = items |> dplyr::group_by(best_name) |>
+  dplyr::summarise(threatened = .data$threatened[1],
+                   endemic = .data$endemic[1],
+                   native = .data$native[1],
+                   total = length(.data$best_name)
+                   )
 
-Number of accessions per taxa 
-
-```{r simplify accessions per taxa for donut chart}
-doughnut_data =  accession_taxa[,1:2]
-species_big_than = sum(doughnut_data$no_species[doughnut_data$total_accessions > join_bigger_than])
-doughnut_data = doughnut_data[doughnut_data$total_accessions <=join_bigger_than,]
-doughnut_data[nrow(doughnut_data)+1,] = c(paste0('> ',join_bigger_than), species_big_than)
-doughnut_data$no_species = as.numeric(doughnut_data$no_species)
-
-doughnut_data$percent = paste0(round(doughnut_data$no_species / sum(doughnut_data$no_species)*100,digits = 1),'%')
-
-# data formatted if we want to export/save it.
-Local_accession_taxa_simp = doughnut_data
-names(Local_accession_taxa_simp) = c("Number of Accessions in LC", "Number of species in LC", "Percentage")
-```
-
-```{r Doughnut chart accessions per taxa - static figure, fig.dim = c(10, 4),  eval = report_kind == 'static'}
-doughnut_data <- doughnut_data |> 
-dplyr::mutate(csum = rev(cumsum(rev(no_species))), 
-       pos = no_species/2 + dplyr::lead(csum, 1),
-       pos = dplyr::if_else(is.na(pos), no_species/2, pos))
-
-
-p = ggplot(doughnut_data, aes(x="", y=no_species, fill=forcats::fct_inorder(total_accessions))) +
-geom_bar(stat="identity", width=1, color="white") +
-# ggtheme(base_size = 18) +
-coord_polar("y", start=0) +
-ggtitle('') +
-theme(axis.line=element_blank(),
-      axis.text.x=element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks=element_blank(),
-      axis.title.x=element_blank(),
-      axis.title.y=element_blank(),
-      panel.background=element_blank(),
-      panel.border=element_blank(),
-      panel.grid.major=element_blank(),
-      panel.grid.minor=element_blank(),
-      plot.background=element_blank(),
-      plot.title = element_text(hjust = 0.5)) +
-  guides(fill=guide_legend(title="Number of \n accessions"))
-
-if(value_on_fig){
-  p = p + geom_label_repel(aes(y = pos,label = percent),
-      size = 3.5, nudge_x = 1.2, show.legend = FALSE, fill = "white")
-}
-
-
-if(separate_figure_folder){
- ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-number_of_accessions_per_taxa.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-```
-
-```{r Doughnut chart accessions per taxa - interactive figure, fig.dim = c(10, 4),  eval = report_kind == 'interactive'}
-text = paste0('Accessions = ',doughnut_data$total_accessions, '<br>',
-             'Taxa = ',doughnut_data$no_species, '<br>')
-             
-fig <- plot_ly(doughnut_data, labels = ~total_accessions, values = ~no_species, hoverinfo = "text",  hovertext = text)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",  showlegend = F,
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-accessions_per_taxa.html'))
-}
-
-fig
-```
-
-
-***
-
-### Number of items per taxa
-
-```{r, number of items per taxa - data, echo = FALSE}
-taxa = table(interest$good_name)
-data_cur = data.frame(taxa = names(taxa), no_items = as.numeric(taxa))
-
-item_taxa = table(data_cur$no_items)
+# Group the number of taxa by the number of items they have. 
+item_taxa = table(item_taxa_group$total)
 item_taxa = data.frame(total_items = as.numeric(names(item_taxa)), 
                             no_species = as.numeric(item_taxa))
+top_name = item_taxa_group$best_name[which(item_taxa_group$total == max(item_taxa$total_items))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
 
-top_name = data_cur$taxa[data_cur$no_items == max(item_taxa$total_items)][1]
-top_name = interest$print_name[match(top_name,interest$good_name)]
+# Group the number of threatened taxa by the number of items they have 
+acc_threat = item_taxa_group[item_taxa_group$threatened =='Threatened',]
+item_taxa_threat = table(acc_threat$total)
+item_taxa_threat = data.frame(total_items = as.numeric(names(item_taxa_threat)), 
+                            no_species = as.numeric(item_taxa_threat))
+top_name_threat = acc_threat$best_name[which(acc_threat$total == max(item_taxa_threat$total_items))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
 
-Local_item_taxa = item_taxa
-Local_item_taxa$percent = paste0(round(Local_item_taxa$no_species / sum(Local_item_taxa$no_species)*100,digits = 2),'%')
-names(Local_item_taxa) = c("Number of Items in LC", "Number of species in LC", "Percentage")
-```
+# Group the number of endemic taxa by the number of items they have 
+acc_endemic = item_taxa_group[item_taxa_group$endemic =='Endemic',]
+item_taxa_endemic = table(acc_endemic$total)
+item_taxa_endemic = data.frame(total_items = as.numeric(names(item_taxa_endemic)), 
+                            no_species = as.numeric(item_taxa_endemic))
+top_name_endemic = acc_endemic$best_name[which(acc_endemic$total == max(item_taxa_endemic$total_items))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
 
-```{r, number of items per taxa - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
-p<-ggplot(data=item_taxa, aes(x=total_items, y=no_species+0.01)) +
-geom_bar(stat="identity") +
-   labs(title=paste0(""),
-      x ="Number of Items",
-      y = "Number of Taxa")
-p = p + scale_y_continuous(trans='log10', expand = expansion(mult = c(0.01, .1)))
-p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0)), n.breaks = 10)
+# Group the number of native taxa by the number of items they have 
+acc_nat = item_taxa_group[item_taxa_group$native =='Native',]
+item_taxa_nat = table(acc_nat$total)
+item_taxa_nat = data.frame(total_items = as.numeric(names(item_taxa_nat)), 
+                            no_species = as.numeric(item_taxa_nat))
+top_name_nat = acc_nat$best_name[which(acc_nat$total == max(item_taxa_nat$total_items))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
 
-if(value_on_fig){
-  p = p +geom_text(aes(label = no_species),vjust=-0.2, position = "dodge")
-}
+item_taxa_all_type = list(all = item_taxa,
+                               threatened = item_taxa_threat,
+                               endemic = item_taxa_endemic,
+                               native = item_taxa_nat
+                               )
 
-
-
-if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar-items_per_taxa.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-
-```
-
-```{r, number of items per taxa - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-item_taxa$text = paste0(item_taxa$no_species, ' Taxa in the LC have ', item_taxa$total_items, ' items')
-
-fig <- plot_ly(item_taxa, x = ~total_items, y = ~no_species, type = "bar", hoverinfo = "text",  hovertext = ~text)
-
-fig <- fig %>% layout(title = "",
-         xaxis = list(title = "Number of Items"),
-         yaxis = list(title = "Number of Taxa", type = 'log')) 
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-items_per_taxa.html'))
-}
-
-fig
-```
-
-Statistics from number of items per taxa:
-
-- The maximum number of items for a given taxa is **`r max(item_taxa$total_items)`**. An example is the taxon **`r top_name`**. 
-- The mean number of items per taxa is **`r round(mean(data_cur$no_items),digits=2)`**.
-- The median number of items per taxa is **`r median(data_cur$no_items)`**.
-- **`r item_taxa$no_species[item_taxa$total_items == 1]`** taxa have a single item in the LC.
-
-Number of items per taxa 
-
-```{r simplify items per taxa for donut chart}
-doughnut_data =  item_taxa[,1:2]
-species_big_than = sum(doughnut_data$no_species[doughnut_data$total_items > join_bigger_than])
-doughnut_data = doughnut_data[doughnut_data$total_items <=join_bigger_than,]
-doughnut_data[nrow(doughnut_data)+1,] = c(paste0('> ',join_bigger_than), species_big_than)
-doughnut_data$no_species = as.numeric(doughnut_data$no_species)
-
-doughnut_data$percent = paste0(round(doughnut_data$no_species / sum(doughnut_data$no_species)*100,digits = 1),'%')
 
 # data formatted if we want to export/save it.
-Local_item_taxa_simp = doughnut_data
-names(Local_accession_taxa_simp) = c("Number of Accessions in LC", "Number of species in LC", "Percentage")
-```
-
-```{r Doughnut chart items per taxa - static figure, fig.dim = c(10, 4),  eval = report_kind == 'static'}
-doughnut_data <- doughnut_data |> 
-dplyr::mutate(csum = rev(cumsum(rev(no_species))), 
-       pos = no_species/2 + dplyr::lead(csum, 1),
-       pos = dplyr::if_else(is.na(pos), no_species/2, pos))
+Local_item_taxa = item_taxa
+Local_item_taxa$percent = paste0(round(Local_item_taxa$no_species / sum(Local_item_taxa$no_species)*100,digits = 2),'%')
+names(Local_item_taxa) = c("Number of items in LC", "Number of species in LC", "Percentage")
 
 
-p = ggplot(doughnut_data, aes(x="", y=no_species, fill=forcats::fct_inorder(total_items))) +
-geom_bar(stat="identity", width=1, color="white") +
-# ggtheme(base_size = 18) +
-coord_polar("y", start=0) +
-ggtitle('') +
-theme(axis.line=element_blank(),
-      axis.text.x=element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks=element_blank(),
-      axis.title.x=element_blank(),
-      axis.title.y=element_blank(),
-      panel.background=element_blank(),
-      panel.border=element_blank(),
-      panel.grid.major=element_blank(),
-      panel.grid.minor=element_blank(),
-      plot.background=element_blank(),
-      plot.title = element_text(hjust = 0.5)) +
-  guides(fill=guide_legend(title="Number of \n items"))
-
-if(value_on_fig){
-  p = p + geom_label_repel(aes(y = pos,label = percent),
-      size = 3.5, nudge_x = 1.2, show.legend = FALSE, fill = "white")
-}
-
-
+## Create number of taxa against number of items for each key collection and all. 
+counter <- 1
+figs_items = lapply(item_taxa_all_type, function(item_taxa){
+  item_taxa$text = paste0(item_taxa$no_species, ' Taxa in the LC have ', item_taxa$total_items, ' items')
+fig <- plot_ly(item_taxa,
+               x = ~total_items,
+               y = ~no_species,
+               type = "bar",
+               hoverinfo = "text",
+               hovertext = ~text,
+               marker = list(color = interactive_colour(1))
+               )
+fig <- fig |> layout(title = "",
+         xaxis = list(title = "Number of items"),
+         yaxis = list (title = paste0("Number of ",names(item_taxa_all_type)[counter] ," taxa"), type = 'log')) 
 if(separate_figure_folder){
- ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-number_of_items_per_taxa.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-items_per_taxa_',names(item_taxa_all_type)[counter],'.html'))
 }
-
-p
-```
-
-```{r Doughnut chart items per taxa - interactive figure, fig.dim = c(10, 4),  eval = report_kind == 'interactive'}
-text = paste0('Accessions = ',doughnut_data$total_items, '<br>',
-             'Taxa = ',doughnut_data$no_species, '<br>')
-             
-fig <- plot_ly(doughnut_data, labels = ~total_items, values = ~no_species, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",  showlegend = F,
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-items_per_taxa.html'))
-}
-
+counter <<- counter + 1
 fig
+})
+
+## Create horizontal stacked bar for key collection and all in one plot. 
+counter <- 1
+plot_data = lapply(item_taxa_all_type, function(d){
+partA = d[match(c(1,2,3,4),d$total_items),]
+four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
+data_supp = rbind(partA, c('>4',four_plus))
+data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+data_supp$type = names(item_taxa_all_type)[counter]
+counter <<- counter+1
+
+data_supp
+})
+plot_data = do.call('rbind',plot_data)
+plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
+plot_data$type = stringr::str_to_title(plot_data$type)
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of taxa have ',plot_data$total_items,' item/s.' )
+hor_stack_bar_plot = plot_ly(plot_data,
+                             type = 'bar',
+                             y = ~type,
+                             x = ~percent,
+                             color = ~total_items,
+                             colors = scales::brewer_pal(palette = palette, direction = 1)(5),
+                             orientation = 'h',
+                            hovertext = ~hover, hoverinfo = 'text')
+hor_stack_bar_plot_items <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
+                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 ```
+
+Below we show a comparison of the number of accessions and items per taxa across key collections. 
+
+<!-- <div class="boxBorder"> -->
+
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r Number of accessions per taxa summary  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+hor_stack_bar_plot_acc
+```
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r Number of items per taxa summary  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+hor_stack_bar_plot_items
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+<!-- </div> -->
+
+Next we go into further detail across each key collection for individuals and accessions separately.
+
+#### Accessions per taxa 
+ 
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
+
+```{r Number of accessions per taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$all
+```
+
+Where 
+
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name`**. 
+- The mean number of accessions per taxa is **`r round(mean(accession_taxa_group$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(accession_taxa_group$total)`**.
+- **`r format(sum(accession_taxa_group$total == 1), big.mark =',')`** taxa have a single accession.
+
+
+
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r Number of accessions per threatened taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$threatened
+```
+
+Where 
+
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_threat$total_accessions)`** this occurs for the accession **`r top_name_threat`**. 
+- The mean number of accessions per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(acc_threat$total)`**.
+- **`r format(sum(acc_threat$total == 1), big.mark =',')`** taxa have a single accession.
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r Number of accessions per endemic taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$endemic
+```
+
+Where 
+
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_endemic$total_accessions)`** this occurs for the accession **`r top_name_endemic`**. 
+- The mean number of accessions per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(acc_endemic$total)`**.
+- **`r format(sum(acc_endemic$total == 1), big.mark =',')`** taxa have a single accession.
+
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r Number of accessions per native taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$native
+```
+
+Where 
+
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_nat$total_accessions)`** this occurs for the accession **`r top_name_nat`**. 
+- The mean number of accessions per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(acc_nat$total)`**.
+- **`r format(sum(acc_nat$total == 1), big.mark =',')`** taxa have a single accession.
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
 
 
 ***
 
-### Number of items per accession 
+#### Individuals per taxa 
+ 
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
 
-When considering the number of items per accession we first consider all of the plants that are existing in the LC. This is performed in the section 'Only considering items currently existing in the LC'. However, this does not account for how many items there were at the time of accessioning because some of the items might have died. Therefore, we will also explore the number of items in an accession at the time of accessioning. This will allow us to explore if the number of items per accession has changed over time. This is performed in the section 'Considering the total number of items in an accession at the time of accessioning'.
-
-
-#### Only considering items currently existing in the LC
-
-Number of accessions in the collection by their number of items (existing at this moment).
-
-```{r, get items per accession data - existing, echo = FALSE}
-existing_accessions = unique(report$AccNoFull)
-accessions_existing = report$AccNoFull
-accessions_all = enriched_report$AccNoFull[enriched_report$AccNoFull %in% existing_accessions]
-
-item_per_access = table(accessions_all)
-item_per_access = data.frame(accession = names(item_per_access), no_items = as.numeric(item_per_access))
-
-item_per_access_existing = table(accessions_existing)
-item_per_access_existing = data.frame(accession = names(item_per_access_existing), no_items = as.numeric(item_per_access_existing))
-
-item_per_access$no_items_existing = item_per_access_existing$no_items
-
-# data formatted if we want to export/save it.
-Local_item_per_access = item_per_access
-Local_item_per_access$prop_still_exist = round(Local_item_per_access$no_items_existing / Local_item_per_access$no_items*100,digits = 2)
-names(Local_item_per_access) = c( "Accession", "Number of items at time of accessioning", "Number of items still existing", "Percentage of items still existing")
-
-item_dist = table(item_per_access$no_items)
-item_dist = data.frame(total_items = as.numeric(names(item_dist)), no_accessions = as.numeric(item_dist))
-
-# data formatted if we want to export/save it.
-Local_item_distribution = item_dist
-Local_item_distribution$percent = paste0(round(Local_item_distribution$no_accessions / sum(Local_item_distribution$no_accessions)*100,digits = 2),'%')
-
-names(Local_item_distribution) = c("Number of items", "Number of accessions", "Perentage of accessions")
-
-item_dist_existing = table(item_per_access$no_items_existing)
-item_dist_existing = data.frame(total_items = as.numeric(names(item_dist_existing)), no_accessions = as.numeric(item_dist_existing))
-
-# data formatted if we want to export/save it.
-Local_item_distribution_existing = item_dist_existing
-Local_item_distribution_existing$percent = paste0(round(Local_item_distribution_existing$no_accessions / sum(Local_item_distribution_existing$no_accessions)*100,digits = 2),'%')
-
-names(Local_item_distribution_existing) = c("Number of items", "Number of accessions", "Perentage of accessions")
-
-
-max_accession = item_per_access$accession[item_per_access$no_items == max(item_dist$total_items)] 
-max_accession_existing = item_per_access_existing$accession[item_per_access_existing$no_items == max(item_dist_existing$total_items)] 
-
-plant_max_accession = paste0(report$sanitised_taxon[match(max_accession, report$AccNoFull)], ' ', report$extracted_author[match(max_accession, report$AccNoFull)])
-plant_max_accession_existing = paste0(report$sanitised_taxon[match(max_accession_existing, report$AccNoFull)], ' ', report$extracted_author[match(max_accession_existing, report$AccNoFull)])
-
-
+```{r Number of items per taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$all
 ```
 
-```{r, number of items per accession exisiting at this moment - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
-p<-ggplot(data=item_dist_existing, aes(x=total_items, y=no_accessions+0.01)) +
-geom_bar(stat="identity") +
-   labs(title=paste0(""),
-      x ="Number of Items",
-      y = "Number of Accessions")
-p = p + scale_y_continuous(trans='log10', expand = expansion(mult = c(0.01, .1)))
-p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01)), n.breaks = 10)
+Where 
 
-if(value_on_fig){
-  p = p +geom_text(aes(label = no_accessions),vjust=-0.2, hjust = 0.1)
-}
+- The maximum number of items for a given taxon is **`r max(item_taxa$total_items)`** this occurs for the item **`r top_name`**. 
+- The mean number of accessions per taxa is **`r round(mean(item_taxa_group$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(item_taxa_group$total)`**.
+- **`r format(sum(item_taxa_group$total == 1), big.mark =',')`** taxa have a single accession.
 
 
 
-if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar-items_per_accession_existing.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r Number of items per threatened taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$threatened
 ```
 
-```{r, number of items per accession exisiting at this moment - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-item_dist_existing$text = paste0(item_dist_existing$no_accessions, ' accessions in the LC have ', item_dist_existing$total_items, ' items')
+Where 
 
-fig <- plot_ly(item_dist_existing, x = ~total_items, y = ~no_accessions, type = "bar", hoverinfo = "text",  hovertext = ~text)
+- The maximum number of items for a given taxon is **`r max(item_taxa_threat$total_items)`** this occurs for the item **`r top_name_threat`**. 
+- The mean number of items per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
+- The median number of items per taxa is **`r median(acc_threat$total)`**.
+- **`r format(sum(acc_threat$total == 1), big.mark =',')`** taxa have a single item.
 
-fig <- fig %>% layout(title = "",
-         xaxis = list(title = "Number of Items"),
-         yaxis = list(title = "Number of Accessions", type = 'log')) 
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r Number of items per endemic taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$endemic
+```
 
+Where 
+
+- The maximum number of items for a given taxon is **`r max(item_taxa_endemic$total_items)`** this occurs for the item **`r top_name_endemic`**. 
+- The mean number of items per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
+- The median number of items per taxa is **`r median(acc_endemic$total)`**.
+- **`r format(sum(acc_endemic$total == 1), big.mark =',')`** taxa have a single item.
+
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r Number of items per native taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$native
+```
+
+Where 
+
+- The maximum number of items for a given taxon is **`r max(item_taxa_nat$total_items)`** this occurs for the item **`r top_name_nat`**. 
+- The mean number of items per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
+- The median number of items per taxa is **`r median(acc_nat$total)`**.
+- **`r format(sum(acc_nat$total == 1), big.mark =',')`** taxa have a single item.
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***
+
+### Accession size 
+
+We can view accession size in two ways, either the number of individuals in an accession at the time of accessioning or the current number of individuals existing in an accession (i.e including individual death/removal). We shall use both approaches. 
+
+We first produce a summary bar chart showing how the number of individuals per accession varies across the key collections. 
+
+```{r, number of items per accessions - data}
+# Reduced to only unique items.
+items = interest
+
+# Get a vector of all the plant names in unique items and work out frequencies. 
+# taxa_no_items = table(items$good_name)
+# taxa_no_items = data.frame(taxa = names(taxa_no_items), no_items = as.numeric(taxa_no_items))
+# taxa_no_items = taxa_no_items[order(taxa_no_items$no_items,decreasing = T),]
+
+item_taxa_group = items |> dplyr::group_by(AccNoFull) |>
+  dplyr::summarise(threatened = .data$threatened[1],
+                   endemic = .data$endemic[1],
+                   native = .data$native[1],
+                   total = length(.data$AccNoFull)
+                   )
+
+# Group the number of taxa by the number of items they have. 
+item_taxa = table(item_taxa_group$total)
+item_taxa = data.frame(total_items = as.numeric(names(item_taxa)), 
+                            no_species = as.numeric(item_taxa))
+top_acc = item_taxa_group$AccNoFull[which(item_taxa_group$total == max(item_taxa$total_items))][1]
+top_name = items$best_name[items$AccNoFull == top_acc][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of threatened taxa by the number of items they have 
+item_threat = item_taxa_group[item_taxa_group$threatened =='Threatened',]
+item_taxa_threat = table(item_threat$total)
+item_taxa_threat = data.frame(total_items = as.numeric(names(item_taxa_threat)), 
+                            no_species = as.numeric(item_taxa_threat))
+
+top_acc_threat = item_threat$AccNoFull[which(item_threat$total == max(item_taxa_threat$total_items))][1]
+top_name_threat = items$best_name[items$AccNoFull == top_acc_threat][1]
+
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of endemic taxa by the number of items they have 
+item_endemic = item_taxa_group[item_taxa_group$endemic =='Endemic',]
+item_taxa_endemic = table(item_endemic$total)
+item_taxa_endemic = data.frame(total_items = as.numeric(names(item_taxa_endemic)), 
+                            no_species = as.numeric(item_taxa_endemic))
+top_acc_endemic = item_endemic$AccNoFull[which(item_endemic$total == max(item_taxa_endemic$total_items))][1]
+top_name_endemic = items$best_name[items$AccNoFull == top_acc_endemic][1]# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of native taxa by the number of items they have 
+item_nat = item_taxa_group[item_taxa_group$native =='Native',]
+item_taxa_nat = table(item_nat$total)
+item_taxa_nat = data.frame(total_items = as.numeric(names(item_taxa_nat)), 
+                            no_species = as.numeric(item_taxa_nat))
+top_acc_nat = item_nat$AccNoFull[which(item_nat$total == max(item_taxa_nat$total_items))][1]
+top_name_nat = items$best_name[items$AccNoFull == top_acc_nat][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+item_taxa_all_type = list(all = item_taxa,
+                               threatened = item_taxa_threat,
+                               endemic = item_taxa_endemic,
+                               native = item_taxa_nat
+                               )
+
+
+# data formatted if we want to export/save it.
+Local_item_taxa = item_taxa
+Local_item_taxa$percent = paste0(round(Local_item_taxa$no_species / sum(Local_item_taxa$no_species)*100,digits = 2),'%')
+names(Local_item_taxa) = c("Number of items in LC", "Number of species in LC", "Percentage")
+
+
+## Create number of taxa against number of items for each key collection and all. 
+counter <- 1
+figs_items = lapply(item_taxa_all_type, function(item_taxa){
+  item_taxa$text = paste0(item_taxa$no_species, ' Taxa in the LC have ', item_taxa$total_items, ' items')
+fig <- plot_ly(item_taxa,
+               x = ~total_items,
+               y = ~no_species,
+               type = "bar",
+               hoverinfo = "text",
+               hovertext = ~text,
+               marker = list(color = interactive_colour(1))
+               )
+fig <- fig |> layout(title = "",
+         xaxis = list(title = "Number of items"),
+         yaxis = list (title = paste0("Number of ",names(item_taxa_all_type)[counter] ," taxa"), type = 'log')) 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-items_per_accession_existing.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-items_per_taxa_',names(item_taxa_all_type)[counter],'.html'))
 }
-
+counter <<- counter + 1
 fig
+})
+
+## Create horizontal stacked bar for key collection and all in one plot. 
+counter <- 1
+plot_data = lapply(item_taxa_all_type, function(d){
+partA = d[match(c(1,2,3,4),d$total_items),]
+four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
+data_supp = rbind(partA, c('>4',four_plus))
+data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+data_supp$type = names(item_taxa_all_type)[counter]
+counter <<- counter+1
+
+data_supp
+})
+plot_data = do.call('rbind',plot_data)
+plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
+plot_data$type = stringr::str_to_title(plot_data$type)
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_items,' individual/s.' )
+hor_stack_bar_plot = plot_ly(plot_data,
+                             type = 'bar',
+                             y = ~type,
+                             x = ~percent,
+                             color = ~total_items,
+                             colors = scales::brewer_pal(palette = palette, direction = 1)(5),
+                             orientation = 'h',
+                            hovertext = ~hover, hoverinfo = 'text')
+hor_stack_bar_plot_items <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Accessions"),
+                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 ```
 
-Statistics from number of items per accession (at time of accessioning):
+```{r, number of items per accessions at time of accessioning - data}
+# Reduced to only unique items.
+acc_to_consider = unique(interest$AccNoFull)
+individals = report[report$AccNoFull %in% acc_to_consider,]
 
-- The maximum number of items in an accession is **`r max(item_dist_existing$total_items)`**, for example the accession **`r max_accession[1]`** (`r interest$print_name[match(plant_max_accession_existing[1],interest$good_name)]`). 
-- The mean number of items per accession is **`r round(mean(item_per_access_existing$no_items),digits=2)`**.
-- The median number of items per accession is **`r median(item_per_access_existing$no_items)`**.
-- **`r item_dist_existing$no_accessions[item_dist_existing$total_items==1]`** accessions are comprised of a single item.
+# Get a vector of all the plant names in unique individals and work out frequencies. 
+# taxa_no_individals = table(individals$good_name)
+# taxa_no_individals = data.frame(taxa = names(taxa_no_individals), no_individals = as.numeric(taxa_no_individals))
+# taxa_no_individals = taxa_no_individals[order(taxa_no_individals$no_individals,decreasing = T),]
+
+individal_taxa_group = individals |> dplyr::group_by(AccNoFull) |>
+  dplyr::summarise(threatened = .data$threatened[1],
+                   endemic = .data$endemic[1],
+                   native = .data$native[1],
+                   total = length(.data$AccNoFull)
+                   )
+
+# Group the number of taxa by the number of individals they have. 
+individal_taxa = table(individal_taxa_group$total)
+individal_taxa = data.frame(total_individals = as.numeric(names(individal_taxa)), 
+                            no_species = as.numeric(individal_taxa))
+a_top_acc = individal_taxa_group$AccNoFull[which(individal_taxa_group$total == max(individal_taxa$total_individals))][1]
+a_top_name = individals$best_name[individals$AccNoFull == a_top_acc][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of threatened taxa by the number of individals they have 
+acc_threat = individal_taxa_group[individal_taxa_group$threatened =='Threatened',]
+individal_taxa_threat = table(acc_threat$total)
+individal_taxa_threat = data.frame(total_individals = as.numeric(names(individal_taxa_threat)), 
+                            no_species = as.numeric(individal_taxa_threat))
+
+a_top_acc_threat = acc_threat$AccNoFull[which(acc_threat$total == max(individal_taxa_threat$total_individals))][1]
+a_top_name_threat = individals$best_name[individals$AccNoFull == a_top_acc_threat][1]
 
 
-Number of items per taxa 
+# Group the number of endemic taxa by the number of individals they have 
+acc_endemic = individal_taxa_group[individal_taxa_group$endemic =='Endemic',]
+individal_taxa_endemic = table(acc_endemic$total)
+individal_taxa_endemic = data.frame(total_individals = as.numeric(names(individal_taxa_endemic)), 
+                            no_species = as.numeric(individal_taxa_endemic))
 
-```{r simplify items per accession for existing items  for donut chart}
-doughnut_data =  item_dist_existing[,1:2]
-species_big_than = sum(doughnut_data$no_accessions[doughnut_data$total_items > join_bigger_than])
-doughnut_data = doughnut_data[doughnut_data$total_items <=join_bigger_than,]
-doughnut_data[nrow(doughnut_data)+1,] = c(paste0('> ',join_bigger_than), species_big_than)
-doughnut_data$no_accessions = as.numeric(doughnut_data$no_accessions)
+a_top_acc_endemic = acc_endemic$AccNoFull[which(acc_endemic$total == max(individal_taxa_endemic$total_individals))][1]
+a_top_name_endemic = individals$best_name[individals$AccNoFull == a_top_acc_endemic][1]
 
-doughnut_data$percent = paste0(round(doughnut_data$no_accessions / sum(doughnut_data$no_accessions)*100,digits = 1),'%')
+# Group the number of native taxa by the number of individals they have 
+acc_nat = individal_taxa_group[individal_taxa_group$native =='Native',]
+individal_taxa_nat = table(acc_nat$total)
+individal_taxa_nat = data.frame(total_individals = as.numeric(names(individal_taxa_nat)), 
+                            no_species = as.numeric(individal_taxa_nat))
+
+a_top_acc_nat = acc_nat$AccNoFull[which(acc_nat$total == max(individal_taxa_nat$total_individals))][1]
+a_top_name_nat = individals$best_name[individals$AccNoFull == a_top_acc_nat][1]
+
+individal_taxa_all_type = list(all = individal_taxa,
+                               threatened = individal_taxa_threat,
+                               endemic = individal_taxa_endemic,
+                               native = individal_taxa_nat
+                               )
+
 
 # data formatted if we want to export/save it.
-Local_item_accession_existing_simp = doughnut_data
-names(Local_item_accession_existing_simp) = c("Number of items in accession", "Number of accessions in LC", "Percentage")
-```
-
-```{r Doughnut chart items per accession for existing items - static figure, fig.dim = c(10, 4),  eval = report_kind == 'static'}
-doughnut_data <- doughnut_data |> 
-dplyr::mutate(csum = rev(cumsum(rev(no_accessions))), 
-       pos = no_accessions/2 + dplyr::lead(csum, 1),
-       pos = dplyr::if_else(is.na(pos), no_accessions/2, pos))
+Local_individal_taxa = individal_taxa
+Local_individal_taxa$percent = paste0(round(Local_individal_taxa$no_species / sum(Local_individal_taxa$no_species)*100,digits = 2),'%')
+names(Local_individal_taxa) = c("Number of individals in LC", "Number of species in LC", "Percentage")
 
 
-p = ggplot(doughnut_data, aes(x="", y=no_accessions, fill=forcats::fct_inorder(total_items))) +
-geom_bar(stat="identity", width=1, color="white") +
-# ggtheme(base_size = 18) +
-coord_polar("y", start=0) +
-ggtitle('') +
-theme(axis.line=element_blank(),
-      axis.text.x=element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks=element_blank(),
-      axis.title.x=element_blank(),
-      axis.title.y=element_blank(),
-      panel.background=element_blank(),
-      panel.border=element_blank(),
-      panel.grid.major=element_blank(),
-      panel.grid.minor=element_blank(),
-      plot.background=element_blank(),
-      plot.title = element_text(hjust = 0.5)) +
-  guides(fill=guide_legend(title="Number of \n items"))
-
-if(value_on_fig){
-  p = p + geom_label_repel(aes(y = pos,label = percent),
-      size = 3.5, nudge_x = 1.2, show.legend = FALSE, fill = "white")
-}
-
-
+## Create number of taxa against number of individals for each key collection and all. 
+counter <- 1
+figs_acc = lapply(individal_taxa_all_type, function(individal_taxa){
+  individal_taxa$text = paste0(individal_taxa$no_species, ' Taxa in the LC have ', individal_taxa$total_individals, ' individals')
+fig <- plot_ly(individal_taxa,
+               x = ~total_individals,
+               y = ~no_species,
+               type = "bar",
+               hoverinfo = "text",
+               hovertext = ~text,
+               marker = list(color = interactive_colour(1))
+               )
+fig <- fig |> layout(title = "",
+         xaxis = list(title = "Number of individals"),
+         yaxis = list (title = paste0("Number of ",names(individal_taxa_all_type)[counter] ," taxa"), type = 'log')) 
 if(separate_figure_folder){
- ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-number_of_items_per_accession_existing.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-individals_per_taxa_',names(individal_taxa_all_type)[counter],'.html'))
 }
-
-p
-```
-
-```{r Doughnut chart items per accession for existing items - interactive figure, fig.dim = c(10, 4),  eval = report_kind == 'interactive'}
-text = paste0('Items = ',doughnut_data$total_items, '<br>',
-             'Accessions = ',doughnut_data$no_accessions, '<br>')
-             
-fig <- plot_ly(doughnut_data, labels = ~total_items, values = ~no_accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-items_per_accession_existing.html'))
-}
-
+counter <<- counter + 1
 fig
+})
+
+## Create horizontal stacked bar for key collection and all in one plot. 
+counter <- 1
+plot_data = lapply(individal_taxa_all_type, function(d){
+partA = d[match(c(1,2,3,4),d$total_individals),]
+four_plus = sum(d$no_species[as.numeric(d$total_individals)>4])
+data_supp = rbind(partA, c('>4',four_plus))
+data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+data_supp$type = names(individal_taxa_all_type)[counter]
+counter <<- counter+1
+
+data_supp
+})
+plot_data = do.call('rbind',plot_data)
+plot_data$total_individals = factor(plot_data$total_individals, levels = c(1,2,3,4,'>4'))
+plot_data$type = stringr::str_to_title(plot_data$type)
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_individals,' individual/s.' )
+hor_stack_bar_plot = plot_ly(plot_data,
+                             type = 'bar',
+                             y = ~type,
+                             x = ~percent,
+                             color = ~total_individals,
+                             colors = scales::brewer_pal(palette = palette, direction = 1)(5),
+                             orientation = 'h',
+                            hovertext = ~hover, hoverinfo = 'text')
+hor_stack_bar_plot_items_acc_time <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Accessions"),
+                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 ```
 
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
 
-#### Considering the total number of items in an accession at the time of accessioning
-
-Number of accessions in the collection by their number of items (at the time of accession).
-
-```{r, number of items per accession exisiting at time of accession - static figure, fig.dim = c(10, 4), eval = report_kind == 'static'}
-p<-ggplot(data=item_dist, aes(x=total_items, y=no_accessions+0.01)) +
-geom_bar(stat="identity") +
-   labs(title=paste0(""),
-      x ="Number of Items",
-      y = "Number of Accessions")
-p = p + scale_y_continuous(trans='log10', expand = expansion(mult = c(0.01, .1)))
-p = p + scale_x_continuous(expand = expansion(mult = c(0.01, 0.01)), n.breaks = 10)
-
-if(value_on_fig){
-  p = p +geom_text(aes(label = no_accessions),vjust=-0.2, hjust = 0.1)
-}
-
-
-
-if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Bar-items_per_accession_at_time_of_accession.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-
+`r if(report_kind == 'interactive'){"###### Exisiting individuals only"}`
+```{r Number of items per accessions summary  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+hor_stack_bar_plot_items
 ```
 
-```{r, number of items per accession exisiting at time of accession - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-item_dist$text = paste0(item_dist$no_accessions, ' accessions in the LC have ', item_dist$total_items, ' items')
-
-fig <- plot_ly(item_dist, x = ~total_items, y = ~no_accessions, type = "bar", hoverinfo = "text",  hovertext = ~text)
-
-fig <- fig %>% layout(title = "",
-         xaxis = list(title = "Number of Items"),
-         yaxis = list(title = "Number of Accessions", type = 'log')) 
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-items_per_accession_at_time_of_accession.html'))
-}
-
-fig
+`r if(report_kind == 'interactive'){"###### Existing accessions (At time of accessioning)"}`
+```{r Number of items per accessions summary timeof accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+hor_stack_bar_plot_items_acc_time
 ```
 
-Statistics from number of items per accession (at time of accessioning):
+`r if(report_kind == 'interactive'){"##### {-}"}`
 
-- The maximum number of items in an accession is **`r max(item_dist$total_items)`** for example the accession **`r max_accession[1]`** (`r interest$print_name[match(plant_max_accession[1],interest$good_name)]`). 
-- The mean number of items per accession is **`r round(mean(item_per_access$no_items),digits=2)`**.
-- The median number of items per accession is **`r median(item_per_access$no_items)`**.
-- **`r item_dist$no_accessions[item_dist$total_items==1]`** accessions are comprised of a single item.
 
-Number of items per taxa. 
+In the following sections we look in further detail of the number of individuals per accession and how this has varied over time across the whole collection as well as key collections.
 
-```{r simplify items per accession exisiting at time of accession for donut chart}
-doughnut_data =  item_dist[,1:2]
-species_big_than = sum(doughnut_data$no_accessions[doughnut_data$total_items > join_bigger_than])
-doughnut_data = doughnut_data[doughnut_data$total_items <=join_bigger_than,]
-doughnut_data[nrow(doughnut_data)+1,] = c(paste0('> ',join_bigger_than), species_big_than)
-doughnut_data$no_accessions = as.numeric(doughnut_data$no_accessions)
+***
 
-doughnut_data$percent = paste0(round(doughnut_data$no_accessions / sum(doughnut_data$no_accessions)*100,digits = 1),'%')
+#### Individuals per accession (current) 
+ 
+ In this section we explore the number of individuals per accession that are currently existing in the collection.
+ 
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
 
-# data formatted if we want to export/save it.
-Local_item_accession_at_origin_simp = doughnut_data
-names(Local_item_accession_at_origin_simp) = c("Number of items in accession", "Number of accessions in LC", "Percentage")
+```{r Number of individuals per accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$all
 ```
 
-```{r Doughnut chart items per accession exisiting at time of accession - static figure, fig.dim = c(10, 4),  eval = report_kind == 'static'}
-doughnut_data <- doughnut_data |> 
-dplyr::mutate(csum = rev(cumsum(rev(no_accessions))), 
-       pos = no_accessions/2 + dplyr::lead(csum, 1),
-       pos = dplyr::if_else(is.na(pos), no_accessions/2, pos))
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(item_taxa$total_items)`** this occurs for the accession **`r top_acc`** ( **`r top_name`** ). 
+- The mean number of individuals per accession is **`r round(mean(item_taxa_group$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(item_taxa_group$total)`**.
+- **`r format(sum(item_taxa_group$total == 1), big.mark =',')`** accessions have a single individual.
 
 
-p = ggplot(doughnut_data, aes(x="", y=no_accessions, fill=forcats::fct_inorder(total_items))) +
-geom_bar(stat="identity", width=1, color="white") +
-# ggtheme(base_size = 18) +
-coord_polar("y", start=0) +
-ggtitle('') +
-theme(axis.line=element_blank(),
-      axis.text.x=element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks=element_blank(),
-      axis.title.x=element_blank(),
-      axis.title.y=element_blank(),
-      panel.background=element_blank(),
-      panel.border=element_blank(),
-      panel.grid.major=element_blank(),
-      panel.grid.minor=element_blank(),
-      plot.background=element_blank(),
-      plot.title = element_text(hjust = 0.5)) +
-  guides(fill=guide_legend(title="Number of \n items"))
 
-if(value_on_fig){
-  p = p + geom_label_repel(aes(y = pos,label = percent),
-      size = 3.5, nudge_x = 1.2, show.legend = FALSE, fill = "white")
-}
-
-
-if(separate_figure_folder){
- ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-number_of_items_per_accession.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r Number of accessions per threatened accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$threatened
 ```
 
-```{r Doughnut chart items per accession exisiting at time of accession - interactive figure, fig.dim = c(10, 4),  eval = report_kind == 'interactive'}
-text = paste0('Items = ',doughnut_data$total_items, '<br>',
-             'Accessions = ',doughnut_data$no_accessions, '<br>')
-             
-fig <- plot_ly(doughnut_data, labels = ~total_items, values = ~no_accessions, hoverinfo = "text",  hovertext = text, sort = FALSE)
-fig <- fig %>% add_pie(hole = 0.6)
-fig <- fig %>% layout(title = "",
-                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+Where 
 
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-items_per_accession.html'))
-}
+- The maximum number of individuals for a given accession is **`r max(item_taxa_threat$total_items)`** this occurs for the accession **`r top_acc_threat`** (**`r top_name_threat`**). 
+- The mean number of individuals per accession is **`r round(mean(item_threat$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(item_threat$total)`**.
+- **`r format(sum(item_threat$total == 1), big.mark =',')`** accessions have a single individual.
 
-fig
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r Number of accessions per endemic accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$endemic
 ```
 
+Where 
 
-Since we are considering the number of items at the time of accessioning and each accession must occur in a singular year we can explore how the number of items per accession has varied over time. 
+- The maximum number of individuals for a given accession is **`r max(item_taxa_endemic$total_items)`** this occurs for the accession **`r top_acc_endemic`** (**`r top_name_endemic`**). 
+- The mean number of individuals per accession is **`r round(mean(item_endemic$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(item_endemic$total)`**.
+- **`r format(sum(item_endemic$total == 1), big.mark =',')`** accessions have a single individual.
 
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r Number of accessions per native accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$native
+```
+
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(item_taxa_nat$total_items)`** this occurs for the accession **`r top_acc_nat`** (**`r top_name_nat`**). 
+- The mean number of individuals per accession is **`r round(mean(item_nat$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(item_nat$total)`**.
+- **`r format(sum(item_nat$total == 1), big.mark =',')`** accessions have a single individual.
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+***
+
+#### Individuals per accession (at time of accessioning) 
+ 
+  In this section we explore the number of individuals per accession at the time of accessioning (for existing accessions in the collection).
+
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
+
+```{r Number of individuals per accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$all
+```
+
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(individal_taxa$total_individal)`** this occurs for the accession **`r a_top_acc`** ( **`r a_top_name`** ). 
+- The mean number of individuals per accession is **`r round(mean(individal_taxa_group$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(individal_taxa_group$total)`**.
+- **`r format(sum(individal_taxa_group$total == 1), big.mark =',')`** accessions have a single individual.
+
+
+
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r Number of accessions per threatened accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$threatened
+```
+
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(individal_taxa_threat$total_individals)`** this occurs for the accession **`r a_top_acc_threat`** (**`r a_top_name_threat`**). 
+- The mean number of individuals per accession is **`r round(mean(acc_threat$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(acc_threat$total)`**.
+- **`r format(sum(acc_threat$total == 1), big.mark =',')`** accessions have a single individual.
+
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r Number of accessions per endemic accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$endemic
+```
+
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(individal_taxa_endemic$total_individals)`** this occurs for the accession **`r a_top_acc_endemic`** (**`r a_top_name_endemic`**). 
+- The mean number of individuals per accession is **`r round(mean(acc_endemic$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(acc_endemic$total)`**.
+- **`r format(sum(acc_endemic$total == 1), big.mark =',')`** accessions have a single individual.
+
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r Number of accessions per native accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$native
+```
+
+Where 
+
+- The maximum number of individuals for a given accession is **`r max(individal_taxa_nat$total_individals)`** this occurs for the accession **`r a_top_acc_nat`** (**`r a_top_name_nat`**). 
+- The mean number of individuals per accession is **`r round(mean(acc_nat$total),digits=2)`**.
+- The median number of individuals per accession is **`r median(acc_nat$total)`**.
+- **`r format(sum(acc_nat$total == 1), big.mark =',')`** accessions have a single individual.
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+
+***
+
+#### How the number of individuals per accession has varied over time
+
+ In this section we explore how the number of individuals per accession at the time of accessioning has varied across time.
+ 
 ```{r data prep for items per accession over time}
+accession_size_info = report |> dplyr::group_by(AccNoFull) |>
+  dplyr::summarise(threatened = sum(threatened == 'Threatened'),
+                   endemic = sum(endemic == 'Endemic'),
+                   native = sum(native == 'Native'),
+                   year = .data$AccYear[1],
+                   all = length(.data$AccNoFull)
+                   )
+columns = c('all','threatened','endemic', 'native')
+items_per_acc_over_time = lapply(columns, function(column){
+  item_dists = lapply(years, function(year){
+    item_per_access = accession_size_info[[column]][accession_size_info$year == year]
+    item_per_access = item_per_access[which(item_per_access !=0)]
+    if(length(item_per_access) == 0){return(NA)}
+    item_dist = table(item_per_access)
+    item_dist = data.frame(total_items = names(item_dist), no_accessions = as.numeric(item_dist))
+    item_dist$total_items = as.numeric(item_dist$total_items)
+    species_big_than = sum(item_dist$no_accessions[item_dist$total_items > join_bigger_than])
+    item_dist = item_dist[item_dist$total_items <=join_bigger_than,]
+    if(species_big_than > 0){
+      item_dist[nrow(item_dist)+1,] = c(paste0('> ',join_bigger_than), species_big_than)
+    }
+
+    item_dist$percent = round(as.numeric(item_dist$no_accessions) / sum(as.numeric(item_dist$no_accessions))*100,digits = 3)
+    item_dist$year = year
+    item_dist
+  })
+  item_dists = do.call('rbind',item_dists)
+  item_dists = item_dists[which(!is.na(item_dists$total_items)),]
+})
+names(items_per_acc_over_time) = columns
+
+
+figs = lapply(columns, function(column){
+  d = items_per_acc_over_time[[column]]
+  d$no_accessions = as.numeric(d$no_accessions)
+  d$total_items = factor(d$total_items, levels = c( "1",   "2",   "3", "4",  "> 4" ))
+  d$text = paste0(round(d$no_accessions,digits = 2), ' accessions have ', d$total_items, ' items')
+
+fig <- plot_ly(d, x = ~year, y = ~no_accessions, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text, sort = FALSE, colors = scales::brewer_pal(palette = palette, direction = 1)(5))
+fig <- fig |> layout(yaxis = list(title = 'Number of Accessions'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='Number of Items')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+fig1 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-items_per_accession_over_time',column,'.html'))
+}
+
+d$text = paste0(round(d$percent,digits = 2), '% of accessions have ', d$total_items, ' items')
+fig <- plot_ly(d, x = ~year, y = ~percent, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text, colors = scales::brewer_pal(palette = palette, direction = 1)(5))
+fig <- fig |> layout(yaxis = list(title = 'Percentage of Accessions'),
+                     xaxis = list(title = "Year"),
+                     legend=list(title=list(text='Number of Items')),
+                     barmode = 'stack')
+fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+fig2 = fig
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_items_per_accession_over_time',column,'.html'))
+}
+
+return(list(number = fig1, percent = fig2))
+})
+names(figs) = columns
+
+
+
 years = min_year:as.numeric(format(Sys.Date(),'%Y'))
 
 items_per_accession_years = lapply(years, function(year){
@@ -1052,37 +1612,35 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Stacked_Bar-percen
 }
 ```
 
-```{r items per accession over time - interactive figure,  fig.dim = c(10, 4),  eval = report_kind == 'interactive'& !is.null(stacked_bar_data)}
 
-stacked_bar_data$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
+`r if(report_kind == 'interactive'){"###### All"}`
 
-fig <- plot_ly(stacked_bar_data, x = ~year, y = ~no_accessions, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text, sort = FALSE)
-fig <- fig |> layout(yaxis = list(title = 'Number of Accessions'),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text='Number of Items')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-items_per_accession_over_time.html'))
-}
-
-stacked_bar_data$text = paste0(round(stacked_bar_data$percent,digits = 2), '% of accessions have ', stacked_bar_data$total_items, ' items')
-fig <- plot_ly(stacked_bar_data, x = ~year, y = ~percent, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text)
-fig <- fig |> layout(yaxis = list(title = 'Percentage of Accessions'),
-                     xaxis = list(title = "Year"),
-                     legend=list(title=list(text='Number of Items')),
-                     barmode = 'stack')
-fig <- fig |> layout(hovermode = 'x unified', bargap =0)
-
-fig
-
-if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-percentage_items_per_accession_over_time.html'))
-}
-
+```{r item per accession over time  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$all$number
+figs$all$percent
 ```
+
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r item per accession over time threatened  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$threatened$number
+figs$threatened$percent
+```
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r item per accession over time endemic  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$endemic$number
+figs$endemic$percent
+```
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r item per accession over time native  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$native$number
+figs$native$percent
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+ ***
 
 
 ```{r, export data, eval = export_data == TRUE}

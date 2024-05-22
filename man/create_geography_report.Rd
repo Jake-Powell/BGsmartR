@@ -8,6 +8,7 @@ create_geography_report(
   enriched_report,
   collection = NULL,
   wgsrpd3 = NULL,
+  wcvp = NULL,
   report_kind = "static",
   native = "Naturally occurring only",
   extinct = TRUE,
@@ -19,6 +20,8 @@ create_geography_report(
   ggtheme = NULL,
   separate_figure_folder = TRUE,
   value_on_fig = FALSE,
+  endemic_species_per_region = NULL,
+  accepted_species_per_region = NULL,
   color_binary = c("darkgray", "darkgreen"),
   palette = "Greens",
   scale_colour_distiller = function(...) ggplot2::scale_colour_distiller(palette =
@@ -34,6 +37,8 @@ create_geography_report(
 \item{collection}{The name of the LC}
 
 \item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} pacakge.}
+
+\item{wcvp}{World Checklist of Vascular Plants (WCVP) database, obtained using the function \code{\link[=import_wcvp_names]{import_wcvp_names()}}.}
 
 \item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
 
@@ -56,6 +61,10 @@ create_geography_report(
 \item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
 
 \item{value_on_fig}{Flag (TRUE/FALSE) for whether to include values of static plots.}
+
+\item{endemic_species_per_region}{A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
+
+\item{accepted_species_per_region}{A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
 
 \item{color_binary}{colours for the representation of species.}
 

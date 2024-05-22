@@ -4,6 +4,7 @@ output:
   word_document: default
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(plotly)
@@ -12,6 +13,10 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+library(downloadthis)
+
+color_binary <- rev(c('#f46d43', '#e6e6e6'))
+palette = 'Oranges'
 ```
 
 ```{r, imported parameters}
@@ -136,6 +141,41 @@ if(separate_figure_folder){
 
 enriched_report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
 
+#Extract endemic information from enriched_report
+endemic = rep('Widespread', nrow(enriched_report))
+endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+enriched_report$endemic = endemic
+rm(endemic)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(enriched_report))
+threatened[which(enriched_report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(enriched_report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+enriched_report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(enriched_report))
+for(i in 1:length(threat_cat)){
+  threatened_category[which(enriched_report$redList_category == threat_cat[i])] = threat_cat[i]
+  threatened_category[which(enriched_report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+enriched_report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
+
+best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
+enriched_report$best_name = best_name
 
 no_items = nrow(enriched_report)
 no_powo_matched = sum(!is.na(enriched_report$POWO_plant_name_id))
@@ -186,15 +226,20 @@ This document considers locations that are : `r location_type_text`
 wanted_info = enriched_report[!is.na(enriched_report$POWO_plant_name_id),]
 # Add species by combining taxonomic name and authors
 wanted_info$species = paste0(wanted_info$POWO_taxon_name, ' ', wanted_info$POWO_taxon_authors)
+wanted_info_items = wanted_info
 #Restrict to only unique species.
 wanted_info = wanted_info[match(unique(wanted_info$species), wanted_info$species),]
 
 # Get all BRU level 3 location codes.
 All_locations = wgsrpd3$LEVEL3_COD
 
-#Get the number of speices for each location.
+#Get the number of species for each location.
 no_species = unlist(lapply(All_locations, function(x){
   sum(grepl(x, wanted_info$geography_codes))
+}))
+#Get the number of species for each location.
+no_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info_items$geography_codes))
 }))
 
 #Get the number of endemic species for each location.
@@ -226,11 +271,16 @@ location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
                            no_endemic = no_endemic,
                            rep_endemic = no_endemic > 0,
                            no_threatened = no_threatened,
-                           rep_threatened = no_threatened > 0
+                           rep_threatened = no_threatened > 0,
+                           no_items = no_items
                            )
 
 location_data$name = stringr::str_replace(location_data$name, pattern = 'I\\.',replacement = 'Island')
 location_data$name = stringr::str_replace(location_data$name, pattern = 'Is\\.',replacement = 'Islands')
+
+if(!is.null(accepted_species_per_region)){
+  location_data$WCVP_total = accepted_species_per_region$no_accepted_taxa_wcvp[match(location_data$code,accepted_species_per_region$code)]
+}
 plot_info <- wgsrpd3 |>
   #add the location data to the geometry data
   dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
@@ -239,7 +289,7 @@ plot_info <- wgsrpd3 |>
 if(export_data){
   save(location_data, file = paste0(output_dir,'/',collection,'_geography_data.rda'))
   
-  l = location_data
+  l = location_data[,1:10]
   names(l) = c('BRU level 3 code',
                'BRU level 3 name',
                'BRU level 2 region',
@@ -253,6 +303,73 @@ if(export_data){
   writexl::write_xlsx(l,path = paste0(output_dir,'/',collection,'_geography_data.xlsx'))
   rm(l)
 }
+```
+
+```{r check if we are given the number of accepted species or endemic species}
+# if(!is.null(wcvp) & (is.null(accepted_species_per_region) | is.null(endemic_species_per_region))){
+   geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
+  want = c('000','010','001','011','100','110','101')
+
+  #Depending on the values of the options reduce `want` to only the satisfactory values.
+  ##A) introduced / naturally occurring only.
+  if(native == 'Introduced only'){
+    want = want[grepl('^1',want)]
+  }else if(native == 'Naturally occurring only'){
+    want = want[grepl('^0',want)]
+  }
+  ## B) Extinct
+  if(!extinct){
+    want = want[!grepl('010|011|110',want)]
+  }
+  ## C) Doubtful
+  if(!doubtful_locations){
+    want = want[!grepl('001|011|101',want)]
+  }
+  geog_want_values = want
+  # Get the columns in wanted info that contain the geography information we want.
+  geography_data = geography_data[,grepl(paste0(geog_want_values,collapse='|'), names(geography_data))]
+
+  # If multiple columns join the strings such that each contains only a single list of regions.
+  if(length(geog_want_values) > 1){
+    level3codes =do.call("paste", c(geography_data, sep = ", "))
+    level3codes = stringr::str_remove(level3codes, ', NA$')
+    level3codes = stringr::str_remove(level3codes, 'NA, ')
+  }else{
+    level3codes = geography_data
+  }
+  level3codes[level3codes == "NA"] = NA
+
+  wcvp_geography = data.frame(id = wcvp$geography$plant_name_id,
+                              codes = level3codes)
+
+  #Next we need to extract all the plant name ids from wcvp that are  accepted
+  plant_ids = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$taxon_status %in% c('Accepted')& !is.na(wcvp$wcvp_names$species)]
+
+  # reduce wcvp_geography to only accepted plant name ids. (Note that usually only accepted plants have geography so this won't actually remove many records)
+  wcvp_geography = wcvp_geography[wcvp_geography$id %in% plant_ids,]
+  if(!exists('accepted_species_per_region')){
+    no_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+    sum(grepl(x, wcvp_geography$codes))}))
+    
+    accepted_species_per_region = data.frame(code = All_locations, no_accepted_taxa_wcvp = no_accepted_species_wcvp)
+  }
+  
+
+  # Reduce to only endemic plants.
+  wcvp_geography_endemic = wcvp_geography[stringr::str_length(wcvp_geography$codes) == 3,]
+
+    if(!exists('endemic_species_per_region')){
+      no_endemic_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+    sum(grepl(x, wcvp_geography_endemic$codes))
+  }))
+  endemic_species_per_region = data.frame(code = All_locations, no_endemic_accepted_species_wcvp = no_endemic_accepted_species_wcvp)
+  }
+
+  location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
+  location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
+
+  
+# }
 ```
 
 ```{r, interactive data setup}
@@ -306,7 +423,8 @@ if(report_kind == 'interactive'){
 
 ```{r table - interative}
 
-show_table = location_data[,-c(1,6,8,10)]
+show_table = location_data[,-c(1,6,8,10,11,12)]
+show_table = show_table[,-c(ncol(show_table)-1, ncol(show_table))]
 names(show_table) = c('BRU level 3 name',
                'BRU level 2 region',
                'BRU level 1 region',
@@ -319,19 +437,55 @@ if(report_kind == 'interactive'){
 
 }
 ```
+
+
 ***
 
 ## Species in the LC
 
-Of 369 regions described by TDWG geographical codes, 368 of them have native species in POWO. The exception is Bouvet Island which has none. 
-
 <!-- ### BRU level 3 areas represented in the LC -->
 
 ```{r, BRU level 3 areas represented in the LC - regions not represented.}
-percent_rep = round(sum(plot_info$rep_species) / length(plot_info$rep_species) *100,digits = 2)
-no_rep = plot_info$name[!plot_info$rep_species]
-```
+if('WCVP_total' %in% names(plot_info)){
+  percent_rep = round(sum(plot_info$rep_species) / sum(plot_info$WCVP_total != 0) *100,digits = 2)
+  no_rep = plot_info$name[!plot_info$rep_species & plot_info$WCVP_total != 0]
+}else{
+  percent_rep = round(sum(plot_info$rep_species) / 368 *100,digits = 2)
+  no_rep = plot_info$name[!plot_info$rep_species]
+}
 
+
+### Check for regions with no species
+if(!is.null(wcvp)){
+  ## Which regions do we have 0 items (when species exist in wcvp)
+  missing_regions = location_data[which(location_data$no_species == 0 & location_data$no_accepted_wcvp_species !=0), match(c('name', 'code', 'no_accepted_wcvp_species'), names(location_data))]
+  missing_codes <- missing_regions$code
+  missing_names <- missing_regions$name
+  wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)]
+  level_1_names = level_1$name[match(wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_1$code)]
+  level_2_names = level_2$name[match(wgsrpd3$LEVEL2_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_2$code)]
+  missing_regions = data.frame(missing_regions$name, level_2_names, level_1_names, missing_regions$no_accepted_wcvp_species)
+  
+  
+  names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Species')
+  missing_regions <- missing_regions[order(as.numeric(missing_regions$`Number of Species`), decreasing = T),]
+   info <- wcvp_geography[grep(paste0(missing_codes, collapse = '|'),wcvp_geography$codes),]
+  ids = info$id
+  region_wanted = rep('',nrow(info))
+  for(i in 1:length(missing_codes)){
+    region_wanted[grep(missing_codes[i],info$codes)] = paste0(region_wanted[grep(missing_codes[i],info$codes)], ', ',missing_names[i])
+  }
+  region_wanted = stringr::str_remove(region_wanted, pattern = '^, ')
+  
+  wcvp_wantedo = wcvp$wcvp_names[match(ids,wcvp$wcvp_names$plant_name_id) ,]
+  wcvp_wantedo$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wantedo$powo_id)
+  wcvp_wantedo$plant_native_to =region_wanted
+  wcvp_wantedo = wcvp_wantedo[c('taxon_name', 'plant_native_to', 'web_link', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+  
+  accepted_wcvp_missing_regions = wcvp_wantedo[order(wcvp_wantedo$plant_native_to),]
+}
+
+```
 
 ```{r, BRU level 3 areas represented in the LC - static figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = FALSE}
 if(report_kind == 'static'){
@@ -351,76 +505,6 @@ if(report_kind == 'static'){
 fig
 }
 ```
-
-```{r, BRU level 3 areas represented in the LC - interactive figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = FALSE}
-if(report_kind == 'interactive'){
-    text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Represented: ', plot_int_info$rep_species)
-  plot_int_info$hover = text
-  
-  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
-    add_trace(type="choroplethmapbox",
-     geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=as.numeric(plot_int_info$rep_species),
-     colorscale=col_scale_rep,
-     reversescale = FALSE,
-     marker=list(line=list(
-     width=0.01,color ='black'),
-     text = plot_int_info$hover,
-     hoverinfo = 'text'
-    )) |>
-    layout(
-    mapbox=list(
-      style="white-bg",
-      center = list(lon = 0 ,lat= 60),
-      zoom =0.46, 
-      lataxis = list(range = c(-59, 90)))
-  ) |>
-    colorbar(title = "Species <br> Represented <br> in LC")  
-  fig = fig |>  add_trace(type="scattermapbox",
-                          mode = 'markers',
-                          data = center_df,
-                          lon = center_df$long,
-                          lat = center_df$lat,
-                          text = plot_int_info$hover,
-                          color = I(col_rep[as.numeric(plot_int_info$rep_species)+1]), 
-                          hoverinfo = 'text',
-                          inherit = FALSE) 
-  
-  
-  
-
-
-  
-  if(FALSE){
-    fig <- fig |> add_trace(type='scattermapbox',
-                           mode = 'markers',
-                           lon = coordinates[1],
-                           lat = coordinates[2],
-                          text = 'Collection',
-                          color = I('orange'),
-                           size = I(1),
-     hoverinfo = 'text')
-  }
-  
-  
-  
-  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
-  
-  if(separate_figure_folder){
-    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_Species.html'))
-  }
-  suppressWarnings(fig)
-}
-```
-In the LC `r percent_rep`% of the BRU level 3 regions are represented, with `r length(no_rep)` regions un-represented. 
-
-```{r, print regions not in if less than 10, results = "asis", echo = FALSE, eval = length(no_rep) < 11}
-cat('These are: ')
-cat(paste0(no_rep, collapse=", "))
-```
-
 
 <!-- ### Number of species in the LC from each BRU level 3 area. -->
 
@@ -450,7 +534,7 @@ fig
 
 `r if(report_kind == 'static'){"The regions with the most number of species are:"}`
 
-```{r, Number of species in the LC from each BRU level 3 area - regions most speciies, results='asis'}
+```{r, Number of species in the LC from each BRU level 3 area - regions most species, results='asis'}
 if(report_kind == 'static'){
 names(top10) = c('Region', 'Number of Species')
 library(flextable)
@@ -467,27 +551,39 @@ top10 |>
 }
 ```
 
+<!-- ### Write to the report -->
 
-```{r, Number of species in the LC from each BRU level 3 area - interactive, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'interactive'){
-  text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Number of Species: ', plot_int_info$no_species)
+Of 369 regions described by TDWG geographical codes, 368 of them have native species in POWO. The exception is Bouvet Island which has none. 
+
+`r if(report_kind == 'interactive'){"##### Maps of accepted species held in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Representation"}`
+```{r  Map of the representation of accepted species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_species = rep('No', nrow(plot_int_info))
+rep_species[plot_int_info$rep_species] = 'Yes'
+plot_int_info$rep_species_yes_no = rep_species
+plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total*100,digits = 2)
+ text = paste0('Region: ', plot_int_info$name, '<br>', 
+                'Represented: ', plot_int_info$rep_species_yes_no, '<br>',
+                'Items from the region:', plot_int_info$no_items, '<br>',
+                'Species in the LC:', plot_int_info$no_species, '/', plot_int_info$WCVP_total, '<br>',
+                'Species from Region in LC:', round(plot_int_info$no_species/plot_int_info$WCVP_total*100,digits = 2), '%')
   plot_int_info$hover = text
-
-   colours_index = ceiling(as.numeric(plot_int_info$no_species)/max(as.numeric(plot_int_info$no_species))*(length(col_scale)-1)+1)
-   
-  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+  
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+  
+  fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
     add_trace(type="choroplethmapbox",
      geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=colours_index,
-     colorscale=col_scale,
+     locations=plot_info_species$code,
+     z=as.numeric(plot_info_species$rep_species),
+     colorscale=col_scale_rep,
      reversescale = FALSE,
      marker=list(line=list(
      width=0.01,color ='black'),
-     text = plot_int_info$hover,
-     hoverinfo = 'text',
-     showscale = FALSE
+     text = plot_info_species$hover,
+     hoverinfo = 'text'
     )) |>
     layout(
     mapbox=list(
@@ -495,20 +591,18 @@ if(report_kind == 'interactive'){
       center = list(lon = 0 ,lat= 60),
       zoom =0.46, 
       lataxis = list(range = c(-59, 90)))
-    ) |>hide_colorbar()
-  # ) |>
-  #   colorbar(title = "Number<br> of Species") 
- 
+  ) |>
+  hide_colorbar()
   fig = fig |>  add_trace(type="scattermapbox",
                           mode = 'markers',
-                          data = center_df,
-                          lon = center_df$long,
-                          lat = center_df$lat,
-                          text = plot_int_info$hover,
-                          color = I(colours_cont[colours_index]), 
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          color = I(col_rep[as.numeric(plot_info_species$rep_species)+1]), 
                           hoverinfo = 'text',
-                          inherit = FALSE) |>
-    layout(showlegend = F)
+                          inherit = FALSE,
+                          showlegend = FALSE) 
   
   
   
@@ -529,367 +623,953 @@ if(report_kind == 'interactive'){
   
   
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_Species.html'))
+  }
+  suppressWarnings(fig)
+
+```
+
+`r if(report_kind == 'interactive'){"###### By Number of Accepted Species Held"}`
+```{r  Map of the number of accepted species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+# text = paste0('Region: ', plot_int_info$name, '<br />', 
+#                 'Number of Species: ', plot_int_info$no_species)
+#   plot_int_info$hover = text
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+  
+  lower_zero_by = 5
+  plot_info_species$no_species_use = plot_info_species$no_species
+  plot_info_species$no_species_use[plot_info_species$no_species == 0] = -lower_zero_by
+  
+ colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (plot_info_species$no_species_use+lower_zero_by)/max(plot_info_species$no_species_use+lower_zero_by)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+
+
+  
+  fig = plot_ly(plot_info_species,  text = plot_info_species$hover, hoverinfo = 'text') |>
+      add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          # fill = plot_int_info$no_endemic_species+1,
+                          # fillcolor=col_scale,
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                          hoverlabel = list(bgcolor = fillcolor)) |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_info_species$code,
+     z=plot_info_species$no_species_use+1,
+     zmin = 0, zmax = max(plot_info_species$no_species_use),
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_info_species$hover,
+     hoverinfo = 'text',
+     hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    colorbar(title = "")
+
+
+  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+  
+  # colours_index = ceiling(as.numeric(plot_info_species$no_species)/max(as.numeric(plot_info_species$no_species))*(length(col_scale)-1)+1)
+   
+  # fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
+  #   add_trace(type="choroplethmapbox",
+  #    geojson=data,
+  #    locations=plot_info_species$code,
+  #    z=colours_index,
+  #    colorscale=col_scale,
+  #    reversescale = FALSE,
+  #    marker=list(line=list(
+  #    width=0.01,color ='black'),
+  #    text = plot_info_species$hover,
+  #    hoverinfo = 'text',
+  #    showscale = FALSE
+  #   )) |>
+  #   layout(
+  #   mapbox=list(
+  #     style="white-bg",
+  #     center = list(lon = 0 ,lat= 60),
+  #     zoom =0.46, 
+  #     lataxis = list(range = c(-59, 90)))
+  #   ) |>
+  #   colorbar(title = "")
+  # # ) |>
+  # #   colorbar(title = "Number<br> of Species") 
+  # 
+  # fig = fig |>  add_trace(type="scattermapbox",
+  #                         mode = 'markers',
+  #                         data = center_df_species,
+  #                         lon = center_df_species$long,
+  #                         lat = center_df_species$lat,
+  #                         text = plot_info_species$hover,
+  #                         color = I(colours_cont[colours_index]), 
+  #                         hoverinfo = 'text',
+  #                         inherit = FALSE) |>
+  #   layout(showlegend = F)
+  # 
+  # 
+  # fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+  # 
+   
+  
   
   if(separate_figure_folder){
     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_Species.html'))
   }
   suppressWarnings(fig)
-}
-```
-
-
-***
-
-## Endemic Species in the LC
-
-Here we say a species is endemic if is belongs to a single BRU level 3 region (with the location criteria described at the start of the document).
-
-### BRU level 3 areas represented by endemic species in the LC
-
-```{r Endemic Species in the LC}
-percent_rep = round(sum(plot_info$rep_endemic) / length(plot_info$rep_endemic) *100,digits = 2)
-no_rep = plot_info$LEVEL3_NAM[!plot_info$rep_endemic]
-```
-
-
-```{r, Represented Endemic Species in the LC - figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'static'){
-  fig = ggplot(plot_info)+
-  geom_sf(aes(fill=rep_endemic),  col="transparent")+
-  stat_sf_coordinates(aes(col=rep_endemic))+
-     scale_fill_manual(values = color_binary, name = "Cand", labels = c("No", "Yes"))+
-    scale_color_manual(values = color_binary, name = "Cand", labels = c("No", "Yes"))+
-  guides(fill=guide_legend(title="Species \nRepresented \nin LC"),
-         col = "none")
-
-  if(separate_figure_folder){
-  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_representation_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-  }
-fig
-}
 
 ```
 
-```{r, Represented Endemic Species in the LC - interactive figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'interactive'){
-    text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Represented: ', plot_int_info$rep_endemic)
-  plot_int_info$hover = text
-  
-  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+`r if(report_kind == 'interactive'){"###### By Proportion of Accepted Species held"}`
+```{r  Map of the proportion of Accepted species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+# text = paste0('Region: ', plot_int_info$name, '<br />', 
+#                 'Number of Species: ', plot_int_info$no_species)
+#   plot_int_info$hover = text
+
+  # plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  # center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+  # 
+  prop = plot_info_species$percent
+  prop[prop ==  0] = -0.01
+
+    
+   colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (prop+0.01)/max(prop+0.01)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+
+   fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
     add_trace(type="choroplethmapbox",
      geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=as.numeric(plot_int_info$rep_endemic),
-     colorscale=col_scale_rep,
-     reversescale = FALSE,
-     marker=list(line=list(
-     width=0.01,color ='black'),
-     text = plot_int_info$hover,
-     hoverinfo = 'text'
-    )) |>
-    layout(
-    mapbox=list(
-      style="white-bg",
-      center = list(lon = 0 ,lat= 60),
-      zoom =0.46, 
-      lataxis = list(range = c(-59, 90)))
-  ) |>
-    colorbar(title = "Species <br>Represented <br>in LC")  
-  fig = fig |>  add_trace(type="scattermapbox",
-                          mode = 'markers',
-                          data = center_df,
-                          lon = center_df$long,
-                          lat = center_df$lat,
-                          text = plot_int_info$hover,
-                          color = I(col_rep[as.numeric(plot_int_info$rep_endemic)+1]), 
-                          hoverinfo = 'text',
-                          inherit = FALSE) 
-  
-  
-  
-
-
-  
-  if(FALSE){
-    fig <- fig |> add_trace(type='scattermapbox',
-                           mode = 'markers',
-                           lon = coordinates[1],
-                           lat = coordinates[2],
-                          text = 'Collection',
-                          color = I('orange'),
-                           size = I(1),
-     hoverinfo = 'text')
-  }
-  
-  
-  
-  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
-  
-  if(separate_figure_folder){
-    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_Endemic_Species.html'))
-  }
-  suppressWarnings(fig)
-}
-```
-
-In the LC `r percent_rep`% of the BRU level 3 regions are represented by endemic species, with `r length(no_rep)` regions un-represented. 
-
-```{r, Endemic Species in the LC 2,results = "asis", echo = FALSE, eval = length(no_rep) < 11}
-cat('These are: ')
-cat(paste0(no_rep, collapse=", "))
-```
-
-
-### Number of endemic species in the LC from each BRU level 3 area.
-
-```{r, Number Endemic Species in the LC - figure, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'static'){
-top10_name = plot_info$LEVEL3_NAM[order(plot_info$no_endemic, decreasing = TRUE)][1:10]
-top10_value = plot_info$no_endemic[order(plot_info$no_endemic, decreasing = TRUE)][1:10]
-top10 = data.frame(region = top10_name, no_endemic = top10_value)
-
-plot_info$no_endemic[plot_info$no_endemic == 0] = NA
-fig = ggplot(plot_info)+
-  geom_sf(aes(fill=no_endemic),  col="transparent")+
-  stat_sf_coordinates(aes(col=no_endemic))+
-  scale_colour_distiller(direction=1, 
-                         name="Number of Species") +
-  scale_fill_distiller(direction=1,
-                       name="Number of Species")+
-  coord_sf(expand=FALSE)
-
-  if(separate_figure_folder){
-  ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_number_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-  }
-
-fig
-}
-```
-
-`r if(report_kind == 'static'){"The regions with the most number of endemic species are:"}`
-
-```{r, Number Endemic Species in the LC - table, results='asis'}
-if(report_kind == 'static'){
-  
-  names(top10) = c('Region', 'Number of Endemic Species')
-  library(flextable)
-  top10 |>
-    flextable() |>
-    set_caption(caption = "Table 1: Top 10 regions with largest number of endemic species in the LC") |> 
-    font(fontname = "Calibri (Body)", part = "all") |> 
-    fontsize(size = table_font_size, part = "body") |> 
-    # add footer if you want
-    # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
-    #                colwidths = 4) |> 
-    theme_booktabs() |> # default theme
-    autofit()
-}
-```
-
-
-
-```{r, Number of Endemic species in the LC from each BRU level 3 area - interactive, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'interactive'){
-  text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Number of Species: ', plot_int_info$no_endemic)
-  plot_int_info$hover = text
-  colours_index = ceiling(as.numeric(plot_int_info$no_endemic)/max(as.numeric(plot_int_info$no_endemic))*(length(col_scale)-1)+1)
-  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
-    add_trace(type="choroplethmapbox",
-     geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=colours_index,
+     locations=plot_info_species$code,
+     z= prop+ 0.01,
      colorscale=col_scale,
      reversescale = FALSE,
      marker=list(line=list(
-     width=0.01,color ='black'),
-     text = plot_int_info$hover,
-     hoverinfo = 'text'
-    )) |>
+     width=0.01,color ='black')),
+     text = plot_info_species$hover,
+     hoverinfo = 'text',
+    hoverlabel = list(bgcolor = fillcolor)
+    ) |>
     layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    # hide_colorbar()
+    colorbar(title = "")
+
+  
+  fig = fig |>  add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          colorscale=col_scale,
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                           hoverlabel = list(bgcolor = fillcolor))
+
+  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+  # colours_index = ceiling(as.numeric(plot_info_species$percent)/max(as.numeric(plot_info_species$percent))*(length(col_scale)-1)+1)
+   
+  # fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
+  #   add_trace(type="choroplethmapbox",
+  #    geojson=data,
+  #    locations=plot_info_species$code,
+  #    z=colours_index,
+  #    colorscale=col_scale,
+  #    reversescale = FALSE,
+  #    marker=list(line=list(
+  #    width=0.01,color ='black'),
+  #    text = plot_info_species$hover,
+  #    hoverinfo = 'text',
+  #    showscale = FALSE
+  #   )) |>
+  #   layout(
+  #   mapbox=list(
+  #     style="white-bg",
+  #     center = list(lon = 0 ,lat= 60),
+  #     zoom =0.46, 
+  #     lataxis = list(range = c(-59, 90)))
+  #   ) |>hide_colorbar()
+  # # ) |>
+  # #   colorbar(title = "Number<br> of Species") 
+  # 
+  # fig = fig |>  add_trace(type="scattermapbox",
+  #                         mode = 'markers',
+  #                         data = center_df_species,
+  #                         lon = center_df_species$long,
+  #                         lat = center_df_species$lat,
+  #                         text = plot_info_species$hover,
+  #                         color = I(colours_cont[colours_index]), 
+  #                         hoverinfo = 'text',
+  #                         inherit = FALSE) |>
+  #   layout(showlegend = F)
+  # 
+  # 
+  # 
+  # 
+
+  
+  # if(FALSE){
+  #   fig <- fig |> add_trace(type='scattermapbox',
+  #                          mode = 'markers',
+  #                          lon = coordinates[1],
+  #                          lat = coordinates[2],
+  #                         text = 'Collection',
+  #                         color = I('orange'),
+  #                          size = I(1),
+  #    hoverinfo = 'text')
+  # }
+  # 
+  # 
+  # 
+  # fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_Species.html'))
+  }
+  suppressWarnings(fig)
+
+```
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+In the LC `r percent_rep`% of the BRU level 3 regions are represented, with `r length(no_rep)` regions un-represented.
+
+`r if(length(no_rep) > 0){"Regions with no species in the LC are outlined below, together with the total number of species native to each region."}`
+
+```{r regions not in the LC - Table, eval = length(no_rep) > 0}
+if(report_kind == 'static'){
+  missing_regions |>
+  flextable() |>
+  set_caption(caption = "") |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(missing_regions, rownames = FALSE,
+                 options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
+}
+
+```
+
+
+`r if(length(no_rep) > 0){"Further information about the plants from the missing regions in the LC can be downloaded using the button below."}`
+
+```{css 1, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2098D1;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+```
+
+```{r link to download plants from missing regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+  accepted_wcvp_missing_regions |>
+  download_this(
+    output_name = "WCVP accepted plants from non-represented regions",
+    output_extension = ".xlsx",
+    button_label = "Download accepted plants from non-represented regions (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+```
+<br>
+
+***
+
+
+## Endemic species
+
+```{r Endemic Species map -  data}
+endemic = enriched_report[enriched_report$endemic == 'Endemic',]
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+wanted_info = endemic
+wanted_info_species = wanted_info[match(unique(wanted_info$best_name), wanted_info$best_name),]
+
+#Get the number of species for each location.
+no_endemic_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info$geography_codes))
+}))
+#Get the number of species for each location.
+no_endemic_species = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info_species$geography_codes))
+}))
+
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           rep_endemic = no_endemic_items > 0,
+                           no_endemic_items = no_endemic_items,
+                           no_endemic_species = no_endemic_species
+)
+
+location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands')
+location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
+
+# If we are given wcvp calculate the number of endemic species that each geographic area contains.
+if(!is.null((endemic_species_per_region))){
+  no_endemic_accepted_species_wcvp = endemic_species_per_region[,2][match(location_data$code,endemic_species_per_region[,1])]
+  location_data$no_endemic_accepted_wcvp_species = no_endemic_accepted_species_wcvp
+}
+
+if(!is.null(wcvp)){
+  
+  ## Which regions do we have 0 endemic items (when species exist in wcvp)
+  missing_regions = location_data[which(location_data$no_endemic_items == 0 & location_data$no_endemic_accepted_wcvp_species !=0), match(c('name', 'code', 'no_endemic_accepted_wcvp_species'), names(location_data))]
+  wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)]
+  level_1_names = level_1$name[match(wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_1$code)]
+  level_2_names = level_2$name[match(wgsrpd3$LEVEL2_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_2$code)]
+  missing_regions = data.frame(missing_regions$name, level_2_names, level_1_names, missing_regions$no_endemic_accepted_wcvp_species)
+  
+  
+  names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Endemic Species')
+  missing_regions = missing_regions[order(missing_regions$`Number of Endemic Species`, decreasing = T),]
+  ids = wcvp_geography$id[wcvp_geography$codes %in% location_data[which(location_data$no_endemic_items == 0 & location_data$no_endemic_accepted_wcvp_species !=0), match(c('code'), names(location_data))]]
+
+  wcvp_wanted = wcvp$wcvp_names[wcvp$wcvp_names$plant_name_id %in% ids,]
+  wcvp_wanted$geography = location_data$name[match(wcvp_geography$codes[match(wcvp_wanted$plant_name_id, wcvp_geography$id)],location_data$code)]
+  wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
+  wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'geography', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+  
+  wcvp_wanted = wcvp_wanted[order(wcvp_wanted$geography),]
+}
+
+plot_info_endemic <- wgsrpd3 |>
+  #add the location data to the geometry data
+  dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
+
+# Do we want to export the data into an excel spreadsheet and r data file.
+if(export_data){
+  l = location_data
+  if(!is.null(wcvp) | !is.null(endemic_species_per_region)){
+    names(l) = c('BRU level 3 code',
+                 'BRU level 3 name',
+                 'Has Endemic Species in LC',
+                 'Number of Endemic Items',
+                 'Number of Endemic Species')
+  }else{
+    names(l) = c('BRU level 3 code',
+                 'BRU level 3 name',
+                 'Has Endemic Species in LC',
+                 'Number of Endemic Items',
+                 'Number of Endemic Accepted Species in WCVP')
+  }
+  
+  exporting_data_store$map_of_endemic_species = location_data
+  rm(l)
+}
+all_endemic = sum(plot_info_endemic$no_endemic_accepted_wcvp_species != 0 )
+percent_rep = round(sum(plot_info_endemic$rep_endemic) / all_endemic *100,digits = 2)
+no_rep = plot_info_endemic$LEVEL3_NAM[!plot_info_endemic$rep_endemic & plot_info_endemic$no_endemic_accepted_wcvp_species != 0 ]
+```
+
+Next we produce maps showing where in the world the endemic plants in the LC are from. 
+
+Note that not every region has endemic species. In particular, within WCVP there are `r sum(location_data$no_endemic_accepted_wcvp_species == 0)` regions that have no endemic species. For example: `r paste0(location_data$name[location_data$no_endemic_accepted_wcvp_species == 0][1:5], collapse = ', ')`. Therefore, those regions are removed prior to creating the maps.
+
+```{r, Number Endemic Species in the LC - figure new, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+top10_name = plot_info_endemic$LEVEL3_NAM[order(plot_info_endemic$no_endemic_species, decreasing = TRUE)][1:10]
+top10_value = plot_info_endemic$no_endemic_species[order(plot_info_endemic$no_endemic_species, decreasing = TRUE)][1:10]
+top10 = data.frame(region = top10_name, no_endemic = top10_value)
+
+plot_info_endemic = plot_info_endemic[!plot_info_endemic$no_endemic_accepted_wcvp_species ==0,]
+###################################################################
+# Plot of the representation of endemic species in each geographic region.
+# Regions that have no endemic plants are set to NA.
+plot_info_endemic$rep_endemic[plot_info_endemic$rep_endemic == TRUE] = 'Yes'
+plot_info_endemic$rep_endemic[plot_info_endemic$rep_endemic == FALSE] = 'No'
+
+if('no_endemic_accepted_wcvp_species' %in% names(plot_info_endemic)){
+  plot_info_endemic$rep_endemic[plot_info_endemic$no_endemic_accepted_wcvp_species == 0] = 'No Endemic'
+}
+plot_info_endemic$Represented = plot_info_endemic$rep_endemic
+
+p = ggplot(plot_info_endemic)+
+  geom_sf(aes(fill=Represented),  col="transparent")+
+  stat_sf_coordinates(aes(col=Represented), show.legend = FALSE)+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Endemic Species represented in the LC")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_representation_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+###################################################################
+###################################################################
+# Plot of the number of endemic species in each geographic region.
+plot_info_endemic$no_endemic_species[plot_info_endemic$no_endemic_species == 0] = NA
+p = ggplot(plot_info_endemic)+
+  geom_sf(aes(fill=no_endemic_species),  col="transparent")+
+  stat_sf_coordinates(aes(col=no_endemic_species))+
+  scale_colour_distiller(direction=1, 
+                         name="Number\nof Species", na.value = 'black') +
+  scale_fill_distiller(direction=1,
+                       name="Number\nof Species", na.value = 'black')+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Number of Endemic Species")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_number_of_endemic_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+###################################################################
+# Plot of the proportion of endemic species represented by each area in the LC 
+if('no_endemic_accepted_wcvp_species' %in% names(plot_info_endemic)){
+  plot_info_endemic$prop_endemic_species = plot_info_endemic$no_endemic_species / plot_info_endemic$no_endemic_accepted_wcvp_species
+  plot_info_endemic$prop_endemic_species[plot_info_endemic$no_endemic_accepted_wcvp_species == 0] = NA
+  
+  p = ggplot(plot_info_endemic)+
+    geom_sf(aes(fill=prop_endemic_species),  col="transparent")+
+    stat_sf_coordinates(aes(col=prop_endemic_species)) + 
+    scale_colour_distiller(direction=1, 
+                           name="Percentage of\n Endemic Species\n in LC", na.value = 'black', labels = scales::label_percent()) +
+    scale_fill_distiller(direction=1,
+                         name="Percentage of\n Endemic Species\n in LC", na.value = 'black', labels = scales::label_percent())+
+    coord_sf(expand=FALSE)+ 
+    ggtitle("Percentage of Accepted Endemic Species \n in WCVP found in the LC for each region")
+  
+  if(separate_figure_folder){
+    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_proportion_of_endemic_species_from_area_in_LC.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+  }
+  
+  p
+}
+
+
+###################################################################
+```
+
+```{r, interactive map data setup_endemic, eval = report_kind == 'interactive'}
+# Due to the high level of detail in wgsrpd3 we need to go to a simplified geometry for the interactive geometry plots. 
+# load all geo areas
+wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+
+# Reduce to only regions that have endemic species.
+plot_int_info <- wgsrpd3_level3_simp |>
+  dplyr::left_join(location_data, by=c("code"="code"))
+plot_int_info$name = plot_int_info$name.x
+regions_to_remove = plot_int_info$code[plot_int_info$no_endemic_accepted_wcvp_species == 0]
+
+plot_int_info = plot_int_info[!plot_int_info$no_endemic_accepted_wcvp_species == 0,]
+locations = wgsrpd3_level3_simp
+locations = locations[!locations$code %in% regions_to_remove, drop = TRUE]
+
+data_g = st_geometry(plot_int_info)
+centers = st_centroid(data_g)
+AA = unlist(centers)
+center_df = data.frame(long = AA[seq(1,length(AA),2)], lat = AA[seq(2,length(AA),2)])
+
+# Convert geometry into a format accepted by plotly
+mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+geo_sf = geojsonsf::sf_geojson(mapp)
+data = rjson::fromJSON(geo_sf)
+feat = data$features
+for(i in 1:length(feat)){
+  feat[[i]]$id = feat[[i]]$properties$code
+}
+data$features = feat
+
+data$features = data$features[-c(which(location_data$code %in% regions_to_remove))]
+
+index = seq(0,1,0.01)
+col_rep = color_binary
+colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+counter = 1:length(index)
+col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+
+colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+ramp <- scales::colour_ramp(colours_cont)
+colos = ramp(seq(0, 1, length = 1001))
+
+
+index = seq(0,1,0.001)
+colours_cont = c( "#e6e6e6","#e6e6e6",colos)
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'Is\\.', 'Islands')
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'I\\.', 'Island')
+```
+
+`r if(report_kind == 'interactive'){"##### Maps of Endemic species held in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Representation"}`
+```{r  Map of the representation of Endemic species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_endemic = rep('No', nrow(plot_int_info))
+rep_endemic[plot_int_info$rep_endemic] = 'Yes'
+plot_int_info$rep_endemic_yes_no = rep_endemic
+text = paste0('Region: ', plot_int_info$name, '<br />', 
+              'Represented: ', rep_endemic, '<br />',
+              '# Species in LC: ', plot_int_info$no_endemic_species, '/',plot_int_info$no_endemic_accepted_wcvp_species,'<br />',
+              '# Items in LC: ', plot_int_info$no_endemic_items, '<br />',
+              'Endemic from region in LC: ', round(plot_int_info$no_endemic_species*100/plot_int_info$no_endemic_accepted_wcvp_species,digits = 2),
+              '%', '<br />')
+plot_int_info$hover = text
+
+fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+  add_trace(type="choroplethmapbox",
+            geojson=data,
+            locations=locations$code,
+            z=as.numeric(plot_int_info$rep_endemic),
+            colorscale=col_scale_rep,
+            reversescale = FALSE,
+            marker=list(line=list(
+              width=0.01,color ='black'),
+              text = plot_int_info$hover,
+              hoverinfo = 'text'
+            )) |>
+  layout(
     mapbox=list(
       style="white-bg",
       center = list(lon = 0 ,lat= 60),
       zoom =0.46, 
       lataxis = list(range = c(-59, 90)))
   ) |>
-    colorbar(title = "Number<br> of Species") 
+  hide_colorbar()
+# colorbar(title = "Species <br> Represented <br> in LC")  
+fig = fig |>  add_trace(type="scattermapbox",
+                        mode = 'markers',
+                        data = center_df,
+                        lon = center_df$long,
+                        lat = center_df$lat,
+                        text = plot_int_info$hover,
+                        color = I(col_rep[as.numeric(plot_int_info$rep_endemic)+1]), 
+                        hoverinfo = 'text',
+                        inherit = FALSE, showlegend = FALSE) 
 
-  fig = fig |>  add_trace(type="scattermapbox",
+fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_Endemic_Species.html'))
+}
+suppressWarnings(fig)
+
+```
+
+`r if(report_kind == 'interactive'){"###### By Number of Endemic Species Held"}`
+```{r  Map of the number of Endemic species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_endemic = rep('No', nrow(plot_int_info))
+rep_endemic[plot_int_info$rep_endemic] = 'Yes'
+
+  plot_int_info$no_endemic_species_use = plot_int_info$no_endemic_species
+  plot_int_info$no_endemic_species_use[plot_int_info$no_endemic_species == 0] = -1
+  
+  colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (plot_int_info$no_endemic_species_use+1)/max(plot_int_info$no_endemic_species_use+1)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+  
+  
+  # fig = fig |>  add_trace(type="scattermapbox",
+  #                         mode = 'markers',
+  #                         data = center_df,
+  #                         lon = center_df$long,
+  #                         lat = center_df$lat,
+  #                         text = plot_int_info$hover,
+  #                         # fill = plot_int_info$no_endemic_species+1,
+  #                         # fillcolor=col_scale,
+  #                         hoverinfo = 'skip',
+  #                         inherit = FALSE,
+  #                         showlegend = FALSE,
+  #                         marker = list(color = fillcolor, line = list(width = 0)))
+
+
+  
+  fig = plot_ly(plot_int_info,  text = plot_int_info$hover, hoverinfo = 'text') |>
+      add_trace(type="scattermapbox",
                           mode = 'markers',
                           data = center_df,
                           lon = center_df$long,
                           lat = center_df$lat,
                           text = plot_int_info$hover,
-                          color = I(colours_cont[colours_index]), 
+                          # fill = plot_int_info$no_endemic_species+1,
+                          # fillcolor=col_scale,
                           hoverinfo = 'text',
-                          inherit = FALSE) 
-  
-  
-  
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                          hoverlabel = list(bgcolor = fillcolor)) |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=locations$code,
+     z=plot_int_info$no_endemic_species_use+1,
+     zmin = 0, zmax = max(plot_int_info$no_endemic_species_use),
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_int_info$hover,
+     hoverinfo = 'text',
+     hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    colorbar(title = "")
 
 
-  
-  if(FALSE){
-    fig <- fig |> add_trace(type='scattermapbox',
-                           mode = 'markers',
-                           lon = coordinates[1],
-                           lat = coordinates[2],
-                          text = 'Collection',
-                          color = I('orange'),
-                           size = I(1),
-     hoverinfo = 'text')
-  }
-  
-  
-  
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
-  
+
   if(separate_figure_folder){
     htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_Endemic_Species.html'))
   }
   suppressWarnings(fig)
-}
-```
-***
 
-## Threatened Species in the LC
-
-Here a threatened species is any taxa in the LC that has been flagged as vulnerable, endangered, critically endangered, extinct in the wild or extinct. A taxa can be flagged in two ways; either matching the original name in the collection directly to IUCN's red list or by matching the accepted name in POWO to IUCN's red list. 
-
-### BRU level 3 areas represented by threatened species in the LC
-
-```{r no threatened species regions represented}
-percent_rep = round(sum(plot_info$rep_threatened) / length(plot_info$rep_threatened) *100,digits = 2)
-no_rep = plot_info$LEVEL3_NAM[!plot_info$rep_threatened]
 ```
 
+`r if(report_kind == 'interactive'){"###### By Proportion of Accepted Endemic Species held"}`
+```{r  Map of the proportion of Accepted Endemic species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+ rep_endemic = rep('No', nrow(plot_int_info))
+rep_endemic[plot_int_info$rep_endemic] = 'Yes'
 
-```{r, Represented Threatened Species in the LC - figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'static'){
-  fig = ggplot(plot_info)+
-    geom_sf(aes(fill=rep_threatened),  col="transparent")+
-    stat_sf_coordinates(aes(col=rep_threatened))+
-     scale_fill_manual(values = color_binary, name = "Cand", labels = c("No", "Yes"))+
-    scale_color_manual(values = color_binary, name = "Cand", labels = c("No", "Yes"))+
-    guides(fill=guide_legend(title="Species \nRepresented \nin LC"),
-           col = "none")
-  
-    if(separate_figure_folder){
-    ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_representation_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
-  fig
-}
-```
+  prop = plot_int_info$no_endemic_species*100/plot_int_info$no_endemic_accepted_wcvp_species
+  prop[prop ==  0] = -0.01
 
-```{r, Represented Threatened Species in the LC - interactive figure, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'interactive'){
-    text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Represented: ', plot_int_info$rep_threatened)
-  plot_int_info$hover = text
+    
+   colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (prop+0.01)/max(prop+0.01)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+
   
   fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
     add_trace(type="choroplethmapbox",
      geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=as.numeric(plot_int_info$rep_threatened),
-     colorscale=col_scale_rep,
+     locations=locations$code,
+     z= prop+ 0.01,
+     colorscale=col_scale,
      reversescale = FALSE,
      marker=list(line=list(
-     width=0.01,color ='black'),
+     width=0.01,color ='black')),
      text = plot_int_info$hover,
-     hoverinfo = 'text'
-    )) |>
+     hoverinfo = 'text',
+    hoverlabel = list(bgcolor = fillcolor)
+    ) |>
     layout(
     mapbox=list(
       style="white-bg",
       center = list(lon = 0 ,lat= 60),
-      zoom =0.46, 
+      zoom =0.46,
       lataxis = list(range = c(-59, 90)))
   ) |>
-    colorbar(title = "Species <br>Represented <br>in LC")  
+    # hide_colorbar()
+    colorbar(title = "")
+
+  
   fig = fig |>  add_trace(type="scattermapbox",
                           mode = 'markers',
                           data = center_df,
                           lon = center_df$long,
                           lat = center_df$lat,
                           text = plot_int_info$hover,
-                          color = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]), 
+                          colorscale=col_scale,
                           hoverinfo = 'text',
-                          inherit = FALSE) 
-  
-  
-  
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                           hoverlabel = list(bgcolor = fillcolor))
 
-
-  
-  if(FALSE){
-    fig <- fig |> add_trace(type='scattermapbox',
-                           mode = 'markers',
-                           lon = coordinates[1],
-                           lat = coordinates[2],
-                          text = 'Collection',
-                          color = I('orange'),
-                           size = I(1),
-     hoverinfo = 'text')
-  }
-  
-  
-  
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
-  
+
   if(separate_figure_folder){
-    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_Threatened_Species.html'))
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Proportion_of_Accepted_Endemic_Species_held.html'))
   }
   suppressWarnings(fig)
+
+```
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+In the LC `r percent_rep`% of the BRU level 3 regions are represented by endemic species, with `r length(no_rep)` regions un-represented. 
+
+`r if(length(no_rep) > 0){"Regions with no endemic species in the LC are outlined below, together with the total number of endemic plants in each region."}`
+
+```{r families not in the LC - Table, eval = length(no_rep) > 0}
+if(report_kind == 'static'){
+  missing_regions |>
+  flextable() |>
+  set_caption(caption = "") |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit()
+}
+if(report_kind == 'interactive'){
+  DT::datatable(missing_regions, rownames = FALSE,
+                 options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
+}
+
+```
+
+
+`r if(length(no_rep) > 0){"Further information about the taxa from  missing endemic regions can be downloaded using the button below."}`
+
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2098D1;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
 }
 ```
-In the LC `r percent_rep`% of the BRU level 3 regions are represented by threatened species, with `r length(no_rep)` regions un-represented. 
 
-```{r, show represented threatened regions, results = "asis", echo = FALSE, eval = length(no_rep) < 11}
-cat('These are: ')
-cat(paste0(no_rep, collapse=", "))
+```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+  wcvp_wanted |>
+  download_this(
+    output_name = "WCVP endemic plants not represented in the LC",
+    output_extension = ".xlsx",
+    button_label = "Download missing endemic plants (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
 ```
+<br>
+ 
+***
+
+## Threatened Species
+
+```{r threatened Species map -  data}
+threatened = enriched_report[enriched_report$threatened == 'Threatened',]
+
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+wanted_info = threatened
+wanted_info_species = wanted_info[match(unique(wanted_info$best_name), wanted_info$best_name),]
 
 
-### Number of threatened species in the LC from each BRU level 3 area.
+#Get the number of speices for each location.
+no_threatened_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info$geography_codes))
+}))
+#Get the number of speices for each location.
+no_threatened_species = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info_species$geography_codes))
+}))
 
-```{r, Number Threatened Species in the LC - figure, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'static'){
-  top10_name = plot_info$LEVEL3_NAM[order(plot_info$no_threatened, decreasing = TRUE)][1:10]
-  top10_value = plot_info$no_threatened[order(plot_info$no_threatened, decreasing = TRUE)][1:10]
-  top10 = data.frame(region = top10_name, no_threatened = top10_value)
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           rep_threatened = no_threatened_items > 0,
+                           no_threatened_items = no_threatened_items,
+                           no_threatened_species = no_threatened_species
+)
+
+location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands')
+location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
+
+load('/Users/jakepowell/Cambridge/IUCN_threatened_with_history_and_geography.rda')
+threat_match_IUCN = sum(!is.na(detailied_IUCN$POWO_plant_id))
+prop_threat_match_IUCN = round(threat_match_IUCN/nrow(detailied_IUCN)*100,digits = 2)
+# number of threatened per geographic area. 
+threatened_per_region = unlist(lapply(location_data$code, function(code){
+  sum(grepl(code, detailied_IUCN$geography))
+}))
+location_data$threatened_per_region = threatened_per_region
+  prop = round(location_data$no_threatened_species / threatened_per_region*100,digits=2)
+  prop_true = prop
+  prop_true[is.nan(prop_true)] = 'NA'
+  prop[prop ==  0] = -0.01
+
+without_threatened_regions =   location_data$name[threatened_per_region ==0]
+if(!is.null(wcvp)){
   
-  plot_info$no_threatened[plot_info$no_threatened == 0] = NA
-  fig = ggplot(plot_info)+
-    geom_sf(aes(fill=no_threatened),  col="transparent")+
-    stat_sf_coordinates(aes(col=no_threatened))+
-    scale_colour_distiller(direction=1, 
-                           name="Number of Species") +
-    scale_fill_distiller(direction=1,
-                         name="Number of Species")+
-    coord_sf(expand=FALSE)
+  ## Which regions do we have 0 threatened items (when species exist in wcvp)
+  with_threatened = sum(location_data$no_threatened_items > 0)
+  missing_regions = location_data[which(location_data$no_threatened_items == 0 & location_data$threatened_per_region !=0), match(c('name', 'code', 'threatened_per_region'), names(location_data))]
+  missing_codes = missing_regions$code
+  missing_names = missing_regions$name
+  number_no_threatened_regions= length(missing_codes)
+  wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)]
+  level_1_names = level_1$name[match(wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_1$code)]
+  level_2_names = level_2$name[match(wgsrpd3$LEVEL2_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_2$code)]
+  missing_regions = data.frame(missing_regions$name, level_2_names, level_1_names, missing_regions$threatened_per_region)
   
   
-    if(separate_figure_folder){
-    ggplot2::ggsave(plot = fig, filename = paste0(figures_dir, '/','Map_number_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-    }
+  names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Threatened Species')
+  missing_regions = missing_regions[order(as.numeric(missing_regions$`Number of Threatened Species`), decreasing = T),]
+   info <- wcvp_geography[grep(paste0(missing_codes, collapse = '|'),wcvp_geography$codes),]
+   info = info[info$id %in% detailied_IUCN$POWO_plant_id,]
+   ids = info$id
+  region_wanted = rep('',nrow(info))
+  for(i in 1:length(missing_codes)){
+    region_wanted[grep(missing_codes[i],info$codes)] = paste0(region_wanted[grep(missing_codes[i],info$codes)], ', ',missing_names[i])
+  }
+  region_wanted = stringr::str_remove(region_wanted, pattern = '^, ')
   
-  fig
+  wcvp_wantedo = wcvp$wcvp_names[match(ids,wcvp$wcvp_names$plant_name_id) ,]
+  wcvp_wantedo$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wantedo$powo_id)
+  wcvp_wantedo$plant_native_to =region_wanted
+  IUCN_indo = detailied_IUCN[match(wcvp_wantedo$plant_name_id, detailied_IUCN$POWO_plant_id),]
+  wcvp_wantedo = data.frame(wcvp_wantedo, IUCN_indo)
   
+    wcvp_wantedo = wcvp_wantedo[c('taxon_name', 'plant_native_to', 'web_link', "category", "population_trend", "threat_hist", "first_threat", 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+  
+  wcvp_wantedo = wcvp_wantedo[order(wcvp_wantedo$taxon_name),]
 }
+
+
+
+plot_info <- wgsrpd3 |>
+  #add the location data to the geometry data
+  dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
+
+# Do we want to export the data into an excel spreadsheet and r data file.
+if(export_data){
+  l = location_data
+  names(l) = c('BRU level 3 code',
+                 'BRU level 3 name',
+                 'Has Threatened Species in LC',
+                 'Number of Threatened Items',
+                 'Number of Threatened Species')
+  
+  exporting_data_store$map_of_threatened_species = l
+  rm(l)
+}
+
+percent_rep = round(sum(plot_info$rep_threatened) / length(plot_info$rep_threatened) *100,digits = 2)
+no_rep = plot_info$LEVEL3_NAM[!plot_info$rep_threatened]
+
+without_geog = unique(threatened$best_name[which(is.na(threatened$geography_codes))])
 ```
 
-`r if(report_kind == 'static'){"The regions with the most number of threatened species are:"}`
+Note that a threatened taxa may belong to multiple geographic regions. Therefore, a single taxa/item can contribute to the count of multiple regions on the map. As such if one was to add the number of items from all the regions this will be larger than the number of threatened items in the LC. 
 
-```{r, Number Threatened Species in the LC - table, results='asis'}
+Recall that we use WCVP to determine the geographic distribution of taxa and we use a combination of WCVP and IUCN red list to determine the threatened status. Therefore, it is possible that we find a threatened taxa (using red list) that is not found in WCVP, and thus we do not have a geographic distribution for these taxa. In the LC there are `r length(without_geog)` taxa that are classed as threatened without geographic information provided by WCVP.
+
+<details>
+<summary>Threatened plants in the LC without geography</summary>
+`r paste0(without_geog, collapse = ' <br>')`
+</details>
+
+```{r Get threatened without geography table, eval = FALSE}
+
+threat_without_geography = threatened[which(is.na(threatened$geography_codes)),]
+threat_without_geography$POWO_web_address[8]
 if(report_kind == 'static'){
-  names(top10) = c('Region', 'Number of Threatened Species')
-  library(flextable)
-  top10 |>
+  threatened_count_table |>
     flextable() |>
-    set_caption(caption = "Table 1: Top 10 regions with largest number of threatened species in the LC") |> 
+    set_caption(caption = "Threatened plants in the LC") |> 
     font(fontname = "Calibri (Body)", part = "all") |> 
     fontsize(size = table_font_size, part = "body") |> 
     # add footer if you want
@@ -898,35 +1578,266 @@ if(report_kind == 'static'){
     theme_booktabs() |> # default theme
     autofit()
 }
+if(report_kind == 'interactive'){
+  DT::datatable(threatened_count_table, rownames = FALSE)
+}
 ```
 
-```{r, Number of Threatened species in the LC from each BRU level 3 area - interactive, echo = FALSE, fig.fullwidth=FALSE, fig.dim = c(10, 6)}
-if(report_kind == 'interactive'){
-  text = paste0('Region: ', plot_int_info$name, '<br />', 
-                'Number of Species: ', plot_int_info$no_threatened)
-  plot_int_info$hover = text
-colours_index = ceiling(as.numeric(plot_int_info$no_threatened)/max(as.numeric(plot_int_info$no_threatened))*(length(col_scale)-1)+1)
+```{r, Number threatened Species in the LC - figure, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = report_kind == 'static'}
+top10_name = plot_info$LEVEL3_NAM[order(plot_info$no_threatened_species, decreasing = TRUE)][1:10]
+top10_value = plot_info$no_threatened_species[order(plot_info$no_threatened_species, decreasing = TRUE)][1:10]
+top10 = data.frame(region = top10_name, no_threatened = top10_value)
 
-  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
-    add_trace(type="choroplethmapbox",
-     geojson=data,
-     locations=wgsrpd3_level3_simp$code,
-     z=colours_index,
-     colorscale=col_scale,
-     reversescale = FALSE,
-     marker=list(line=list(
-     width=0.01,color ='black'),
-     text = plot_int_info$hover,
-     hoverinfo = 'text'
-    )) |>
-    layout(
+###################################################################
+# Plot of the representation of threatened species in each geographic region.
+# Regions that have no threatened plants are set to NA.
+plot_info$rep_threatened[plot_info$rep_threatened == TRUE] = 'Yes'
+plot_info$rep_threatened[plot_info$rep_threatened == FALSE] = 'No'
+
+plot_info$`Have Threatened` = plot_info$rep_threatened
+
+p = ggplot(plot_info)+
+  geom_sf(aes(fill=`Have Threatened`),  col="transparent")+
+  stat_sf_coordinates(aes(col=`Have Threatened`), show.legend = FALSE)+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Geography of Threatened Species in the LC")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_representation_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+###################################################################
+###################################################################
+# Plot of the number of threatened species in each geographic region.
+plot_info$no_threatened_species[plot_info$no_threatened_species == 0] = NA
+p = ggplot(plot_info)+
+  geom_sf(aes(fill=no_threatened_species),  col="transparent")+
+  stat_sf_coordinates(aes(col=no_threatened_species))+
+  scale_colour_distiller(direction=1, 
+                         name="Number\nof Species", na.value = 'black') +
+  scale_fill_distiller(direction=1,
+                       name="Number\nof Species", na.value = 'black')+
+  coord_sf(expand=FALSE) + 
+  ggtitle("Number of Threatened Species")
+
+if(separate_figure_folder){
+  ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_number_of_threatened_species.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+}
+
+p
+
+```
+
+```{r, interactive map data setup threatened, eval = report_kind == 'interactive'}
+# Due to the high level of detail in wgsrpd3 we need to go to a simplified geometry for the interactive geometry plots. 
+# load all geo areas
+wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+
+# Reduce to only regions that have threatened species.
+plot_int_info <- wgsrpd3_level3_simp |>
+  dplyr::left_join(location_data, by=c("code"="code"))
+plot_int_info$name = plot_int_info$name.x
+
+data_g = st_geometry(plot_int_info)
+centers = st_centroid(data_g)
+AA = unlist(centers)
+center_df = data.frame(long = AA[seq(1,length(AA),2)], lat = AA[seq(2,length(AA),2)])
+
+# Convert geometry into a format accepted by plotly
+mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+geo_sf = geojsonsf::sf_geojson(mapp)
+data = rjson::fromJSON(geo_sf)
+feat = data$features
+for(i in 1:length(feat)){
+  feat[[i]]$id = feat[[i]]$properties$code
+}
+data$features = feat
+
+index = seq(0,1,0.01)
+col_rep = color_binary
+colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+counter = 1:length(index)
+col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+
+colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+ramp <- scales::colour_ramp(colours_cont)
+colos = ramp(seq(0, 1, length = 1001))
+
+
+index = seq(0,1,0.001)
+colours_cont = c( "#e6e6e6","#e6e6e6",colos)
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'Is\\.', 'Islands')
+plot_int_info$name = stringr::str_replace(plot_int_info$name, 'I\\.', 'Island')
+```
+
+`r if(report_kind == 'interactive'){"##### Maps of threatened species held in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Has a threatened species"}`
+```{r  Map of the representation of threatened species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+
+rep_threatened = rep('No', nrow(plot_int_info))
+rep_threatened[plot_int_info$rep_threatened] = 'Yes'
+plot_int_info$rep_threatened_yes_no = rep_threatened
+text = paste0('Region: ', plot_int_info$name, '<br>', 
+              'Represented: ', rep_threatened, '<br>',
+              'Taxa in LC: ', plot_int_info$no_threatened_species, '/',threatened_per_region, '<br>',
+              'Items in LC: ', plot_int_info$no_threatened_items, '<br>',
+              'Threatened from region in LC: ', prop_true, '%')
+
+plot_int_info$hover = text
+
+fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+  add_trace(type="choroplethmapbox",
+            geojson=data,
+            locations=plot_int_info$code,
+            z=as.numeric(plot_int_info$rep_threatened),
+            colorscale=col_scale_rep,
+            reversescale = FALSE,
+            marker=list(line=list(
+              width=0.01,color ='black'),
+              text = plot_int_info$hover,
+              hoverinfo = 'text'
+            )) |>
+  layout(
     mapbox=list(
       style="white-bg",
       center = list(lon = 0 ,lat= 60),
       zoom =0.46, 
       lataxis = list(range = c(-59, 90)))
   ) |>
-    colorbar(title = "Number<br> of Species") 
+  hide_colorbar()
+# colorbar(title = "Species <br> Represented <br> in LC")  
+fig = fig |>  add_trace(type="scattermapbox",
+                        mode = 'markers',
+                        data = center_df,
+                        lon = center_df$long,
+                        lat = center_df$lat,
+                        text = plot_int_info$hover,
+                        color = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]), 
+                        hoverinfo = 'text',
+                        inherit = FALSE, showlegend = FALSE) 
+
+fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Representation_of_threatened_Species.html'))
+}
+suppressWarnings(fig)
+
+```
+
+`r if(report_kind == 'interactive'){"###### By number of threatened species held"}`
+```{r  Map of the number of threatened species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+rep_threatened = rep('No', nrow(plot_int_info))
+rep_threatened[plot_int_info$rep_threatened] = 'Yes'
+
+  plot_int_info$no_threatened_species_use = plot_int_info$no_threatened_species
+  plot_int_info$no_threatened_species_use[plot_int_info$no_threatened_species == 0] = -1
+  
+  colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (plot_int_info$no_threatened_species_use+1)/max(plot_int_info$no_threatened_species_use+1)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+  
+  
+  # fig = fig |>  add_trace(type="scattermapbox",
+  #                         mode = 'markers',
+  #                         data = center_df,
+  #                         lon = center_df$long,
+  #                         lat = center_df$lat,
+  #                         text = plot_int_info$hover,
+  #                         # fill = plot_int_info$no_threatened_species+1,
+  #                         # fillcolor=col_scale,
+  #                         hoverinfo = 'skip',
+  #                         inherit = FALSE,
+  #                         showlegend = FALSE,
+  #                         marker = list(color = fillcolor, line = list(width = 0)))
+
+
+  
+  fig = plot_ly(plot_int_info,  text = plot_int_info$hover, hoverinfo = 'text') |>
+      add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df,
+                          lon = center_df$long,
+                          lat = center_df$lat,
+                          text = plot_int_info$hover,
+                          # fill = plot_int_info$no_threatened_species+1,
+                          # fillcolor=col_scale,
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                          hoverlabel = list(bgcolor = fillcolor)) |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_int_info$code,
+     z=plot_int_info$no_threatened_species_use+1,
+     zmin = 0, zmax = max(plot_int_info$no_threatened_species_use),
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_int_info$hover,
+     hoverinfo = 'text',
+     hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    colorbar(title = "")
+
+
+  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_threatened_Species.html'))
+  }
+  suppressWarnings(fig)
+
+```
+
+`r if(report_kind == 'interactive'){"###### By proportion of threatened species held"}`
+```{r  Map of the proportion of threatened species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+
+colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+point_value = (prop+0.01)/max(prop+0.01,na.rm = T)
+point_value[is.nan(point_value)] = 0
+color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+fillcolor[is.nan(prop)] = 'white'
+  
+  fig = plot_ly(plot_int_info,  text = ~hover, hoverinfo = 'text') |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_int_info$code,
+     z= prop+ 0.01,
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_int_info$hover,
+     hoverinfo = 'text',
+    hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    # hide_colorbar()
+    colorbar(title = "")
+
   
   fig = fig |>  add_trace(type="scattermapbox",
                           mode = 'markers',
@@ -934,35 +1845,68 @@ colours_index = ceiling(as.numeric(plot_int_info$no_threatened)/max(as.numeric(p
                           lon = center_df$long,
                           lat = center_df$lat,
                           text = plot_int_info$hover,
-                          color = I(colours_cont[colours_index]), 
                           hoverinfo = 'text',
-                          inherit = FALSE) 
-  
-  
-  
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                           hoverlabel = list(bgcolor = fillcolor))
 
-
-  
-  if(FALSE){
-    fig <- fig |> add_trace(type='scattermapbox',
-                           mode = 'markers',
-                           lon = coordinates[1],
-                           lat = coordinates[2],
-                          text = 'Collection',
-                          color = I('orange'),
-                           size = I(1),
-     hoverinfo = 'text')
-  }
-  
-  
-  
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
-  
+
   if(separate_figure_folder){
-    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_Threatened_Species.html'))
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_threatened_Species.html'))
   }
   suppressWarnings(fig)
+
+```
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+Of the threatened taxa from IUCN's redlist  that have been matched to WCVP (`r prop_threat_match_IUCN`% (`r threat_match_IUCN`/`r nrow(detailied_IUCN)`) of threatened taxa from IUCN) `r sum(threatened_per_region > 0)` regions have native threatened plants, and `r length(without_threatened_regions)` do not. The regions without a native threatened plant are:
+
+<details>
+<summary>Regions without threatened taxa </summary>
+`r paste0(without_threatened_regions, collapse = ' <br>')`
+</details>
+<br>
+
+In the LC `r round(with_threatened/sum(threatened_per_region > 0)*100,digits = 2)`% of regions with native threatened taxa are represented. The regions without representation are outlined below together with the number of threatened taxa in each region. 
+
+```{r threateed regions not in the LC - Table, eval = length(no_rep) > 0}
+if(report_kind == 'static'){
+  missing_regions |>
+  flextable() |>
+  set_caption(caption = "") |> 
+  font(fontname = "Calibri (Body)", part = "all") |> 
+  fontsize(size = table_font_size, part = "body") |> 
+  # add footer if you want
+  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
+  #                colwidths = 4) |> 
+  theme_booktabs() |> # default theme
+  autofit()
 }
+if(report_kind == 'interactive'){
+  DT::datatable(missing_regions, rownames = FALSE,
+                 options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
+}
+
 ```
 
+
+Further information about threatened taxa from non-represented regions can be downloaded using the button below.
+
+```{r link to download plants from missing threatened regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+  wcvp_wantedo |>
+  download_this(
+    output_name = "Threatened taxa (matched to WCVP accepted plants) from non-represented threatened regions",
+    output_extension = ".xlsx",
+    button_label = "Download threatened taxa from non-represented regions with threatened taxa (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+```
+<br>
+ 
 ***

@@ -55,6 +55,7 @@
 #' @param messages messages detailing how a match is obtained.
 #' @param console_message Flag (TRUE/FALSE) detailing whether to show messages in the console.
 #' @param try_hybrid Flag (TRUE/FALSE) for whether hybrid fixes are attempted.
+#' @param do_match_multiple Flag (TRUE/FALSE) for whether we attempt matching those found to have multiple taxonomic names in the enrich database..
 #'
 #' @export
 match_single <- function(taxon_names, enrich_database, enrich_database_search_index,
@@ -362,7 +363,9 @@ match_typos <- function(taxon_names, taxon_authors, enrich_database,
                         enrich_taxon_name_column = 'taxon_name',
                         single_indices = NA,
                         mult_indices = NA,
-                        typo_method = 'Data frame only', ...){
+                        typo_method = 'Data frame only',
+                        do_match_multiple = TRUE,
+                        ...){
   enriched_taxon_names = enrich_database[,match(enrich_taxon_name_column, names(enrich_database))]
 
   #Check for NA in taxon_names and remove if they exist.
@@ -419,7 +422,7 @@ match_typos <- function(taxon_names, taxon_authors, enrich_database,
   # Match to multiple.
   ########################
 
-  if(length(index_to_find_matches) > 0 & length(mult_indices) > 0){
+  if(length(index_to_find_matches) > 0 & length(mult_indices) > 0 & do_match_multiple){
     typo_index = typo_indices[index_to_find_matches]
     match_info = match_multiple(name_to_try[index_to_find_matches], taxon_authors[typo_index],  enrich_database, mult_indices, ...)
     out_match[typo_index] = match_info$match

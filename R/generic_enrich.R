@@ -467,6 +467,7 @@ match_collection_to_enrich_database <- function(collection, enrich_database,
                              mult_indices = mult_indices,
                              typo_method = typo_method,
                              enrich_taxon_name_column = enrich_taxon_name_column,
+                             do_match_multiple = do_match_multiple,
                              ...)
 
     taxon_match[index_to_find_matches] = match_info$match

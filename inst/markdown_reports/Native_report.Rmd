@@ -3,7 +3,7 @@ title: "Exploration of native taxa in the LC"
 output: html_document
 ---
 
-
+###### {-} 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(plotly)
@@ -702,10 +702,22 @@ if(length(family_not_in) > 0){
     dplyr::ungroup()
   names(wcvp_wanted_format) = c('Family', 'Total Native Taxa')
   
+  families_collection = unique(report_original$POWO_family)
+  any_in_collection = rep('No', nrow(wcvp_wanted_format))
+  any_in_collection[wcvp_wanted_format$Family %in% families_collection] = 'Yes'
+  wcvp_wanted_format$In_col = any_in_collection
+    names(wcvp_wanted_format) = c('Family', 'Total Native Taxa', 'Family in LC (not-native)')
+
+  
+  
   wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
-  wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+   fam_in_collection = rep('No', nrow(wcvp_wanted))
+  fam_in_collection[wcvp_wanted$family %in% families_collection] = 'Yes'
+  wcvp_wanted$family_in_collection_non_native = fam_in_collection
+  wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'family_in_collection_non_native', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
   wcvp_wanted = wcvp_wanted[order(wcvp_wanted$family),]
 
+ 
 }
 
 
@@ -717,8 +729,10 @@ powo_name[powo_name == 'NA NA'] = NA
 native_accessions$powo_name = powo_name
 native_accessions = native_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'endemic'), names(native_accessions))]
 names(native_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Endemic')
+if(export_data){
+  writexl::write_xlsx(native_accessions, path =paste0(output_dir,'/',collection,'_native_accessions_list.xlsx'))
 
-writexl::write_xlsx(native_accessions, path =paste0(output_dir,'/',collection,'_native_accessions_list.xlsx'))
+}
 
 ```
 
@@ -1319,7 +1333,7 @@ return(fig)
 fig = proportion_native(native_data = native_data,LC_data = LC_data, type = 'Items', title = 'items')
 
 if(separate_figure_folder){
-  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_bar-percentage_of_native_items_over_time.html'))
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','percentage_of_native_items_over_time.html'))
 }
   
 fig
@@ -2078,13 +2092,13 @@ if(!do_over_time){
   do_survival = FALSE
 }
 enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYearOrig) > 1650 & as.numeric(enriched_report$AccYearOrig) < as.numeric(format(Sys.Date(),'%Y')),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]
 
 # Create a data-frame of the information we want.
 wanted_data = data.frame(enriched_report_wanted$TaxonNameFull, enriched_report_wanted$AccYear, enriched_report_wanted$ItemStatusDate, enriched_report_wanted$ItemStatusType)
 names(wanted_data) = c('TaxonNameFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
 
-wanted_data = wanted_data[!is.na(wanted_data$ItemStatusDate),]
-wanted_data = wanted_data[!is.na(wanted_data$AccYear),]
 if(nrow(wanted_data) == 0){
   do_survival = FALSE
 }
@@ -2119,15 +2133,15 @@ wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
 # We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
 missing_itemstatusdate_index = which(wanted_data$time > 0)
 wanted_data = wanted_data[missing_itemstatusdate_index,]
-enriched_report = enriched_report[missing_itemstatusdate_index,]
+enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
 
 
 ## 1) Native or non-native (or doesn't have geography info.)
 location = location_code
 #Get which records are native.
-native_non_native = rep('Not Native',nrow(enriched_report))
-native_non_native[which(enriched_report$POWO_plant_name_id %in% native_plant_ids)] = 'Native'
-native_non_native[is.na(enriched_report$POWO_Dist_000_area_code_l3)] = NA
+native_non_native = rep('Not Native',nrow(enriched_report_wanted))
+native_non_native[which(enriched_report_wanted$POWO_plant_name_id %in% native_plant_ids)] = 'Native'
+native_non_native[is.na(enriched_report_wanted$POWO_Dist_000_area_code_l3)] = NA
 
 data_to_analyse = data.frame(wanted_data$TaxonNameFull,
                              wanted_data$time,
@@ -2179,7 +2193,7 @@ if(report_kind == 'static'){
 } 
 ```
 
-```{r survival_analysis - interactive figure, eval = do_survival}
+```{r survival_analysis - interactive figure, eval = do_survival, fig.dim = c(10, 4)}
 if(report_kind == 'interactive'){
   # figgo = plot_ly(data = survival_data_plot, x =~p.data.time, y = ~p.data.estimate, color = ~p.data.strata, mode = 'lines', type = 'scatter', colors = interactive_colour(2))
   # figgo = figgo |> layout(legend = list(orientation = 'h'),
@@ -2300,9 +2314,9 @@ if(report_kind == 'interactive'){
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Data}
 # LC_native_exisiting, native and existing part of LC database.
-
+LC_native_exisiting <<- LC_native_exisiting
 endemic = rep(FALSE, nrow(LC_native_exisiting))
-endemic[which(stringr::str_length(LC_native_exisiting$POWO_Dist_110_area_code_l3) == 3)] = TRUE
+endemic[which(stringr::str_length(LC_native_exisiting$geography_codes) == 3)] = TRUE
 total_endemic = sum(endemic)
 
 threatened = rep(FALSE, nrow(LC_native_exisiting))
@@ -2310,6 +2324,8 @@ threatened[which(LC_native_exisiting$POWO_Red_category %in% c('EN', 'VU', 'CR', 
 threatened[which(LC_native_exisiting$redList_category %in% c('EN', 'VU', 'CR', 'EW', 'EX'))] = TRUE
 total_threatened = sum(threatened)
 
+# interest = LC_native_exisiting[which(endemic|threatened),]
+# BB = interest[c('TaxonNameFull', 'endemic', 'threatened', 'geography_codes')]
 total_threat_endemic = sum(endemic & threatened)
 need_venn = total_endemic > 0 | total_threatened > 0
 overlap = FALSE
@@ -2413,7 +2429,10 @@ if(export_data){
 }
 
 # MANAGEMENT SHEET: native plants that are native and either endemic or threatened.
-writexl::write_xlsx(data_compressed, path =paste0(output_dir,'/',collection,'_native_and_either_endemic_or_threatened_list.xlsx'))
+if(export_data){
+  writexl::write_xlsx(data_compressed, path =paste0(output_dir,'/',collection,'_native_and_either_endemic_or_threatened_list.xlsx'))
+
+}
 
 
 ```
@@ -3142,3 +3161,589 @@ for(i in 1:length(datas)){
 saveWorkbook(wb, file = file)
 
 ```
+
+### What proportion of native taxonomy is in the LC?
+
+In this section we create sunburst and treemap charts showing all of the genera native to `r paste0(location_name, collapse = ', ')` within WCVP, where the genera are grouped into families, order and higher level lineages. The charts are shaded between white and black depending on the proportion of the native lineage is found in the collection. 
+
+```{r, Create taxonomic diversity genus level, echo = FALSE, message = FALSE}
+report = native_wcvp
+report = report[report$taxon_status == 'Accepted',]
+collection_report = LC_native_exisiting
+LC_in_WCVP = match(unique(collection_report$POWO_plant_name_id) ,report$plant_name_id)
+LC_in_WCVP = LC_in_WCVP[!is.na(LC_in_WCVP)]
+in_LC = rep(F, nrow(report))
+in_LC[LC_in_WCVP] = TRUE
+report$in_LC = in_LC
+report = report[c('family', 'genus', 'in_LC')]
+report$fam_gen = paste0(report$family,' ',report$genus)
+report <-  report |> 
+        dplyr::group_by(fam_gen) |> 
+        dplyr::summarise(family = family[1], 
+                         genus = genus[1],
+                         in_LC = any(in_LC)) |>
+  dplyr::ungroup() 
+
+
+
+#No families.
+# = Use POWO family if available if not use the original.
+no_families <- length(unique(report$family))
+
+#No genus
+# = Use POWO genus if available if not use the original.
+no_genus <- length(unique(report$fam_gen))
+
+
+report_div  = report
+
+Diversity_class = BGSmartR::Diversity_classification
+Classification <- as.data.frame(Diversity_class$Classification)
+synomym_families <- as.data.frame(Diversity_class$synomym_families)
+
+fam = report_div$family
+
+# Convert from conserved family name to family name where applicable. 
+AA = apply(synomym_families, 2, function(x){
+  fam[fam == as.character(x[2])] = as.character(x[1])
+  })
+report_div$family = fam
+
+matched_families = match(fam, Classification$family)
+order = Classification$order[matched_families]
+major_Eudicot_lineage = Classification$`major Eudicot lineage`[matched_families]
+major_Angiosperm_lineage = Classification$`major Angiosperm lineage`[matched_families]
+major_Land_Plants_lineage = Classification$`major Land Plants lineage`[matched_families]
+
+
+report_div$order = order
+report_div$major_Eudicot_lineage = major_Eudicot_lineage
+report_div$major_Angiosperm_lineage = major_Angiosperm_lineage
+report_div$major_Land_Plants_lineage = major_Land_Plants_lineage
+
+report_cur = report_div
+
+combined_taxo = paste0(report_cur$genus,'---',
+                                       report_cur$family,'---',
+                                       report_cur$order,'---',
+                                       report_cur$major_Eudicot_lineage,'---',
+                                       report_cur$major_Angiosperm_lineage,'---',
+                                       report_cur$major_Land_Plants_lineage)
+
+with_issue = length(which(grepl('---NA$',combined_taxo)))
+combined_taxo_count = as.numeric(report_cur$in_LC)
+#remove those without major land plants lineage. (i.e ends in ---NA).
+if(with_issue > 0){
+  index_remove = which(grepl('---NA$',combined_taxo))
+  combined_taxo = combined_taxo[-index_remove]
+  combined_taxo_count = combined_taxo_count[-index_remove]
+}
+# Convert NA in species to Indet.
+combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+
+
+data = data.frame(ID = combined_taxo, count = combined_taxo_count, count_all = 1)
+non_combined  = data.frame(t(data.frame(stringr::str_split(data$ID,pattern = '---'))))
+names(non_combined) = c('genus', 'family', 'order', 'major_Eudicot_lineage',
+                        'major_Angiosperm_lineage', 'major_Land_Plants_lineage')
+rownames(non_combined) = 1:nrow(non_combined)
+
+data = data.frame(data, non_combined)
+
+# push species names to genus species (otherwise issues with repeated species names with different genera)
+
+labels = c(unique(data$major_Land_Plants_lineage), unique(data$major_Angiosperm_lineage), unique(data$major_Eudicot_lineage),
+           unique(data$order), unique(data$family), unique(data$genus))
+major_Land_Plants_lineage_index = 1:length(unique(data$major_Land_Plants_lineage))
+major_Angiosperm_lineage_index = (max(major_Land_Plants_lineage_index)+1):(max(major_Land_Plants_lineage_index)+length(unique(data$major_Angiosperm_lineage)))
+major_Eudicot_lineage_index = (max(major_Angiosperm_lineage_index)+1):(max(major_Angiosperm_lineage_index)+length(unique(data$major_Eudicot_lineage)))
+order_index = (max(major_Eudicot_lineage_index)+1):(max(major_Eudicot_lineage_index)+length(unique(data$order)))
+family_index = (max(order_index)+1):(max(order_index)+length(unique(data$family)))
+genus_index = (max(family_index)+1):(max(family_index)+length(unique(data$genus)))
+
+parents = rep('', length(labels))
+parents[major_Angiosperm_lineage_index] = data$major_Land_Plants_lineage[match(labels[major_Angiosperm_lineage_index], data$major_Angiosperm_lineage)]
+parents[major_Eudicot_lineage_index] = data$major_Angiosperm_lineage[match(labels[major_Eudicot_lineage_index], data$major_Eudicot_lineage)]
+parents[order_index] = data$major_Eudicot_lineage[match(labels[order_index], data$order)]
+parents[family_index] = data$order[match(labels[family_index], data$family)]
+parents[genus_index] = data$family[match(labels[genus_index], data$genus)]
+
+values = rep(NA, length(labels))
+values[genus_index] = data$count[match(labels[genus_index], data$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,2)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,2)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,2)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,2)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,2)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+in_collection = values
+
+values = rep(NA, length(labels))
+values[genus_index] = data$count_all[match(labels[genus_index], data$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,3)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,3)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,3)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,3)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,3)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+total_wcvp = values
+
+
+data_formatted = data.frame(ID = labels, labels=labels, parents = parents, values = total_wcvp,  in_LC = in_collection)
+
+#Go back to just species names.
+data_formatted$labels[grepl('---', data_formatted$labels)] = unlist(lapply(stringr::str_split(data_formatted$labels[grepl('---', data_formatted$labels)], pattern = '---'), function(x){x[1]}))
+data_formatted$ID[grepl('---', data_formatted$ID)] = unlist(lapply(stringr::str_split(data_formatted$ID[grepl('---', data_formatted$ID)], pattern = '---'), function(x){x[1]}))
+# data_formatted$labels=unlist(lapply(stringr::str_split(data_formatted$labels, ' '),function(x){x[length(x)]}))
+data_formatted$ID = paste0(data_formatted$labels, '---', data_formatted$parents)
+
+data_formatted$parents = paste0(data_formatted$parents,'---',data_formatted$parents[match(data_formatted$parents, data_formatted$labels)])
+data_formatted$parents[data_formatted$parents == "---NA"] =''
+
+# Collapse levels.
+data_formatted$labels[data_formatted$labels == 'None_Eudicots'] = 'Other'
+data_formatted$labels[data_formatted$labels == 'None_Angiosperms'] = 'Other'
+
+# Remove Intermediate levels.
+remove_nodes = c('None_Monocots', 'None_Ferns', 'None_Ferns_Eudicot',"None_Gymnosperms", 'None_Lycophytes',   'None_Liverworts', 'None_Hornworts', 'None_Gymnosperms_Eudicot', 'None_Lycophytes_Eudicot', 'None_Liverworts_Eudicot', 'None_Hornworts_Eudicot', 'No_Mosses_Angiosperm_lineage', 'No_Mosses_Eudicot_lineage', 'None_Angiosperms_Eudicot_lineage')
+AA = lapply(remove_nodes, function(node){
+  # Select the row to remove (begining with "*node*---")
+  to_remove = which(grepl(paste0('^',node,'---'), data_formatted$ID))
+  if(length(to_remove)> 0 ){
+    #Get new parent id and new label from the node to remove.
+    new_parent = data_formatted[to_remove,]$parents
+    new_label =  unlist(stringr::str_split(new_parent,'---'))[1]
+    # Remove the row.
+    data_formatted = data_formatted[-to_remove,]
+    # Update End of the ID for the new parent
+    data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)] = unlist(stringr::str_replace(data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)],paste0('---',node), paste0('---',new_label)))
+    # Update the parents for each node who originally has 'node' as the value. 
+    data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
+    # Update the parents for each node who originally has 'node' as the parent. 
+    data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
+    data_formatted <<- data_formatted
+  }
+ 
+  return()
+})
+
+
+# Add header of 'Collection'
+data_formatted$ID[grepl('---$', data_formatted$ID)] = paste0(data_formatted$ID[grepl('---$', data_formatted$ID)] , 'WCVP')
+data_formatted$parents[grepl('---$', data_formatted$parents)] = paste0(data_formatted$parents[grepl('---$', data_formatted$parents)] , 'WCVP')
+data_formatted$parents[data_formatted$parents == ''] = 'WCVP'
+
+data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatted$values[data_formatted$parents == 'WCVP']), sum(data_formatted$in_LC[data_formatted$parents == 'WCVP']) )
+
+### Subfamily level information
+{
+  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
+file = '/Users/jakepowell/Downloads/classification.csv'
+data = read.csv(file, sep = '\t')
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+## Create a summary of families and their subfamilies.
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
+
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_tribe <- data_care[data_care$tribe != '',] |>
+  dplyr::group_by(.data$subfamily) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
+data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
+data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
+
+data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_subtribe <- data_care[data_care$subtribe != '',] |>
+  dplyr::group_by(.data$tribe) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   subfamily = toString(unique(.data$subfamily)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+
+}
+
+### Add subfamily info to data_formatted
+{
+  #############################################################################
+## Add subfamilies (All)
+#############################################################################
+## Get the genus that are linked to each sub family.
+families_with_sub = data_simp$family[data_simp$subfamily != ""]
+data_fam_sub = data_care[data_care$family %in% families_with_sub,]
+data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
+data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+subfamily_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
+subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
+
+# Remove those without a subfamily (we will deal with these later)
+subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
+save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+
+for(i in 1:nrow(subfamily_genus_simp)){
+  # for(i in 1:30){
+  subfamily_info = subfamily_genus_simp[i,]
+  subfamily_genera = unlist(stringr::str_split(subfamily_info$all_genera ,', '))
+  subfamily_genera = subfamily_genera[subfamily_genera !=  ""]
+  if(length(subfamily_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
+                         grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) >0){
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(subfamily_info$sub_family,'---', subfamily_info$family)
+    new = c(new_ID, subfamily_info$sub_family, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = subfamily_info$family, replacement = subfamily_info$sub_family)
+    data_want$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+  }
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+families_with_subfamilies = unique(subfamily_genus_simp$family)
+all_subfamilies = unique(subfamily_genus_simp$sub_family)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(families_with_subfamilies)){
+  family = families_with_subfamilies[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0(family,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---family (i.e no  subfamily)
+  without_subfamily = which(!data_want$labels %in% all_subfamilies)
+
+  #If we have at least one genus-family we need to group these into no subfamily.
+  if(length(without_subfamily) > 0){
+    data_without_subfam = data_want[without_subfamily,]
+
+    new_ID = paste0('No Subfamily','---', family)
+
+    new_node = new = c(new_ID, 'No Subfamily', data_want$parents[1], sum(as.numeric(data_without_subfam$values)), sum(as.numeric(data_without_subfam$in_LC)))
+
+    data_without_subfam$ID = stringr::str_replace(data_without_subfam$ID,pattern = family, replacement = 'No Subfamily')
+    data_without_subfam$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_subfamily],] = data_without_subfam
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+
+}
+
+#############################################################################
+## Add tribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+
+## Get the genus that are linked to each sub family.
+subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
+data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
+data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
+data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+tribe_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
+tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$sub_family != "No Subfamily",]
+save(tribe_genus_simp, file = 'tribe_genus_simp')
+
+for(i in 1:nrow(tribe_genus_simp)){
+  # for(i in 1:30){
+  tribe_info = tribe_genus_simp[i,]
+  tribe_genera = unlist(stringr::str_split(tribe_info$all_genera ,', '))
+  tribe_genera = tribe_genera[tribe_genera !=  ""]
+  if(length(tribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(tribe_info$sub_family, '$'),data_formatted$ID) &
+                         grepl(paste0(tribe_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) >0){
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(tribe_info$tribe,'---', tribe_info$sub_family)
+    new = c(new_ID, tribe_info$tribe, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = tribe_info$sub_family, replacement = tribe_info$tribe)
+    data_want$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+  }
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+subfamilies_with_tribes = unique(tribe_genus_simp$sub_family)
+all_tribes = unique(tribe_genus_simp$tribe)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(subfamilies_with_tribes)){
+  subfamily = subfamilies_with_tribes[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0(subfamily,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---subfamily (i.e no  subfamily)
+  without_tribe = which(!data_want$labels %in% all_tribes)
+
+  #If we have at least one genus-subfamily we need to group these into no subfamily.
+  if(length(without_tribe) > 0){
+    data_without_tribe = data_want[without_tribe,]
+
+    new_ID = paste0('No Tribe','---', subfamily)
+
+    new_node = new = c(new_ID, 'No Tribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)), sum(as.numeric(data_without_tribe$in_LC)))
+
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = subfamily, replacement = 'No Tribe')
+    data_without_tribe$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_tribe],] = data_without_tribe
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+
+}
+
+
+#############################################################################
+## Add Subtribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+
+## Get the genus that are linked to each sub family.
+tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
+data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
+data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
+data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
+subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
+subtribe_genus_simp <- subtribe_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
+subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
+save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+
+for(i in 1:nrow(subtribe_genus_simp)){
+  # for(i in 1:30){
+  subtribe_info = subtribe_genus_simp[i,]
+  subtribe_genera = unlist(stringr::str_split(subtribe_info$all_genera ,', '))
+  subtribe_genera = subtribe_genera[subtribe_genera !=  ""]
+  if(length(subtribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) &
+                         grepl(paste0(subtribe_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) == 0){
+    next
+  }
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(subtribe_info$subtribe,'---', subtribe_info$tribe)
+    new = c(new_ID, subtribe_info$subtribe, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = subtribe_info$tribe, replacement = subtribe_info$subtribe)
+    data_want$parents = new_ID
+    
+    
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+    
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+tribes_with_subtribes = unique(subtribe_genus_simp$tribe)
+all_subtribes = unique(subtribe_genus_simp$subtribe)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(tribes_with_subtribes)){
+  tribe = tribes_with_subtribes[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+  
+  in_formatted = which(grepl(paste0(tribe,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+  
+  # Check if we have any records where we have genus---tribe (i.e no  tribe)
+  without_subtribe = which(!data_want$labels %in% all_subtribes)
+  
+  #If we have at least one genus-tribe we need to group these into no tribe
+  if(length(without_subtribe) > 0){
+    data_without_tribe = data_want[without_subtribe,]
+    
+    new_ID = paste0('No Subtribe','---', tribe)
+    
+    new_node = new = c(new_ID, 'No Subtribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)), sum(as.numeric(data_without_tribe$in_LC)))
+    
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = tribe, replacement = 'No Subtribe')
+    data_without_tribe$parents = new_ID
+    
+    
+    # Replace original genus-family with the new genus-tribe
+    data_formatted[in_formatted[without_subtribe],] = data_without_tribe
+    
+    # Add the new node for the tribe
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+  
+}
+
+
+#############################################################################
+
+}
+
+
+
+data_formatted$percentage = as.numeric(data_formatted$in_LC) / as.numeric(data_formatted$values)
+rbPal <- colorRampPalette(c('white','black'))
+data_formatted$Col <- rbPal(100)[as.numeric(cut(data_formatted$percentage,breaks = 100))]
+
+data_formatted$hover = paste0(round(data_formatted$percentage*100,digits = 2),'% of native ', data_formatted$labels, ' genera found within the LC (',data_formatted$in_LC,'/',data_formatted$values,')')
+```
+
+```{r, Create  taxonomic diversity at genus with contained/missing, echo = F}
+if(report_kind == 'interactive'){
+ fig <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'sunburst',
+                             insidetextorientation='radial',
+                             branchvalues = 'total',
+                             maxdepth = 4,
+                             marker=list(colors=data_formatted$Col, line = list(color = 'white')),
+                             hoverinfo = "text",  hovertext = data_formatted$hover
+                             )
+
+ fig2 <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'treemap',
+                             branchvalues = 'total',
+                             maxdepth = 4,
+                             marker=list(colors=data_formatted$Col, line = list(color = 'white')),
+                         hoverinfo = "text",  hovertext = data_formatted$hover)
+                        
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','sunburst:taxonomic_diversity.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','treemap:taxonomic_diversity.html'))
+}
+
+}
+```
+
+`r if(report_kind == 'interactive'){"#####  Native genera in/not in the LC {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Sunburst"}`
+```{r  Sunburst genera, fig.fullwidth=TRUE, fig.dim = c(10, 8), eval = report_kind == 'interactive'}
+fig
+```
+
+`r if(report_kind == 'interactive'){"###### Treemap"}`
+```{r  tree map genera, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+fig2
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***

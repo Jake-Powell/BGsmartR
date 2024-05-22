@@ -12,7 +12,7 @@
 #' @param enriched_report The enriched (via BGSmartR) report of a LC.
 #' @param collection The name of the LC
 #' @param wgsrpd3 World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from `rWCVP` pacakge.
-
+#' @param wcvp World Checklist of Vascular Plants (WCVP) database, obtained using the function [import_wcvp_names()].
 #' @param native string where 'Naturally occurring only' or 'Introduced only' reduces the locations used to determine native plants.
 #' @param extinct  Flag (TRUE/FALSE) for whether to include extinct geographic locations.
 #' @param doubtful_locations  Flag (TRUE/FALSE) for whether to include doubtful locations.
@@ -28,7 +28,8 @@
 #' @param report_kind The find of report to create, either `static` or `interactive`.
 #' @param palette String colour palette for use in the interactive report.
 #' @param color_binary colours for the representation of species.
-
+#' @param endemic_species_per_region A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
+#' @param accepted_species_per_region A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #'
 #' @return renders the native (word document) or interactive report (html document)
 #' @export
@@ -36,6 +37,7 @@
 create_geography_report <- function(enriched_report,
                                     collection = NULL,
                                     wgsrpd3 = NULL,
+                                    wcvp = NULL,
                                     report_kind = 'static',
                                     native = 'Naturally occurring only',
                                     extinct = TRUE,
@@ -47,6 +49,8 @@ create_geography_report <- function(enriched_report,
                                     ggtheme = NULL,
                                     separate_figure_folder = TRUE,
                                     value_on_fig = FALSE,
+                                    endemic_species_per_region = NULL,
+                                    accepted_species_per_region = NULL,
 
                                     color_binary = c('darkgray','darkgreen'),
                                     palette = 'Greens',
@@ -90,6 +94,7 @@ create_geography_report <- function(enriched_report,
       rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
                         params = list(enriched_report = enriched_report,
                                       wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
                                       collection = collection,
                                       native = native,
                                       extinct = extinct,
@@ -103,6 +108,8 @@ create_geography_report <- function(enriched_report,
                                       scale_fill_distiller = scale_fill_distiller,
                                       separate_figure_folder = separate_figure_folder,
                                       output_dir = output_dir,
+                                      endemic_species_per_region = endemic_species_per_region,
+                                      accepted_species_per_region = accepted_species_per_region,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -112,6 +119,7 @@ create_geography_report <- function(enriched_report,
       rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
                         params = list(enriched_report = enriched_report,
                                       wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
                                       collection = collection,
                                       native = native,
                                       extinct = extinct,
@@ -125,6 +133,8 @@ create_geography_report <- function(enriched_report,
                                       scale_fill_distiller = scale_fill_distiller,
                                       separate_figure_folder = separate_figure_folder,
                                       output_dir = output_dir,
+                                      endemic_species_per_region = endemic_species_per_region,
+                                      accepted_species_per_region = accepted_species_per_region,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -136,6 +146,7 @@ create_geography_report <- function(enriched_report,
     rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
                       params = list(enriched_report = enriched_report,
                                     wgsrpd3 = wgsrpd3,
+                                    wcvp = wcvp,
                                     collection = collection,
                                     native = native,
                                     extinct = extinct,
@@ -149,6 +160,8 @@ create_geography_report <- function(enriched_report,
                                     scale_fill_distiller = scale_fill_distiller,
                                     separate_figure_folder = separate_figure_folder,
                                     output_dir = output_dir,
+                                    endemic_species_per_region = endemic_species_per_region,
+                                    accepted_species_per_region = accepted_species_per_region,
                                     value_on_fig = value_on_fig),
                       output_file = output_file,
                       output_dir = output_dir,

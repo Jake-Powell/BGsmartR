@@ -61,6 +61,7 @@ match_typos(
   single_indices = NA,
   mult_indices = NA,
   typo_method = "Data frame only",
+  do_match_multiple = TRUE,
   ...
 )
 
@@ -150,6 +151,8 @@ try_fix_hybrid(
 \item{mult_indices}{A vector of indices of \code{enrich_database} that correspond to the records that have 'non-unique' taxonomic names.}
 
 \item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
+
+\item{do_match_multiple}{Flag (TRUE/FALSE) for whether we attempt matching those found to have multiple taxonomic names in the enrich database..}
 
 \item{taxon_name_and_author}{the pair of taxonomic name and combined taxonomic name and author}
 
