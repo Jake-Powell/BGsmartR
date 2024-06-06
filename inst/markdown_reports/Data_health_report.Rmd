@@ -13,27 +13,83 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+library(downloadthis)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
+
+color_binary <- rev(c('#f46d43', '#848484'))
+palette = 'Oranges'
 ```
+
 
 ```{r, imported parameters}
 # Inputs
 # As an input we get 
 # - Enriched report
-# - collection the name to be printed in the report.
-load("/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda")
-coordinates = c(52.19375565279363, 0.1277770504441467)
-collection = 'CUBG'
+# # - collection the name to be printed in the report.
+# load("/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_May2024_enriched_report.rda")
+# # coordinates = c(52.19375565279363, 0.1277770504441467)
+# collection = 'CUBG'
+# 
+# separate_figure_folder = FALSE
+# output_dir = getwd()
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# # load('/Users/jakepowell/Cambridge/Modules/Basic Stats/wgsrpd3.rda)
+# report_kind = 'interactive'
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# ggtheme = NULL
+# value_on_fig = TRUE
+```
 
-separate_figure_folder = FALSE
-output_dir = getwd()
-load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
-# load('/Users/jakepowell/Cambridge/Modules/Basic Stats/wgsrpd3.rda)
-report_kind = 'static'
-native = 'Naturally occurring only'
-extinct = TRUE
-doubtful_locations = FALSE
-ggtheme = NULL
-value_on_fig = TRUE
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2098D1;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
 ```
 
 ```{r theme_ggplot2}
@@ -105,6 +161,58 @@ render_barplot ="
 });
     }
   "
+
+icon_svg_path = "M15.608,6.262h-2.338v0.935h2.338c0.516,0,0.934,0.418,0.934,0.935v8.879c0,0.517-0.418,0.935-0.934,0.935H4.392c-0.516,0-0.935-0.418-0.935-0.935V8.131c0-0.516,0.419-0.935,0.935-0.935h2.336V6.262H4.392c-1.032,0-1.869,0.837-1.869,1.869v8.879c0,1.031,0.837,1.869,1.869,1.869h11.216c1.031,0,1.869-0.838,1.869-1.869V8.131C17.478,7.099,16.64,6.262,15.608,6.262z M9.513,11.973c0.017,0.082,0.047,0.162,0.109,0.226c0.104,0.106,0.243,0.143,0.378,0.126c0.135,0.017,0.274-0.02,0.377-0.126c0.064-0.065,0.097-0.147,0.115-0.231l1.708-1.751c0.178-0.183,0.178-0.479,0-0.662c-0.178-0.182-0.467-0.182-0.645,0l-1.101,1.129V1.588c0-0.258-0.204-0.467-0.456-0.467c-0.252,0-0.456,0.209-0.456,0.467v9.094L8.443,9.553c-0.178-0.182-0.467-0.182-0.645,0c-0.178,0.184-0.178,0.479,0,0.662L9.513,11.973z"
+
+dl_button <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].x + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].y + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
+
+dl_button_map <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].z + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].hovertext + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
 ```
 
 ```{r, Add combined geography column to enriched report}
@@ -153,96 +261,6 @@ enriched_report$geography_codes = level3codes
 
 `r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
 
-```{r, Extracting information from enriched report}
-# Add required columns if missing.
-needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
-if(!'AccNoFull' %in% names(enriched_report)){
-  enriched_report$AccNoFull = 1:nrow(enriched_report)
-}
-if(!'Family' %in% names(enriched_report)){
-  enriched_report$Family =rep(NA, nrow(enriched_report))
-}
-if(!'Genus' %in% names(enriched_report)){
-  enriched_report$Genus = rep(NA, nrow(enriched_report))
-}
-if(!'GenusSpecies' %in% names(enriched_report)){
-  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
-}
-if(!'AccYear' %in% names(enriched_report)){
-  enriched_report$AccYear = rep(0, nrow(enriched_report))
-}
-if(!'ItemStatusDate' %in% names(enriched_report)){
-  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
-}
-if(!'ItemStatusType' %in% names(enriched_report)){
-  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
-}
-
-do_coord = !is.na(coordinates[1])
-# Set report to only the existing items.
-report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
-
-#Extract endemic information from report
-endemic = rep('Not Endemic', nrow(report))
-endemic_index = which(stringr::str_length(report$geography_codes) == 3)
-endemic[endemic_index] = 'Endemic'
-report$endemic = endemic
-rm(endemic)
-
-# Extract threatened. 
-threat_cat = c('VU','EN','CR','EW','EX')
-threatened = rep('Not Threatened', nrow(report))
-threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
-threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
-report$threatened = threatened
-rm(threatened)
-
-# Extract threatened category. 
-threatened_category = rep(NA, nrow(report))
-for(i in 1:length(threat_cat)){
- threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
- threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
-}
-report$threatened_category = threatened_category
-rm(threatened_category)
-
-# Convert Provenance code to text.
-report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
-report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
-report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
-report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
-
-# Create a sanitised taxonomic name.
-report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
-
-best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
-best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
-report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
-
-report_original = report
-
-if(separate_figure_folder){
-  figures_dir = paste0(output_dir,'/',collection,'_Figures')
-  dir.create(figures_dir,showWarnings = FALSE)
-}
-
-# Extract the location of the collection.
-pnts <- data.frame(x = coordinates[1], y = coordinates[2])
-
-# create a points collection
-pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
-                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
-
-pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
-tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
-
-intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
-collection_geog_details = wgsrpd3[which(intersect),-5]
-level3_name = collection_geog_details$LEVEL3_NAM
-level3_code = collection_geog_details$LEVEL3_COD
-
-```
-
 ```{r, Get location_type_text}
 location_type_text = ''
 if(native == 'Naturally occurring only'){
@@ -290,33 +308,604 @@ if(length(location_name) == 0){
   location_name = collection_geog_details$LEVEL3_NAM
   location_code = collection_geog_details$LEVEL3_COD
 }
+ collection_geog_details_og = collection_geog_details
 ```
+
+```{r, Extracting information from enriched report}
+# Add required columns if missing.
+needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'Family' %in% names(enriched_report)){
+  enriched_report$Family =rep(NA, nrow(enriched_report))
+}
+if(!'Genus' %in% names(enriched_report)){
+  enriched_report$Genus = rep(NA, nrow(enriched_report))
+}
+if(!'GenusSpecies' %in% names(enriched_report)){
+  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
+}
+if(!'AccYear' %in% names(enriched_report)){
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+
+do_coord = !is.na(coordinates[1])
+# Set report to only the existing items.
+report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+
+#Extract endemic information from report
+endemic = rep('Not Endemic', nrow(report))
+endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+report$endemic = endemic
+rm(endemic)
+
+# Add native column.
+native = rep('Non-native', nrow(report))
+native_index = which(grepl(location_code, report$geography_codes))
+native[native_index] = 'Native'
+report$native = native
+rm(native)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(report))
+threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
+report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
+report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
+report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Create a sanitised taxonomic name.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
+report$best_name = best_name
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+report_original = report
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+# # Extract the location of the collection.
+# pnts <- data.frame(x = coordinates[1], y = coordinates[2])
+# 
+# # create a points collection
+# pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+#                                      function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+# 
+# pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+# tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+# 
+# intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+# collection_geog_details = wgsrpd3[which(intersect),-5]
+# level3_name = collection_geog_details$LEVEL3_NAM
+# level3_code = collection_geog_details$LEVEL3_COD
+
+```
+
 
 This report explores data health within `r collection`, and data enhancement.
 
-### Where is the LC? 
+
+## Taxonomic Standardisation
+
+```{r taxonomic standardisation information}
+### Reduce to only the fields that we care about.  ----
+interest = report[c('TaxonNameFull',
+                    'POWO_match_detail',
+                    'POWO_match_detail_short',
+                    'POWO_author_check',
+                    'taxon_type', 
+                    'need_sanitise')]
+interest_taxa = unique(interest)
+### (END) Reduce to only the fields that we care about.  ----
 
 
- To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
+### Get the numbers/stats we want ----
+# Number of individuals / taxa
+no_items = nrow(interest)
+no_taxa = nrow(interest_taxa)
 
-- Native / introduced,
-- Extinct / Not extinct,
-- Location is doubtful / otherwise.
+match_without_fix_text = c("SINGLE", "MULTIPLE, AUTHOR", "MULTIPLE, PARTIAL", "MULTIPLE, TAXON_STATUS", "MULTIPLE, SAME_ACC")  
+match_without_fix_text = c(match_without_fix_text, paste0(match_without_fix_text, ', ACCEPTED'))
 
-This document considers locations that are : `r location_type_text` 
- 
+
+# taxonomic standarisation details (items)
+cultivar_indet = sum(interest$POWO_match_detail_short == 'CULT/INDET')
+attempted_to_match = no_items - cultivar_indet
+match_identical = sum(interest$POWO_match_detail_short %in% match_without_fix_text & interest$POWO_author_check == "Identical")
+match_partial =   sum(interest$POWO_match_detail_short %in% match_without_fix_text & interest$POWO_author_check == "Partial")      
+match_auth_diff = sum(interest$POWO_match_detail_short %in% match_without_fix_text & interest$POWO_author_check == "Different")        
+go_accepted = sum(grepl('ACCEPTED',interest$POWO_match_detail_short))
+requiring_fix = sum(grepl('FIX|TYPO',interest$POWO_match_detail_short))
+mult_resolve =  sum(grepl('TAXON_STATUS|SAME_ACC|METHOD',interest$POWO_match_detail_short))
+mult_no_resolve = sum(grepl('UNCLEAR',interest$POWO_match_detail_short))
+no_match = sum(grepl('NO_MATCH',interest$POWO_match_detail_short))
+items = c(attempted_to_match, match_identical, match_partial, match_auth_diff, go_accepted, requiring_fix, mult_resolve,mult_no_resolve, no_match)
+items = paste0(format(items,big.mark=','), ' (', round(items/(items[1])*100,digits = 2), '%)', sep ='')
+items = c(no_items,cultivar_indet,items)
+items[1:2] = format(as.numeric(items[1:2]),big.mark=',')
+
+
+# taxonomic standarisation details (taxa)
+cultivar_indet = sum(interest_taxa$POWO_match_detail_short == 'CULT/INDET')
+attempted_to_match = no_taxa - cultivar_indet
+match_identical = sum(interest_taxa$POWO_match_detail_short %in% match_without_fix_text & interest_taxa$POWO_author_check == "Identical")
+match_partial =   sum(interest_taxa$POWO_match_detail_short %in% match_without_fix_text & interest_taxa$POWO_author_check == "Partial")      
+match_auth_diff = sum(interest_taxa$POWO_match_detail_short %in% match_without_fix_text & interest_taxa$POWO_author_check == "Different")        
+go_accepted = sum(grepl('ACCEPTED',interest_taxa$POWO_match_detail_short))
+requiring_fix = sum(grepl('FIX|TYPO',interest_taxa$POWO_match_detail_short))
+mult_resolve =  sum(grepl('TAXON_STATUS|SAME_ACC|METHOD',interest_taxa$POWO_match_detail_short))
+mult_no_resolve = sum(grepl('UNCLEAR',interest_taxa$POWO_match_detail_short))
+no_match = sum(grepl('NO_MATCH',interest_taxa$POWO_match_detail_short))
+taxa_info = c(attempted_to_match, match_identical, match_partial, match_auth_diff, go_accepted, requiring_fix, mult_resolve, mult_no_resolve,no_match)
+taxa_info = paste0(format(taxa_info,big.mark=','), ' (', round(taxa_info/(taxa_info[1])*100,digits = 2), '%)', sep ='')
+taxa_info = c(no_taxa,cultivar_indet,  taxa_info)
+taxa_info[1:2] = format(as.numeric(taxa_info[1:2]),big.mark=',')
+
+indet = sum(grepl('0',interest_taxa$taxon_type))
+cult = sum(grepl('5',interest_taxa$taxon_type))
+sanitised = sum(interest_taxa$need_sanitise[interest_taxa$POWO_match_detail_short != 'CULT/INDET'])
+### (END) Get the numbers/stats we want ----
+
+### funnel chart information. ------
+# c(cultivar_indet, match_identical, match_partial, match_auth_diff, requiring_fix, mult_no_resolve, no_match) check add to total
+funnel_values = c(no_taxa, # total number of taxa
+         attempted_to_match,  # total number of taxa after removing cult/indet
+         attempted_to_match - match_identical,
+         attempted_to_match - match_identical - match_partial,
+         attempted_to_match - match_identical - match_partial - mult_no_resolve - no_match,
+         requiring_fix + mult_no_resolve + no_match, # the number requiring fixing with those we can't resolve and those we can't match
+         mult_no_resolve + no_match, # The number we can't match and those that we can't resolve
+         no_match # The number that woe couldn't match
+         )
+funnel_names = c("All", "Remove Cultivar/Indet", "Exact Match", "Partial Match", "Match, No Author", "Require Fix", "Can't Resolve", "No match")
+funnel_data = data.frame(names = funnel_names, values= funnel_values)
+funnel_data$percent_total = (funnel_values / funnel_values[1] *100) |> round(digits = 2)
+funnel_data$stage_number = c('-',cultivar_indet, match_identical, match_partial, match_auth_diff, requiring_fix, mult_no_resolve, no_match) 
+funnel_data$stage_percent = c('-',(as.numeric(funnel_data$stage_number[-1]) / funnel_values[1] *100)|> round(digits = 2))
+funnel_data$hover_text = paste0('Stage: ', funnel_data$names, '<br>',
+                    'Total enter stage: ', funnel_data$values,  '<br>',
+                    'Total in stage: ', funnel_data$stage_number, ' (', funnel_data$stage_percent, '%)', '<br>'
+                    )
+
+fig <- plot_ly(data = funnel_data, 
+               type = "funnel",
+               y = ~names,
+               x = ~values,
+               hoverinfo = "text", 
+               hovertext = ~hover_text,
+               marker = list(color = interactive_colour(1))
+               ) |>
+  layout(yaxis = list(title = '', 
+                      categoryarray = c("All", "Remove Cultivar/Indet", "Exact Match", "Partial Match", "Match, No Author", "Require Fix", "Can't Resolve", "No match"))
+         )|> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+
+funnel_fig = fig
+### (END) funnel chart information. ------
+
+### Table of the matching information --------
+kind = c('All',
+         'Cultivars/Indeterminates',
+         'Attempted to match to WCVP',
+         'Match taxonomic name and author',
+         'Match taxonomic name, partial match author',
+         'Match taxonomic name, no match author',
+         'Matched to a symonym of an accepted name in WCVP',
+         'Taxonomic name requires fixing to match',
+         'Multiple taxonomic name matches found, resolve via non-author',
+         'Multiple taxonomic name matches found, cannot resolve',
+         'No match found')
+
+matching_breakdown = data.frame(Group = kind, Individuals = items, Taxa = taxa_info)
+
+# matching_details_table = DT::datatable(matching_breakdown, rownames = FALSE, options = list(scrollX = TRUE,pageLength = nrow(matching_breakdown), dom = 'tp', paging=FALSE))
+
+matching_details_table <- matching_breakdown |>
+  DT::datatable(extensions = 'Buttons',
+                rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               pageLength = nrow(matching_breakdown),
+                               dom = 'Bt',
+                               buttons = c('copy', 'csv', 'excel', 'pdf'),
+                               paging=FALSE,
+                               ordering=F))
+### (END)Table of the matching information --------
+
+### Exportable data frame of the of used name within BGSmartR and the matching process.
+
+export_df = report[c('AccNoFull','TaxonNameFull', 'best_name', 'POWO_match_detail_short', 'POWO_author_check')]
+names(export_df) = c('Accession Number',
+                     'Original taxonomic name and author',
+                     'BGSmartR taxonomic name and author',
+                     'Matching tags',
+                     'Author Match'
+                     )
+export_df = unique(export_df)
+```
+
+Within the collection there were `r no_items |> format(big.mark= ',')` individuals consisting of `r no_taxa |> format(big.mark= ',')` unique taxonomic names and authorities. To these unique taxonomic names and authorities we first filter out indeterminate taxa (`r indet |> format(big.mark= ',')`) and cultivars (`r cult |> format(big.mark= ',')`) as these are not found in WCVP. The remaining `r attempted_to_match` taxonomic names and authorities to match to WCVP following the matching framework supplied within the BGSmartR package. 
+
+Prior to matching we first attempt to sanitise the taxonomic names where we fix casing issues with the records (convert all taxonomic names to capitalised first letter of genus all other letters lower case). 
+`r if(sanitised > 0){paste0("This was required for ", sanitised |> format(big.mark= ',')," taxonomic names. ")}`
+`r if(sanitised == 0){"This was not required for any taxonomic names."}`
+
+The process is outlined in the figure below which visualises the process as passing taxonomic names through sieves (stages) which captures matches with varying confidence levels. 
+
+<!-- `r if(report_kind == 'interactive'){"#####   {.tabset}"}` -->
+<!-- `r if(report_kind == 'interactive'){"###### Chart"}` -->
+
+`r funnel_fig`
+
+
+<!-- `r if(report_kind == 'interactive'){"###### Table"}` -->
+
+Moreover a table is also provided with the number of taxonomic names and authorities grouped into key matching groups together with the group size relative to the number of taxonomic names and authorites we attempted to match to WCVP. Included in the table is also the number of taxonomic names within the collection that matched to synonyms within WCVP.
+
+```{r table WCVP matching, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+matching_details_table
+```
+
+
+<!-- `r if(report_kind == 'interactive'){"##### {-}"}` -->
+
+
+Accession level information of taxonomic matching to WCVP can be downloaded using the button below.
+
+
+```{r}
+export_df |>
+  download_this(
+    output_name = "matching_information",
+    output_extension = ".xlsx",
+    button_label = "Download accession matching information (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+```
+
+## Data Enrichment
+
+In this section we produce visuals using the enriched information added to the collection via BGSmartR.
+
+```{r, download enrichment info}
+interest = report[c('AccNoFull',
+                    'TaxonNameFull',
+                    'best_name',
+                    'POWO_Dist_000_labels',
+                    'POWO_geographic_area',
+                    'endemic',
+                    'native',
+                    'POWO_lifeform_description',
+                    "POWO_climate_description",
+                    'Enrich_is_tree',
+                    'threatened',
+                    'threatened_category',
+                    'no_gardens',
+                    'geography_codes')] 
+interest = interest[match(unique(interest$AccNoFull), interest$AccNoFull),]
+names(interest) = c('Accession Number',
+                    'Original Taxonomic Name and Authority',
+                    'BGSmartR Taxonomic Name and Authority',
+                    'Distribution Description',
+                    'Distribution Description (POWO)',
+                    'Endemic',
+                    'Native',
+                    'Lifeform Description',
+                    "Climate Description",
+                    'Tree',
+                    'Threatened',
+                    'Threatened Category',
+                    'Rarity in cultivation',
+                    'BRU codes')
+
+enrich_download = interest |>
+  download_this(
+    output_name = "Enrichment information",
+    output_extension = ".xlsx",
+    button_label = "Download enrichement information for accessions (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+```
+
+You can download a selection of enrichment data for the collection (BRU codes, Distribution description from interpretation of BRU codes,
+Distribution description from POWO,
+Taxa labelled as endemic to 1 BRU level 3 area (or not endemic),
+Taxa labelled as native to the country where the collection is located (or non-native),
+Lifeform from POWO,
+Habitat from POWO,
+Taxa labelled as tree (or not a tree) according to BGCI's GlobalTreeSearch,
+IUCN red-list category,
+Rarity in cultivation
+) using the download button below. 
+
+`r enrich_download`
+
+### Geographic regions of plants in the collection
+
+```{r, create geographical maps}
+### Create location data (for items and endemic) ----
+interest = report[c('AccNoFull', 'POWO_Dist_000_area_code_l3')]
+
+level_2 = c("10, 11, 12, 13, 14, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 42, 43, 50, 51, 60, 61, 62, 63, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 90, 91, Northern Europe, Middle Europe, Southwestern Europe, Southeastern Europe, Eastern Europe, Northern Africa, Macaronesia, West Tropical Africa, West-Central Tropical Africa, Northeast Tropical Africa, East Tropical Africa, South Tropical Africa, Southern Africa, Middle Atlantic Ocean, Western Indian Ocean, Siberia, Russian Far East, Middle Asia, Caucasus, Western Asia, Arabian Peninsula, China, Mongolia, Eastern Asia, Indian Subcontinent, Indo-China, Malesia, Papuasia, Australia, New Zealand, Southwestern Pacific, South-Central Pacific, Northwestern Pacific, North-Central Pacific, Subarctic America, Western Canada, Eastern Canada, Northwestern U.S.A., North-Central U.S.A., Northeastern U.S.A., Southwestern U.S.A., South-Central U.S.A., Southeastern U.S.A., Mexico, Central America, Caribbean, Northern South America, Western South America, Brazil, Southern South America, Subantarctic Islands, Antarctic Continent")
+level_1 = c("1, 2, 3, 4, 5, 6, 7, 8, 9, Europe, Africa, Asia-Temperate, Asia-Tropical, Australasia, Pacific, Northern America, Southern America, Antarctic")
+
+level_2 = data.frame(matrix(unlist(stringr::str_split(level_2, ', ')), ncol = 2))
+names(level_2) = c('code', 'name') ; level_2$code = as.numeric(level_2$code)
+
+level_1 = data.frame(matrix(unlist(stringr::str_split(level_1, ', ')), ncol = 2))
+names(level_1) = c('code', 'name') ; level_1$code = as.numeric(level_1$code)
+
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+#Get the number of species for each location.
+no_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, interest$POWO_Dist_000_area_code_l3))
+}))
+
+
+#Get the number of endemic species for each location.
+endemic_info = interest[stringr::str_length(interest$POWO_Dist_000_area_code_l3) == 3,]
+no_endemic = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, endemic_info$POWO_Dist_000_area_code_l3))
+}))
+
+level_1_names = level_1$name[match(wgsrpd3$LEVEL1_COD, level_1$code)]
+level_2_names = level_2$name[match(wgsrpd3$LEVEL2_COD, level_2$code)]
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           level_2 = level_2_names,
+                           level_1 = level_1_names,
+                           no_items = no_items,
+                           rep_regions = no_items > 0,
+                           no_endemic = no_endemic,
+                           rep_endemic = no_endemic > 0
+                           )
+location_data$name = stringr::str_replace(location_data$name, pattern = 'I\\.',replacement = 'Island')
+location_data$name = stringr::str_replace(location_data$name, pattern = 'Is\\.',replacement = 'Islands')
+
+regions_missing = location_data$name[!location_data$rep_regions]
+regions_missing = regions_missing[-grep('Bouvet', regions_missing)]
+### (END) Create location data (for items and endemic) ----
+
+### Setup interactive data for cloropleth plot ----
+ wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+  
+  plot_int_info <- wgsrpd3_level3_simp |>
+  dplyr::left_join(location_data, by=c("code"="code"))
+  plot_int_info$name = plot_int_info$name.x
+  plot_int_info$name = stringr::str_replace(plot_int_info$name, pattern = 'I\\.',replacement = 'Island')
+  plot_int_info$name = stringr::str_replace(plot_int_info$name, pattern = 'Is\\.',replacement = 'Islands')
+  
+  data_g = st_geometry(plot_int_info)
+
+  centers = st_centroid(data_g)
+  AA = unlist(centers)
+  center_df = data.frame(long = AA[seq(1,length(AA),2)], lat = AA[seq(2,length(AA),2)])
+
+  # Convert geometry into a format accepted by plotly
+  mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+  geo_sf = geojsonsf::sf_geojson(mapp)
+  data = rjson::fromJSON(geo_sf)
+  feat = data$features
+  for(i in 1:length(feat)){
+    feat[[i]]$id = feat[[i]]$properties$code
+  }
+  data$features = feat
+
+  index = seq(0,1,0.01)
+  col_rep = color_binary
+  colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+  counter = 1:length(index)
+  col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+  
+  colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+  ramp <- scales::colour_ramp(colours_cont)
+  colos = ramp(seq(0, 1, length = 100))
+  
+  
+  index = seq(0,1,0.01)
+  colours_cont = c("black",colos)
+  counter = 1:length(index)
+  col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+### (END)Setup interactive data for cloropleth plot ----
+
+### Make the plots for  items ----
+  rep_species = rep('No', nrow(plot_int_info))
+rep_species[plot_int_info$rep_regions] = 'Yes'
+plot_int_info$rep_species_yes_no = rep_species
+ text = paste0('Region: ', plot_int_info$name, '<br>', 
+                'Items from the region:', plot_int_info$no_items, '<br>')
+  plot_int_info$hover = text
+  
+  plot_int_info$WCVP_total = rep(1, nrow(plot_int_info))
+  plot_int_info$WCVP_total[grep('Bouvet', plot_int_info$name.x)] = 0
+  
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  
+  fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_info_species$code,
+     z=as.numeric(plot_info_species$rep_regions),
+     colorscale=col_scale_rep,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black'),
+     text = plot_info_species$hover,
+     hoverinfo = 'text'
+    )) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.2, 
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    hide_colorbar() 
+  fig = fig |>
+    add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          color = I(col_rep[as.numeric(plot_info_species$rep_regions)+1]), 
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE) 
+map_items = fig   |> 
+  config(#modeBarButtonsToAdd = list(dl_button2), 
+         modeBarButtonsToRemove = c('pan2d', 'select2d', 'lasso2d', 'resetScale'))
+  
+  
+### (END) Make the plots for items ----
+  
+### Make the plots for  items ----
+  rep_species = rep('No', nrow(plot_int_info))
+rep_species[plot_int_info$rep_endemic] = 'Yes'
+plot_int_info$rep_species_yes_no = rep_species
+ text = paste0('Region: ', plot_int_info$name, '<br>', 
+                'Items from the region:', plot_int_info$no_endemic, '<br>')
+  plot_int_info$hover = text
+  
+  plot_int_info$WCVP_total = rep(1, nrow(plot_int_info))
+  plot_int_info$WCVP_total[grep('Bouvet', plot_int_info$name.x)] = 0
+  
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  
+  fig = plot_ly(plot_info_species,  text = ~hover, hoverinfo = 'text') |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_info_species$code,
+     z=as.numeric(plot_info_species$rep_endemic),
+     colorscale=col_scale_rep,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black'),
+     text = plot_info_species$hover,
+     hoverinfo = 'text'
+    )) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.2, 
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    hide_colorbar() 
+  fig = fig |>
+    add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          color = I(col_rep[as.numeric(plot_info_species$rep_endemic)+1]), 
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE) 
+map_endemic = fig  |> 
+  config(#modeBarButtonsToAdd = list(dl_button),
+         modeBarButtonsToRemove = c('pan2d', 'select2d', 'lasso2d', 'resetScale'))
+  
+  
+### (END) Make the plots for items ----  
+```
+
+By enriching the collection with information from WCVP we retrieve geographic distribution of accepted plants (according to WCVP). The distribution can be split into regions that are native/introduced, extinct/non-extinct and location doubtful/not doubtful. 
+
+Below we produce a map of the geographic regions represented in the collection together with the number of individuals in the collection that are native (not-extinct, not doubtful) to each region specified by WCVP. 
+
+```{r, fig.dim=c(8,6), fig.align = "left"}
+map_items
+```
+
+Within the collection there are `r regions_missing |> length()` regions that are not represented in the collection. Namely, `r paste0(regions_missing, collapse = ', ')`.
+***
+
+### Geographic regions of endemic plants in the collection
+
+Plants that belong to a single region are classed as endemic. The number of endemic plants in the collection is outlined below. 
+
+```{r, fig.dim=c(8,6), fig.align = "left"}
+map_endemic
+```
+
+***
+
+### Proportion of the collection that are trees
+
+```{r, proportion of trees in collection}
+### Create location data (for items and endemic) ----
+interest = report[c('AccNoFull', 'Enrich_is_tree')]
+
+no_tree = sum(interest$Enrich_is_tree, na.rm = T)
+percent_tree = (no_tree / nrow(interest)*100) |> round(2)
+```
+
+We also match the plants in the collection against BGCI's GlobalTreeSearch where we found `r no_tree |> format(big.mark = ',')` trees in the collection accounting for `r percent_tree`% of all plants in the collection.
+
+
+***
+
+### Proportion of native plants
+
 `r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",location_name,".")}`
 `r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",location_name,".")}`
-Therefore, any taxa whose geographic distribution includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
+Therefore, any taxa whose geographic distribution (`r location_type_text`) includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
 
-The location of the LC and the native region are shown below.
+The location of the LC and the native region are outlined below.
 
-```{r, LC location and native region plot, fig.fullwidth=TRUE, fig.dim = c(10, 6), results='hide',fig.keep='all', message=FALSE}
+```{r, LC location and native region plot}
+collection_geog_details = collection_geog_details_og
 collection_geog_details$occurrence_type = 'native'
 lims <- st_bbox(collection_geog_details)
 p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=TRUE) + 
   theme(legend.position="none") +
-  geom_sf(data=pnts_sf, fill="purple",col="purple", shape=20, size = 3) +
+  geom_sf(data=pnts_sf, fill=interactive_colour(1),col=interactive_colour(1), shape=20, size = 3) +
   coord_sf(xlim=lims[c(1,3)], ylim=lims[c(2,4)]) +
   theme(legend.position = "none",
         axis.line=element_blank(),
@@ -326,17 +915,535 @@ p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=TRUE) +
         axis.title.x=element_blank(),
         axis.title.y=element_blank(),
         plot.title = element_text(hjust = 0.5))
-
+native_plot = p
 if(separate_figure_folder){
 ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_LC_location_and_native region.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
 }
 
-p
+interest = report[c('AccNoFull','best_name','endemic')]
+interest_taxa = interest[match(unique(interest$best_name),interest$best_name), ]
+
+endemic_items = sum(interest$endemic == 'Endemic')
+endemic_items_percent = (endemic_items/nrow(interest) *100) |>  round(2)
+endemic_taxa = sum(interest_taxa$endemic == 'Endemic')
+endemic_taxa_percent = (endemic_taxa/nrow(interest_taxa) *100) |>  round(2)
+
 ```
 
+```{r, create native map, fig.dim=c(5,5), fig.align='center'}
+native_plot
+```
+
+`r endemic_items |> format(big.mark =',')` (`r endemic_items_percent`%) individuals in the collection are native, this corresponds to `r endemic_taxa  |> format(big.mark =',')` (`r endemic_taxa_percent`%) taxa.
 
 
+***
+
+### Lifeform and climate of plants in the collection
+
+```{r, lifeform and climate descriptions}
+### Create location data (for items and endemic) ----
+interest = report[c('AccNoFull', 'POWO_lifeform_description', 'POWO_climate_description')]
+
+lifeforms = table(interest$POWO_lifeform_description) |> data.frame()
+set.seed(33)
+lifeform_wordcloud = wordcloud2::wordcloud2(data = lifeforms, shape = 'pentagon', minSize = 1, shuffle = FALSE)
+```
+
+Within WCVP plants are tagged with a lifeform and a climate description. Below we visualise the most common (by number of individuals) lifeform and climate description of plants found in the collection. 
+
+##### Lifeform
+
+`r lifeform_wordcloud`
+
+##### Climate
+
+```{r}
+climate_data <- table(interest$POWO_climate_description) |> data.frame()
+names(climate_data) = c('word', 'freq')
+climate_data <- climate_data[climate_data$freq |> order(decreasing = T),]
+```
+
+`r wordcloud2::wordcloud2(data = climate_data, shape = 'pentagon', size = 1)`
+
+***
+
+### Change in IUCN RedListed plants 
+
+```{r IUCN redlisted individuals comparision}
+figs = list()
+has_redlist_cat = 'IUCNRedList' %in% names(report)
+### Option 1: the original report doesn't have threatened categories of plants. (I.e no IUCNRedList) ----
+if(!has_redlist_cat){
+  interest = report[c('AccNoFull', 'best_name', 'threatened_category', 'threatened')]
+  new = table(interest$threatened_category) |> data.frame() 
+  for_plot = new
+  names(for_plot) = c('Category', 'Individuals')
+  for_plot = for_plot[for_plot$Category != 'NA',]
+  table_item  = for_plot
+  
+# Create bar plot.
+figs$individuals = plot_ly(for_plot,
+        x = ~Category,
+        y = ~Individuals,
+        # colors = interactive_colour(1),
+        type = 'bar', 
+        marker =list(color = interactive_colour(1) )) |>
+    layout(yaxis = list(title = 'Number of individuals'),
+         xaxis = list(title = 'Threatened category')) |> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+
+interest_taxa = interest |> 
+  group_by(best_name) |>
+  summarise(new = toString(unique(threatened_category))
+  )
+no_extinct = sum(interest_taxa$new == 'EX')
+if(no_extinct > 0){
+  acc_extinct = unique(interest[which(interest$threatened_category == 'EX'), c('AccNoFull', 'best_name')]) |> group_by(best_name) |> summarise(acc = toString(AccNoFull))
+  acc_extinct = paste0(acc_extinct$best_name, ' (',acc_extinct$acc,')')
+}
+
+new = table(interest_taxa$new) |> data.frame()
+for_plot =  new
+names(for_plot) = c('Category', 'Individuals')
+for_plot = for_plot[for_plot$Category != 'NA',]
+
+table_taxa= for_plot
+
+# Create bar plot.
+figs$taxa = plot_ly(for_plot,
+        x = ~Category,
+        y = ~Individuals,
+        type = 'bar',
+         marker =list(color = interactive_colour(1) )) |>
+  layout(yaxis = list(title = 'Number of taxa'),
+         xaxis = list(title = 'Threatened category'))|> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+}
+### (END) Option 1 ----
+
+### Option 1: the original report has threatened categories of plants. (I.e IUCNRedList) ----
+if(has_redlist_cat){
+cleansed_version = rep(NA, nrow(report))
+report$IUCNRedList = tolower(report$IUCNRedList)
+cleansed_version[grepl('^vu', report$IUCNRedList)] = 'VU'
+cleansed_version[grepl('^en', report$IUCNRedList)] = 'EN'
+cleansed_version[grepl('^cr', report$IUCNRedList)] = 'CR'
+cleansed_version[grepl('^ex', report$IUCNRedList)] = 'EX'
+cleansed_version[grepl('^ew|wild', report$IUCNRedList)] = 'EW'
+report$OG_cleansed = cleansed_version
+
+interest = report[c('AccNoFull', 'best_name', 'IUCNRedList', 'OG_cleansed', 'threatened_category', 'threatened')]
+
+OG = table(interest$OG_cleansed) |> data.frame() ; OG$from = 'Original'
+new = table(interest$threatened_category) |> data.frame() ; new$from = 'Enriched'
+for_plot = rbind(OG, new)
+names(for_plot) = c('Category', 'Individuals', 'Source')
+for_plot = for_plot[for_plot$Category != 'NA',]
+for_plot 
+
+table_item = reshape2::dcast(for_plot, Category ~ Source, value.var = "Individuals")
+table_item$percent = ((table_item$Enriched - table_item$Original) / table_item$Original *100 ) |> round(2)
+table_item$percent = paste0(table_item$percent, '%')
+names(table_item) = c("Category", "Enriched", "Original", "Percent change")
+
+# Create bar plot.
+figs$individuals = plot_ly(for_plot,
+        x = ~Category,
+        y = ~Individuals,
+        color = ~Source,
+        colors = interactive_colour(2),
+        type = 'bar') |>
+    layout(yaxis = list(title = 'Number of individuals'),
+         xaxis = list(title = 'Threatened category'))|> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+
+interest_taxa = interest |> 
+  group_by(best_name) |>
+  summarise(OG = toString(unique(OG_cleansed)),
+            new = toString(unique(threatened_category))
+  )
+no_extinct = sum(interest_taxa$new == 'EX')
+if(no_extinct > 0){
+  acc_extinct = unique(interest[which(interest$threatened_category == 'EX'), c('AccNoFull', 'best_name')]) |> group_by(best_name) |> summarise(acc = toString(AccNoFull))
+  acc_extinct = paste0(acc_extinct$best_name, ' (',acc_extinct$acc,')')
+}
+OG = table(interest_taxa$OG) |> data.frame() ; OG$from = 'Original'
+new = table(interest_taxa$new) |> data.frame() ; new$from = 'Enriched'
+for_plot = rbind(OG, new)
+names(for_plot) = c('Category', 'Individuals', 'Source')
+for_plot = for_plot[for_plot$Category != 'NA',]
+
+table_taxa= reshape2::dcast(for_plot, Category ~ Source, value.var = "Individuals")
+table_taxa$percent = ((table_taxa$Enriched - table_taxa$Original) / table_taxa$Original *100 ) |> round(2)
+table_taxa$percent = paste0(table_taxa$percent, '%')
+names(table_taxa) = c("Category", "Enriched", "Original", "Percent change")
+
+# Create bar plot.
+figs$taxa = plot_ly(for_plot,
+        x = ~Category,
+        y = ~Individuals,
+        color = ~Source,
+        colors = interactive_colour(2),
+        type = 'bar') |>
+  layout(yaxis = list(title = 'Number of taxa'),
+         xaxis = list(title = 'Threatened category'))|> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+}
+### (END) Option 2 ----
+
+```
+
+In the enrichment process we match the original taxonomic names and those matched to WCVP to IUCN's RedList to find threatened taxa in the collection. 
+
+<!-- Inform on extinct taxa if any exist in the collection -->
+`r if(no_extinct > 0){paste0("Your collection includes ", no_extinct ," taxa that are considered as Extinct by the IUCN red-list. We suggest verifying their identity.")}`
+
+`r if(no_extinct > 0){paste0("The extinct plants (with accession number) are ", paste0(acc_extinct, collapse = ', ') )}`
+
+<!-- If the OR has threatened category information -->
+`r if(has_redlist_cat){"Below we compare the number of threatened species found by enrichement to the plants already tagged as threatened in the collection "}`
+
+`r if(has_redlist_cat){"Below we show the number of threatened species found by enrichement"}`
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Taxa"}`
+
+`r figs$taxa`
+
+`r if(report_kind == 'interactive'){"###### Individuals"}`
+
+`r figs$individuals`
+
+`r if(report_kind == 'interactive'){"###### Tables"}`
+
+**Taxa**
+
+```{r}
+table_taxa |> DT::datatable(rownames = FALSE,
+                 options = list(scrollX = TRUE,
+                                pageLength = nrow(table_taxa),
+                                dom = 'tp',
+                                paging=FALSE,
+                                ordering = FALSE))
+```
+
+**Individuals**
+
+```{r}
+table_item |> DT::datatable(rownames = FALSE,
+                 options = list(scrollX = TRUE,
+                                pageLength = nrow(table_item),
+                                dom = 'tp',
+                                paging=FALSE,
+                                ordering = FALSE))
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***
 
 
-## Taxonomic Standardisation
+## Data Enhancement
 
+```{r Data Enhancement information}
+### Reduce to only the fields that we care about.  ----
+interest = report[c('ItemAccNoFull',
+                    'AccNoFull',
+                    'TaxonNameFull',
+                    'ItemStatusDate', 
+                    'AccYear')]
+interest$ItemStatusDate_year = BGSmartR::extract_year(interest$ItemStatusDate)
+### (END) Reduce to only the fields that we care about.  ----
+
+### Find the number of ItemStatusDates that are missing any information (all, month, day) ----
+
+year_cur = stringr::str_extract(string = Sys.Date(),pattern = '[0-9]{4}') |> as.numeric()
+current_year = year_cur
+# For ItemStatusDate
+missing = which(interest$ItemStatusDate == '' |is.na(interest$ItemStatusDate))
+year_only = which(stringr::str_length(interest$ItemStatusDate) == 4 &
+                    grepl('[0-9]{4}',interest$ItemStatusDate))
+year_month_only = which(stringr::str_length(interest$ItemStatusDate) == 7 &
+                    grepl('[0-9]{4}-[0-9]{2}',interest$ItemStatusDate))
+year_after_current = which(interest$ItemStatusDate_year > year_cur)
+year_too_old = which(interest$ItemStatusDate_year < 1650)
+before_acc_year = which(interest$ItemStatusDate_year < interest$AccYear)
+oldest_ItemStatusDate = min(interest$ItemStatusDate_year[interest$ItemStatusDate_year > 1650], na.rm = T)
+
+ItemStatusDate_details = data.frame(type = c('Missing entirely',
+                                             'Only contains the year',
+                                             'Only contains the year and month',
+                                             'The year is after the current year',
+                                             'The year is prior to 1650',
+                                             'The year is prior to the item been accessioned'),
+                                    value =  c(length(missing),
+                                               length(year_only),
+                                               length(year_month_only),
+                                               length(year_after_current),
+                                               length(year_too_old),
+                                               length(before_acc_year))
+                              ) 
+ItemStatusDate_details = ItemStatusDate_details[ItemStatusDate_details$value > 0,]
+names(ItemStatusDate_details) = c('Issue', 'Total individuals')
+ItemStatusDate_details_table = ItemStatusDate_details |> 
+   DT::datatable(rownames = FALSE,
+                 options = list(scrollX = TRUE,
+                                pageLength = nrow(ItemStatusDate_details),
+                                dom = 'tp',
+                                paging=FALSE,
+                                ordering = FALSE))
+
+issue_index_for_plot = unique(c(missing, year_after_current, year_too_old))
+issue_df = interest[unique(c(missing, year_only, year_month_only, year_after_current, year_too_old, before_acc_year)),]
+
+ItemStatusIssue_download = issue_df |>
+  download_this(
+    output_name = "ItemStatusDate issues",
+    output_extension = ".xlsx",
+    button_label = "Download records with most recent update date issues (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+
+# missing_year = which(!grepl('[0-9]{4}', interest$ItemStatusDate))
+### (END) Find the number of dates that are missing any information (all, month, day) ----
+
+### Find the number of AccYear that are missing any information or incorrect ----
+missing = which(interest$AccYear == '' |is.na(interest$AccYear))
+year_after_current = which(interest$AccYear > year_cur)
+year_too_old = which(interest$AccYear < 1650)
+
+AccYear_details = data.frame(type = c('Missing entirely',
+                                             'The year is after the current year',
+                                             'The year is prior to 1650'),
+                                    value =  c(length(missing),
+                                               length(year_after_current),
+                                               length(year_too_old))
+                              ) 
+AccYear_details = AccYear_details[AccYear_details$value > 0,]
+names(AccYear_details) = c('Issue', 'Total individuals')
+AccYear_details_table = AccYear_details |> 
+   DT::datatable(rownames = FALSE,
+                 options = list(scrollX = TRUE,
+                                pageLength = nrow(AccYear_details),
+                                dom = 'tp',
+                                paging=FALSE,
+                                ordering = FALSE))
+
+issue_AccYear_df = interest[unique(c(missing, year_after_current, year_too_old)),]
+AccYear_download = issue_AccYear_df |>
+  download_this(
+    output_name = "Accession Year issues",
+    output_extension = ".xlsx",
+    button_label = "Download records with accession year issues (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+### (END) Find the number of dates that are missing any information (all, month, day) ----
+
+### Create last updated plots ----
+figs = list()
+data = interest
+if(length(issue_index_for_plot)> 0){
+  data = interest[-issue_index_for_plot,]
+}
+data$year = BGSmartR::extract_year(data$ItemStatusDate)
+
+# A)  Items
+year = data$year
+table_year = table(year)
+year = names(table_year) ; no_items = as.numeric(table_year)
+
+years = min(as.numeric(year)):current_year
+no_items_full = rep(0,length(years))
+no_items_full[match(as.numeric(year), years)] = no_items
+
+last_update_items = data.frame(year = years, no_items = no_items_full)
+last_update_items$cumulative = cumsum(last_update_items$no_items)
+last_update_items$year_num = as.numeric(last_update_items$year)
+last_update_items$year_ago = current_year -last_update_items$year_num
+last_update_items$textA = paste0(last_update_items$year_ago, ' year/s ago<br>',
+                                 last_update_items$no_items, ' items')
+
+figs$items$date <- plot_ly(last_update_items,
+               x = ~year,
+               y = ~no_items,
+               type = 'bar',
+               color = interactive_colour(1)) |>
+  layout(title = "",
+         xaxis = list(title = "Last status update (Year)"),
+         yaxis = list(title = "Number of individuals"),
+         hovermode = 'x unified') |> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+
+figs$items$cum <- plot_ly(last_update_items,
+               x = ~year,
+               y = ~cumulative,
+               type = 'bar',
+               color = interactive_colour(1)) |>
+  layout(title = "",
+         xaxis = list(title = "Last status update (Year)"),
+         yaxis = list(title = "Number of individuals (cumulative)"),
+         hovermode = 'x unified') |> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+  
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(figs$items$date, file = paste0(figures_dir, '/','Bar-date_of_last_update_items.html'))
+}
+
+# B)  Accessions
+data = data |>
+  group_by(AccNoFull) |>
+  summarise(year = max(year))
+
+year = data$year
+table_year = table(year)
+year = names(table_year) ; no_acc = as.numeric(table_year)
+
+years = min(as.numeric(year)):current_year
+no_acc_full = rep(0,length(years))
+no_acc_full[match(as.numeric(year), years)] = no_acc
+
+last_update_acc = data.frame(year = years, no_acc = no_acc_full)
+last_update_acc$cumulative = cumsum(last_update_acc$no_acc)
+last_update_acc$year_num = as.numeric(last_update_acc$year)
+last_update_acc$year_ago = current_year -last_update_acc$year_num
+last_update_acc$textA = paste0(last_update_acc$year_ago, ' year/s ago<br>',
+                                 last_update_acc$no_acc, ' acc')
+
+figs$acc$date <- plot_ly(last_update_acc,
+               x = ~year,
+               y = ~no_acc,
+               type = 'bar',
+               color = interactive_colour(1)) |>
+  layout(title = "",
+         xaxis = list(title = "Last status update (Year)"),
+         yaxis = list(title = "Number of accessions"),
+         hovermode = 'x unified') |> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+
+figs$acc$cum <- plot_ly(last_update_acc,
+               x = ~year,
+               y = ~cumulative,
+               type = 'bar',
+               color = interactive_colour(1)) |>
+  layout(title = "",
+         xaxis = list(title = "Last status update (Year)"),
+         yaxis = list(title = "Number of accessions (cumulative)"),
+         hovermode = 'x unified') |> 
+  config(modeBarButtonsToAdd = list(dl_button), 
+         modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
+  
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(figs$acc$date, file = paste0(figures_dir, '/','Bar-date_of_last_update_acc.html'))
+}
+
+### (END) Create last updated plots ----
+
+### Create table of accessions not updated in last 5 years ----
+data = interest
+if(length(issue_index_for_plot)> 0){
+  data = interest[-issue_index_for_plot,]
+}
+data$year = BGSmartR::extract_year(data$ItemStatusDate)
+data = data[data$year < (year_cur - 5),]
+data = data[order(data$ItemStatusDate),]
+data = data[,c(1:5)]
+names(data) = c('Item + Accession Number',
+                'Accession Number',
+                'Orignal Taxonomic Name and Authority',
+                'Most Recent Update',
+                'Accession Year')
+
+old5yr_download = data |>
+  download_this(
+    output_name = paste0("Most recent update prior to ", year_cur - 5),
+    output_extension = ".xlsx",
+    button_label = paste0("Download individuals whose most recent update was prior to ",year_cur - 5),
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+
+### (END)Create table of accessions not updated in last 5 years ----
+
+```
+
+### Most recent status update issues
+
+Within the collection there are `r nrow(issue_df)` existing individuals that have potential issues with their most recent status update date. The issues are summarised in the table below. 
+
+
+`r ItemStatusDate_details_table`
+
+Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below.
+
+`r ItemStatusIssue_download`
+
+***
+ 
+### Accession year issues
+
+Within the collection there are `r nrow(issue_AccYear_df)` existing individuals that have potential issues with their accession year. The issues are summarised in the table below. 
+
+`r AccYear_details_table`
+
+Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below.
+
+`r AccYear_download`
+
+***
+
+### How recently have plants been updated?
+
+In this section we explore how recently individuals and accessions have been updated in the collection. Where for accessions we use the date of the most recent updated individual in the accession. We extract the year from the latest update date and plot the number of individuals and items by their year of most recent update. 
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Individuals"}`
+
+**Number each year**
+
+`r figs$items$date`
+
+**Number with status date year equal to or before**
+
+`r figs$items$cum`
+
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+
+**Number each year**
+
+`r figs$acc$date`
+
+**Number with status date year equal to or before**
+
+`r figs$acc$cum`
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+Use the button below to download individuals in the collection that haven't been updated since `r year_cur - 5`. 
+
+`r old5yr_download`
+
+
+***
