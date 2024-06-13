@@ -6,7 +6,7 @@
 \alias{BGSmartR-package}
 \title{BGSmartR: Analyse Botanic Garden collections}
 \description{
-What the package does (one paragraph).
+Provides tools for matching collection records to external datasets and creating html reports.
 }
 \seealso{
 Useful links:

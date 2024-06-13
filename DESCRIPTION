@@ -16,7 +16,7 @@ Suggests:
     DT,
     ggplot2,
     viridis,
-    rWCVPdata
+    rWCVPdata (>= 0.3.1)
 Config/testthat/edition: 3
 Depends: 
     R (>= 3.50)
@@ -33,3 +33,5 @@ Imports:
     grDevices
 VignetteBuilder: knitr
 URL: https://jakepowellcubg.github.io/BGR/
+Remotes:  
+    github::matildabrown/rWCVPdata
