@@ -28,6 +28,9 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/BGSmartR-package.html</loc>
   </url>
   <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/Diversity_classification.html</loc>
+  </url>
+  <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/add_alpha.html</loc>
   </url>
   <url>
@@ -55,7 +58,16 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_basic_stats_static.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/create_duplication_interactive.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_data_health_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_duplication_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_endemic_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_geography_report.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_key_taxa_compare_interactive.html</loc>
@@ -64,19 +76,43 @@
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_key_taxa_interactive.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/create_last_update_interactive.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_last_update_report.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/create_last_update_static.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_native_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_overview_report.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_retrospective_interactive.html</loc>
   </url>
   <url>
-    <loc>https://jakepowellcubg.github.io/BGR/reference/create_snapshot_interactive.html</loc>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_snapshot_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_sustainability_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_taxonomic_diversity_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_threatened_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_trees_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_trends_report.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_turnover2_report.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/create_turnover_interactive.html</loc>
+  </url>
+  <url>
+    <loc>https://jakepowellcubg.github.io/BGR/reference/create_turnover_report.html</loc>
   </url>
   <url>
     <loc>https://jakepowellcubg.github.io/BGR/reference/enrich_collection.html</loc>
