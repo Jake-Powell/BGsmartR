@@ -4,7 +4,7 @@ Version: 0.0.0.9000
 Authors@R: 
     person("Jake", "Powell", , "jjp68@cam.ac.uk", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Description: Provides tools for matching collection records to external datasets and creating html reports.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
