@@ -1,0 +1,2762 @@
+---
+title: "Overview of collection analysis"
+output: html_document
+---
+
+###### {-} 
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+library(downloadthis)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
+
+color_binary <- rev(c('#f46d43', '#848484'))
+palette = 'Oranges'
+```
+
+```{r, imported parameters}
+# Inputs
+# As an input we get 
+# - Enriched report
+# # - collection the name to be printed in the report.
+# load("/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_May2024_enriched_report.rda")
+# # coordinates = c(52.19375565279363, 0.1277770504441467)
+# collection = 'CUBG'
+# 
+# separate_figure_folder = FALSE
+# output_dir = getwd()
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# # load('/Users/jakepowell/Cambridge/Modules/Basic Stats/wgsrpd3.rda)
+# report_kind = 'interactive'
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# ggtheme = NULL
+# value_on_fig = TRUE
+```
+
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #2098D1;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+```
+
+```{r theme_ggplot2}
+library(ggplot2)
+# Changing the default theme
+if(is.null(ggtheme)){
+   ggtheme <- function(base_size = 16) {
+      ggplot2::theme_bw(base_size = base_size) %+replace%
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+          panel.grid.minor = ggplot2::element_blank(),
+          panel.background = element_rect(fill = 'transparent', color = NA),
+          panel.border = ggplot2::element_blank(),
+          axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          axis.line = ggplot2::element_line(color = "black"),
+          legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+          legend.key.size = ggplot2::unit(1.5, "lines"),
+          legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+          strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+          strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+        )
+    }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+```{r, onRender text}
+bar_col = interactive_colour(1) ; bar_col_alpha = BGSmartR::add_alpha(bar_col, 0.7)
+
+render_barplot = paste0("
+    function(el) { 
+    console.log(el)
+      el.on('plotly_hover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '", bar_col ,"';
+    
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+      el.on('plotly_unhover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '", bar_col_alpha ,"';
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+    }
+  ")
+
+icon_svg_path = "M15.608,6.262h-2.338v0.935h2.338c0.516,0,0.934,0.418,0.934,0.935v8.879c0,0.517-0.418,0.935-0.934,0.935H4.392c-0.516,0-0.935-0.418-0.935-0.935V8.131c0-0.516,0.419-0.935,0.935-0.935h2.336V6.262H4.392c-1.032,0-1.869,0.837-1.869,1.869v8.879c0,1.031,0.837,1.869,1.869,1.869h11.216c1.031,0,1.869-0.838,1.869-1.869V8.131C17.478,7.099,16.64,6.262,15.608,6.262z M9.513,11.973c0.017,0.082,0.047,0.162,0.109,0.226c0.104,0.106,0.243,0.143,0.378,0.126c0.135,0.017,0.274-0.02,0.377-0.126c0.064-0.065,0.097-0.147,0.115-0.231l1.708-1.751c0.178-0.183,0.178-0.479,0-0.662c-0.178-0.182-0.467-0.182-0.645,0l-1.101,1.129V1.588c0-0.258-0.204-0.467-0.456-0.467c-0.252,0-0.456,0.209-0.456,0.467v9.094L8.443,9.553c-0.178-0.182-0.467-0.182-0.645,0c-0.178,0.184-0.178,0.479,0,0.662L9.513,11.973z"
+
+dl_button <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].x + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].y + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
+
+dl_button_map <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].z + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].hovertext + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
+```
+
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: Each item is assumed to be a unique accession.\n"}`
+`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to POWO will be used (No non-vascular families). \n"}`
+`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to POWO will be used."}`
+`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in POWO will be used."}`
+`r if(!'AccYear' %in% names(enriched_report)){"- AccYear: All Accession years set to missing. \n"}`
+`r if(!'ItemStatusDate' %in% names(enriched_report)){"- ItemStatusDate: All set to missing. \n"}`
+`r if(!'ItemStatusType' %in% names(enriched_report)){"- ItemStatusType: All set to exisiting. \n"}`
+
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
+
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+ location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+   location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+   location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+```{r, Find LC location}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+ collection_geog_details_og = collection_geog_details
+```
+
+```{r, Extracting information from enriched report}
+# Add required columns if missing.
+needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'Family' %in% names(enriched_report)){
+  enriched_report$Family =rep(NA, nrow(enriched_report))
+}
+if(!'Genus' %in% names(enriched_report)){
+  enriched_report$Genus = rep(NA, nrow(enriched_report))
+}
+if(!'GenusSpecies' %in% names(enriched_report)){
+  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
+}
+if(!'AccYear' %in% names(enriched_report)){
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+
+do_coord = !is.na(coordinates[1])
+# Set report to only the existing items.
+# report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+report = enriched_report
+
+#Extract endemic information from report
+endemic = rep('Not Endemic', nrow(report))
+endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+report$endemic = endemic
+rm(endemic)
+
+#Extract endemic information from report
+tree = rep('Not Tree', nrow(report))
+tree_index = which(report$Enrich_is_tree)
+tree[tree_index] = 'Tree'
+report$tree = tree
+rm(tree)
+
+# Add native column.
+nativeo = rep('Non-native', nrow(report))
+native_index = which(grepl(location_code, report$geography_codes))
+nativeo[native_index] = 'Native'
+report$native = nativeo
+rm(nativeo)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(report))
+threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
+report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
+report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
+report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Create a sanitised taxonomic name.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
+report$best_name = best_name
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+# Get the best family (use powo match o/w original)
+family = report$POWO_family
+family[is.na(family)] = report$Family[is.na(family)]
+report$family_use = family
+rm(family)
+
+# Combine powo genus and original genus
+genera = report$POWO_genus
+genera[is.na(genera)] = report$Genus[is.na(genera)]
+report$genera_use = genera
+rm(genera)
+
+# Get genus species pair.
+POWO_GenusSpecies = rep(NA, nrow(report))
+POWO_GenusSpecies[!is.na(report$POWO_plant_name_id)] = paste0(report$POWO_genus[!is.na(report$POWO_plant_name_id)],
+                                                              ' ',
+                                                              report$POWO_species[!is.na(report$POWO_plant_name_id)])
+species_data = data.frame(original = report$GenusSpecies, POWO = POWO_GenusSpecies, infra = report$taxon_type)
+use_genus_species = species_data$POWO
+use_genus_species[is.na(use_genus_species)] = species_data$original[is.na(use_genus_species)]
+report$genus_species_use= use_genus_species
+
+# Get best taxonomic name.
+taxon_name_auth = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+taxon_name_auth[!is.na(report$POWO_plant_name_id)] = (paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors))[!is.na(report$POWO_plant_name_id)]
+report$taxa_use = taxon_name_auth
+rm(taxon_name_auth)
+
+
+major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes",
+                                  "Bryophytes", "Hornworts", "Liverworts", "Mosses"
+)
+Angiosperm_groups = c('Eudicots', 'Monocots')
+Eudicot_groups = c('Asterids', 'Rosids')
+fam_major_groups = lapply(major_groups, function(group){
+ PlantClassification$family[PlantClassification$`major Land Plants lineage` == group]
+})
+names(fam_major_groups) = major_groups
+fam_Angiosperm_groups = lapply(Angiosperm_groups, function(group){
+PlantClassification$family[PlantClassification$`major Angiosperm lineage` == group]
+})
+names(fam_Angiosperm_groups) = Angiosperm_groups
+fam_Eudicot_groups = lapply(Eudicot_groups, function(group){
+PlantClassification$family[PlantClassification$`major Eudicot lineage` == group]
+})
+names(fam_Eudicot_groups) = Eudicot_groups
+families_of_groups = c(fam_major_groups, fam_Angiosperm_groups, fam_Eudicot_groups)
+
+to_do = c("Bryophytes", "Ferns", "Gymnosperms", "Lycophytes", 'Eudicots', 'Monocots')
+taxo_group = rep('Other',nrow(report))
+for(i in 1:length(to_do)){
+  taxo_group[report$family_use %in% families_of_groups[[to_do[i] ]] ] = to_do[i]
+}
+report$taxo_group = taxo_group
+
+
+report_original = report
+
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+
+```
+
+
+This report provides an overview of analyses of the collection further detail can be found by running other reports (such as Geography, Endemic, trends, etc... reports).
+
+
+
+***
+
+### Composition of the collection 
+
+In this section we look into the composition of the collection across various metrics.
+
+#### Size of the collection 
+
+```{r, Size of the collection, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+interest = report[report$ItemStatusType == 'Existing',]
+no_items = nrow(interest)
+no_accessions = length(unique(interest$AccNoFull)[!is.na(unique(interest$AccNoFull))])
+species = unique(interest$genus_species_use[!grepl('5|6|0',interest$taxon_type)])
+no_species = species[!is.na(species)] |> length()
+no_taxa = length(unique(interest$taxa_use)[!is.na(unique(interest$taxa_use))])
+
+
+basics = data.frame(count = c(no_items,no_accessions, no_taxa, no_species), objects = factor(x = c("Items", "Accessions", "Taxa", "Species"), levels = c("Items", "Accessions", "Taxa","Species")) )
+basics$colors = rep(bar_col_alpha, nrow(basics))
+basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
+
+if(report_kind == 'interactive'){
+  fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text') |>
+    layout(title = "",
+         xaxis = list(title = ""),
+         yaxis = list (title = "Number")) 
+
+fig = fig |> htmlwidgets::onRender(render_barplot)
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar_how_many_elements.html'))
+}
+
+fig
+}
+
+```
+
+We can also view the size of the collection by the number of families, genera, species there are in the collection. This is shown below. 
+
+```{r Current taxonomic diversity (number of Families, Genera, Species, Taxa), fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+interest = report[report$ItemStatusType == 'Existing',]
+no_family = length(unique(interest$family_use)[!is.na(unique(interest$family_use))]) 
+no_genera = length(unique(interest$genera_use)[!is.na(unique(interest$genera_use))])
+species = unique(interest$genus_species_use[!grepl('5|6|0',interest$taxon_type)])
+no_species = species[!is.na(species)] |> length()
+no_taxa = length(unique(interest$taxa_use)[!is.na(unique(interest$taxa_use))])
+
+basics = data.frame(count = c(no_family,no_genera, no_species, no_taxa), objects = factor(x = c("Families", "Genera", "Species", "Taxa"), levels = c("Families", "Genera", "Species", "Taxa")) )
+basics$colors = rep(bar_col_alpha, nrow(basics))
+basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
+
+
+  fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text') |> layout(title = "",
+         xaxis = list(title = ""),
+         yaxis = list (title = "Number")) 
+
+fig = fig |> htmlwidgets::onRender(render_barplot)
+
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar_how_many_each_taxonomic_unit.html'))
+}
+
+fig
+
+```
+
+Where in the above figures 
+
+- Families: The number of families found in the report (using matched POWO record where possible).
+- Genera: The number of genera found in the report using matched POWO record where possible).
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example Tephrosia longipes var. drummondii would be condensed to the species Tephrosia longipes using matched POWO record where possible).
+- Genera: The number of unique taxonomic name and authorities found in the report  (including hybrids, cultivars, indeterminate)(using matched POWO record where possible).
+- Taxa: The number of taxa in the report. 
+- Accessions: The number of accessions in the report.
+- Items: The number of records in the report.
+
+
+
+#### Sub sections
+
+```{r, Composition of the collection (Current)}
+# Select wanted data and add needed columns
+interest = report[report$ItemStatusType == 'Existing',]
+tree = rep('Not tree',nrow(interest))
+tree[which(interest$Enrich_is_tree)] = 'Tree'
+interest$tree = tree
+type  = rep(NA, nrow(interest))
+type[grepl('1', interest$taxon_type)] = 'Species'
+type[grepl('0', interest$taxon_type)] = 'Indeterminate'
+type[grepl('2|3|4', interest$taxon_type)] = 'Infraspecific'
+type[grepl('6', interest$taxon_type)] = 'Hybrid'
+type[grepl('5', interest$taxon_type)] = 'Cultivar'
+interest$type_plant = type
+rarity = rep('Unknown', nrow(interest))
+rarity[interest$no_gardens == 1] = 'Unique'
+rarity[interest$no_gardens %in% c(2:10)] = 'Very Rare'
+rarity[interest$no_gardens %in% c(11:50)] = 'Rare'
+rarity[interest$no_gardens %in% c(51:100)] = 'Common'
+rarity[interest$no_gardens %in% c(101:10000)] = 'Very Common'
+interest$rarity = rarity
+
+interest = interest |>
+  group_by(AccNoFull) |>
+  summarise(type_plant = type_plant[1],
+            ProvenanceCode = ProvenanceCode[1],
+            taxo_group = taxo_group[1],
+            tree = tree[1],
+            rarity = rarity[1],
+            native = native[1],
+            endemic = endemic[1],
+            threatened = threatened[1],
+            POWO_plant_name_id = POWO_plant_name_id[1],
+            items = length(.data$AccNoFull))
+interest$items[interest$items > 4] = '> 4'
+
+# interest_taxa = interest |>
+#   group_by(AccNoFull) |>
+#   summarise(type_plant = type_plant[1],
+#             taxo_group = taxo_group[1],
+#             tree = tree[1],
+#             rarity = rarity[1],
+#             native = native[1],
+#             endemic = endemic[1],
+#             threatened = threatened[1],
+#             items = length(.data$AccNoFull))
+# interest_taxa$items[interest$items > 5] = '6+'
+
+# factoring groups for order in plot.
+interest$rarity = factor(interest$rarity,
+                             levels = c('Unique', 'Very Rare', 'Rare', 'Common', 'Very Common', 'Unknown'))
+interest$type_plant = factor(interest$type_plant,
+                             levels = c('Species', 'Infraspecific', 'Hybrid', 'Indeterminate', 'Cultivar'))
+interest$native = factor(interest$native, levels = c("Native","Non-native"))
+interest$endemic = factor(interest$endemic, levels = c("Endemic", "Not Endemic"))
+interest$threatened = factor(interest$threatened, levels = c("Threatened", "Not Threatened"))
+interest$tree = factor(interest$tree, levels = c("Tree", "Not tree"))
+interest$ProvenanceCode = factor(interest$ProvenanceCode, levels = c("Wild" , "Wild-derived", "Garden", "Unknown" ))
+interest$items = factor(interest$items, levels = c('1','2','3','4','> 4' ))
+interest_POWO = interest[which(!is.na(interest$POWO_plant_name_id)),]
+
+
+# Extract the wanted information for the composition.
+quant = c('type_plant', 'ProvenanceCode', 'taxo_group', 'rarity', 'items',  'tree', 'native', 'endemic', 'threatened')
+info = pbapply::pblapply(quant, function(q){
+  table_counts = interest |> dplyr::count(across(q))
+  table_counts$percent = round(table_counts$n/ sum(table_counts$n) *100, digits = 2)
+  table_counts$type = 'Whole collection'
+  if(nrow(table_counts) %in% c(1,2)){
+    table_counts$colors = color_binary[1:nrow(table_counts)] |> rev()
+  }else if(nrow(table_counts) %in% c(3,4)){
+    table_counts$colors = interactive_colour(nrow(table_counts))
+  }else{
+    table_counts$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts))
+  }
+  
+  table_counts_POWO = interest_POWO |> dplyr::count(across(q))
+  table_counts_POWO$percent = round(table_counts_POWO$n/ sum(table_counts_POWO$n) *100, digits = 2)
+  table_counts_POWO$type = 'Match POWO only'
+  if(nrow(table_counts_POWO) %in% c(1,2)){
+    table_counts_POWO$colors = color_binary[1:nrow(table_counts_POWO)] |> rev()
+  }else if(nrow(table_counts_POWO) %in% c(3,4)){
+    table_counts_POWO$colors = interactive_colour(nrow(table_counts_POWO))
+  }else{
+    table_counts_POWO$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts_POWO))
+  }
+  
+  comb = rbind(table_counts, table_counts_POWO)
+  names(comb) = c('category', 'n', 'percent', 'type', 'color')
+  comb$collect_part = q
+  comb
+  
+})
+names(info) =  c('Type of Plant', 'Provenance', 'Taxonomic <br> Composition', 'Tree', 'Rarity', 'Duplication', 'Native', 'Endemic', 'Threatened')
+# info$family_use = info$family_use[order(info$family_use$n, decreasing = T),]
+comb = do.call('rbind',info)
+# comb$category = factor(comb$category, levels = unique(comb$category))
+comb$collect_part  = comb$collect_part |> dplyr::case_match("type_plant" ~ 'Type of Plant',
+                                       "ProvenanceCode" ~ 'Provenance',
+                                       "taxo_group" ~ 'Taxonomic <br> Composition',
+                                        "tree" ~ 'Tree',
+                                        "rarity" ~'Rarity',
+                                       'items' ~ 'Duplication',
+                                        "native" ~ 'Native',
+                                        "endemic" ~ 'Endemic',
+                                        "threatened" ~ 'Threatened')
+comb$collect_part = factor(comb$collect_part, levels = rev(unique(comb$collect_part)))
+comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', comb$category)
+        
+
+# Manual fix colours
+comb$color[which(comb$category == 'Unique')]   = '#f46d43'  
+comb$color[which(comb$category == 'Very Rare')]   = '#41ab5d'  
+comb$color[which(comb$category == 'Rare')]   = '#78c679'  
+comb$color[which(comb$category == 'Common')]   = '#addd8e' 
+comb$color[which(comb$category == 'Very Common')]   = '#d9f0a3' 
+comb$color[which(comb$category == 'Unknown')]   = '#848484'
+  
+comb$color[which(comb$category == 'Wild')]   = '#f46d43'
+comb$color[which(comb$category == 'Wild-derived')]   = '#50c1dc'
+comb$color[which(comb$category == 'Garden')]   = '#848484'
+comb$color[which(comb$category == 'Unknown')]   = '#e6e6e6'
+  
+comb$color[which(comb$category == 'Tree')]   = '#f46d43'  
+comb$color[which(comb$category == 'Not tree')]   = '#848484'    
+
+  
+
+### Create the horizontal bar plots.
+comb_cur = comb[comb$type == 'Whole collection',]
+hor_stack_bar_plot = plot_ly(comb_cur,
+                             type = 'bar',
+                             y = ~collect_part,
+                             x = ~percent,
+                             group = ~category,
+                             # colors = ~color,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = FALSE,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of collection (accessions)"),
+                 yaxis = list(title = ''),barmode = 'stack'
+                 # hovermode = 'y unified'
+  )
+
+
+comb_cur = comb[comb$type == 'Match POWO only',]
+hor_stack_bar_plot_POWO_only = plot_ly(comb_cur,
+                             type = 'bar',
+                             y = ~collect_part,
+                             x = ~percent,
+                             group = ~category,
+                             # colors = ~color,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = FALSE,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of matched plants to POWO (accessions)"),
+                 yaxis = list(title = ''),barmode = 'stack'
+                 # hovermode = 'y unified'
+  )
+
+
+
+```
+
+Next we look at various sub-collections within the collection and their size relative to the whole collection and relative only plants we have successfully matched to POWO (i.e. only the plants where we know the geographic distribution of the plants).
+
+The metrics include:
+
+* *Type of Plant*: classifies taxa into species, infraspecific, hybrids, indeterminates, cultivars and non-classified (NA).
+* *Provenance*: groups accessions into those of wild origin, wild-derived origin, garden origin or unknown origin.
+* *Taxonomic Composition*: groups taxa into Eudicots, Monocots, Ferns, Gymnosperms, Lycophytes, Bryophytes, Hornworts, Liverworts and Mosses (where they exist in the collection).
+* *Tree*: Uses BGCI's GlobalTreeSearch database to split the collection into trees and non-trees.
+* *Rarity*: Uses BGCI's PlantSearch to ascertain how many collections a plant if found in, these are then grouped into unique (a single collection), very rare (between 2 and 10 collections), rare (between 11 and 50 collections), common  (between 51 and 100 collections) and very common  (over 100 collections). PLants not found in BGCI's PlantSearch are classed as unknown.
+* *Duplication*: groups accessions by the number of individuals each accession is made of (where those with more than 5 individuals are grouped together)
+* *Native*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of plants native to the collection (belonging to `r location_name`).
+* *Endemic*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of endemic plants (those that belong to a single BRU level 3 region).
+* *Threatened*: Uses IUCN's RedList to determine which plants in the collection are classed as threatened (red list category of either vulnerable, endangered, critically endangered, extinct in the wild and extinct).
+
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Whole collection"}`
+```{r  composition Whole collection, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+hor_stack_bar_plot
+```
+
+`r if(report_kind == 'interactive'){"###### Only those that match WCVP"}`
+```{r  composition only those in WCVP, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+hor_stack_bar_plot_POWO_only
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***
+
+
+### Geographic distribution of the collection
+
+```{r, Map represented areas by number of species (entire collection; Geography module),  fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+interest = report[report$ItemStatusType == 'Existing',]
+
+# Restrict to only those matched to WCVP.
+wanted_info = interest[!is.na(interest$POWO_plant_name_id),]
+# Add species by combining taxonomic name and authors
+wanted_info$species = paste0(wanted_info$POWO_taxon_name, ' ', wanted_info$POWO_taxon_authors)
+wanted_info_items = wanted_info
+#Restrict to only unique species.
+wanted_info = wanted_info[match(unique(wanted_info$species), wanted_info$species),]
+
+# Get all BRU level 3 location codes.
+All_locations = wgsrpd3$LEVEL3_COD
+
+#Get the number of species for each location.
+no_species = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info$geography_codes))
+}))
+#Get the number of species for each location.
+no_items = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, wanted_info_items$geography_codes))
+}))
+
+#Get the number of endemic species for each location.
+endemic_info = wanted_info[stringr::str_length(wanted_info$geography_codes) == 3,]
+no_endemic = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, endemic_info$geography_codes))
+}))
+
+#Get the number of threatened species for each location.
+indicesA = which(wanted_info$POWO_Red_category %in%  c('EN', 'VU', 'CR', 'EW', 'EX'))
+indicesB = which(wanted_info$redList_category %in%  c('EN', 'VU', 'CR', 'EW', 'EX'))
+indices = unique(c(indicesA, indicesB))
+threatened_info = wanted_info[indices,]
+no_threatened = unlist(lapply(All_locations, function(x){
+  sum(grepl(x, threatened_info$geography_codes))
+}))
+
+# Combine the wanted information into location data.
+location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
+                           name = wgsrpd3$LEVEL3_NAM,
+                           no_species = no_species,
+                           rep_species = no_species > 0,
+                           no_endemic = no_endemic,
+                           rep_endemic = no_endemic > 0,
+                           no_threatened = no_threatened,
+                           rep_threatened = no_threatened > 0,
+                           no_items = no_items
+                           )
+
+location_data$name = stringr::str_replace(location_data$name, pattern = 'I\\.',replacement = 'Island')
+location_data$name = stringr::str_replace(location_data$name, pattern = 'Is\\.',replacement = 'Islands')
+
+if(!is.null(accepted_species_per_region)){
+  location_data$WCVP_total = accepted_species_per_region$no_accepted_taxa_wcvp[match(location_data$code,accepted_species_per_region$code)]
+}
+plot_info <- wgsrpd3 |>
+  #add the location data to the geometry data
+  dplyr::left_join(location_data, by=c("LEVEL3_COD"="code"))
+
+
+
+if(!is.null(wcvp) & (is.null(accepted_species_per_region) | is.null(endemic_species_per_region))){
+   geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
+  want = c('000','010','001','011','100','110','101')
+
+  #Depending on the values of the options reduce `want` to only the satisfactory values.
+  ##A) introduced / naturally occurring only.
+  if(native == 'Introduced only'){
+    want = want[grepl('^1',want)]
+  }else if(native == 'Naturally occurring only'){
+    want = want[grepl('^0',want)]
+  }
+  ## B) Extinct
+  if(!extinct){
+    want = want[!grepl('010|011|110',want)]
+  }
+  ## C) Doubtful
+  if(!doubtful_locations){
+    want = want[!grepl('001|011|101',want)]
+  }
+  geog_want_values = want
+  # Get the columns in wanted info that contain the geography information we want.
+  geography_data = geography_data[,grepl(paste0(geog_want_values,collapse='|'), names(geography_data))]
+
+  # If multiple columns join the strings such that each contains only a single list of regions.
+  if(length(geog_want_values) > 1){
+    level3codes =do.call("paste", c(geography_data, sep = ", "))
+    level3codes = stringr::str_remove(level3codes, ', NA$')
+    level3codes = stringr::str_remove(level3codes, 'NA, ')
+  }else{
+    level3codes = geography_data
+  }
+  level3codes[level3codes == "NA"] = NA
+
+  wcvp_geography = data.frame(id = wcvp$geography$plant_name_id,
+                              codes = level3codes)
+
+  #Next we need to extract all the plant name ids from wcvp that are  accepted
+  plant_ids = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$taxon_status %in% c('Accepted')& !is.na(wcvp$wcvp_names$species)]
+
+  # reduce wcvp_geography to only accepted plant name ids. (Note that usually only accepted plants have geography so this won't actually remove many records)
+  wcvp_geography = wcvp_geography[wcvp_geography$id %in% plant_ids,]
+  if(!exists('accepted_species_per_region')){
+    no_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+    sum(grepl(x, wcvp_geography$codes))}))
+    
+    accepted_species_per_region = data.frame(code = All_locations, no_accepted_taxa_wcvp = no_accepted_species_wcvp)
+  }
+  
+  location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
+
+  
+}
+
+ # Due to the high level of detail in wgsrpd3 we need to go to a simplified geometry for the interactive geometry plots. 
+  # load all geo areas
+  wgsrpd3_level3_simp = BGSmartR::wgsrpd3_level3_simp
+  
+  plot_int_info <- wgsrpd3_level3_simp |>
+  dplyr::left_join(location_data, by=c("code"="code"))
+  plot_int_info$name = plot_int_info$name.x
+  plot_int_info$name = stringr::str_replace(plot_int_info$name, pattern = 'I\\.',replacement = 'Island')
+  plot_int_info$name = stringr::str_replace(plot_int_info$name, pattern = 'Is\\.',replacement = 'Islands')
+  
+  data_g = st_geometry(plot_int_info)
+
+  centers = st_centroid(data_g)
+  AA = unlist(centers)
+  center_df = data.frame(long = AA[seq(1,length(AA),2)], lat = AA[seq(2,length(AA),2)])
+
+  # Convert geometry into a format accepted by plotly
+  mapp = sf::st_cast(wgsrpd3_level3_simp, "MULTIPOLYGON")
+  geo_sf = geojsonsf::sf_geojson(mapp)
+  data = rjson::fromJSON(geo_sf)
+  feat = data$features
+  for(i in 1:length(feat)){
+    feat[[i]]$id = feat[[i]]$properties$code
+  }
+  data$features = feat
+  
+
+
+  index = seq(0,1,0.01)
+  col_rep = color_binary
+  colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+  counter = 1:length(index)
+  col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+  
+  colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+  ramp <- scales::colour_ramp(colours_cont)
+  colos = ramp(seq(0, 1, length = 100))
+  
+  
+  index = seq(0,1,0.01)
+  colours_cont = c("black",colos)
+  counter = 1:length(index)
+  col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+
+
+
+  rep_species = rep('No', nrow(plot_int_info))
+rep_species[plot_int_info$rep_species] = 'Yes'
+plot_int_info$rep_species_yes_no = rep_species
+plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total*100,digits = 2)
+ text = paste0('Region: ', plot_int_info$name, '<br>', 
+                'Represented: ', plot_int_info$rep_species_yes_no, '<br>',
+                'Items from the region:', plot_int_info$no_items, '<br>',
+                'Species in the LC:', plot_int_info$no_species, '/', plot_int_info$WCVP_total, '<br>',
+                'Species from Region in LC:', round(plot_int_info$no_species/plot_int_info$WCVP_total*100,digits = 2), '%')
+  plot_int_info$hover = text
+  
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+
+  plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
+  center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
+  
+  lower_zero_by = 5
+  plot_info_species$no_species_use = plot_info_species$no_species
+  plot_info_species$no_species_use[plot_info_species$no_species == 0] = -lower_zero_by
+  
+ colscale_0_1 = as.numeric(unlist(lapply(col_scale, function(x){x[[1]]})))
+  point_value = (plot_info_species$no_species_use+lower_zero_by)/max(plot_info_species$no_species_use+lower_zero_by)
+  color_index = unlist(lapply(point_value, function(x){which.min(abs(x - colscale_0_1))}))
+  fillcolor = unlist(lapply(color_index, function(x){col_scale[[x]][2]}))
+
+
+  
+  fig = plot_ly(plot_info_species,  text = plot_info_species$hover, hoverinfo = 'text') |>
+      add_trace(type="scattermapbox",
+                          mode = 'markers',
+                          data = center_df_species,
+                          lon = center_df_species$long,
+                          lat = center_df_species$lat,
+                          text = plot_info_species$hover,
+                          # fill = plot_int_info$no_endemic_species+1,
+                          # fillcolor=col_scale,
+                          hoverinfo = 'text',
+                          inherit = FALSE,
+                          showlegend = FALSE,
+                          marker = list(color = fillcolor, line = list(width = 0)),
+                          hoverlabel = list(bgcolor = fillcolor)) |>
+    add_trace(type="choroplethmapbox",
+     geojson=data,
+     locations=plot_info_species$code,
+     z=plot_info_species$no_species_use+1,
+     zmin = 0, zmax = max(plot_info_species$no_species_use),
+     colorscale=col_scale,
+     reversescale = FALSE,
+     marker=list(line=list(
+     width=0.01,color ='black')),
+     text = plot_info_species$hover,
+     hoverinfo = 'text',
+     hoverlabel = list(bgcolor = fillcolor)
+    ) |>
+    layout(
+    mapbox=list(
+      style="white-bg",
+      center = list(lon = 0 ,lat= 60),
+      zoom =0.46,
+      lataxis = list(range = c(-59, 90)))
+  ) |>
+    colorbar(title = "")
+
+
+  fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
+   
+  
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Geography-Number_of_Species.html'))
+  }
+  suppressWarnings(fig)
+```
+***
+
+### How the collection has changed over time
+
+```{r extract change over time}
+interest = report
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  interest$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+still_issue = nrow(interest) - length(to_keep)
+interest = interest[to_keep,]
+#### Needed functions
+group_trend_plots <- function(years, data, name, report_kind, separate_figure_folder, data_type, split = FALSE){
+  data_prop = data /rowSums(data)*100
+  tt = data.frame(year = years, data)
+  names(tt) = c('year', names(data))
+  dd = reshape(tt, idvar = "year", varying = list(2:ncol(tt)),
+      v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
+  dd$group = factor(dd$group, levels = unique(dd$group))
+  
+  tt_prop = data.frame(year = years, data_prop)
+  names(tt_prop) = c('year', names(data))
+  dd_prop = reshape(tt_prop, idvar = "year", varying = list(2:ncol(tt)),
+    v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
+  dd_prop$group = factor(dd_prop$group, levels = unique(dd_prop$group))
+  
+    if(report_kind == 'static'){
+      p1 = ggplot(dd, aes(x=year, y = count, group = group, color = group)) +
+        geom_line(linewidth  =1.1 ) + 
+        guides(color=guide_legend(title=paste0(name))) + 
+        labs(title="",
+            x ="Year",
+            y = stringr::str_wrap(paste0("Number of ", data_type),width = 18)) +
+             scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+        theme(legend.position="bottom")
+
+ 
+       p2 = ggplot(dd_prop, aes(fill=group, y=count, x=year)) + 
+        geom_bar(position="stack", stat="identity", width = 1) +
+         scale_x_continuous(expand = c(0, 0)) +
+         scale_y_continuous(expand = c(0, 0)) +
+        labs(title="",
+          x ="Year",
+          y = "Percentage (%)") +
+        guides(fill=guide_legend(title=paste0('Provenance')))
+      
+       p = ggpubr::ggarrange(p1, p2, labels = c("A", "B"),
+          common.legend = TRUE, legend = "bottom", ncol = 1, nrow = 2, align = 'v')
+       
+   if(separate_figure_folder){
+     ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/', name, '_trend.pdf'),device = 'pdf', scale = 1)
+   }
+    if(split){
+      return(list(number = p1, proportion = p2))
+    }else{
+         return(p)
+
+    }
+    }
+    if(report_kind == 'interactive'){
+
+    # fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', line = list(color = interactive_colour(length(unique(dd$group)))))
+    fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', colors = interactive_colour(length(unique(dd$group))))
+
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                       xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/',name,'_trend.html'),selfcontained = T)
+    }
+    
+    
+    dd_prop = data.frame(dd_prop, total = dd$count)
+    
+    fig2 <- plot_ly(dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
+                    hovertext = paste0(dd_prop$group,": ", round(dd_prop$count,digits = 1),'% (', dd_prop$total,')'),
+                    hoverinfo = "x+text",
+                    colors = interactive_colour(length(unique(dd$group))))
+    
+    
+    fig2 <- fig2 |> layout(yaxis = list(title = paste0("Percentage")),
+                       xaxis = list(title = "Year"))
+    fig2 <- fig2 |> layout(hovermode = 'x unified',
+                           barmode = 'stack',
+                           bargap =0,
+                           legend = list(traceorder = 'normal'),
+                           yaxis = list(ticksuffix = '%'))
+    fig2
+    
+      if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig2, file = paste0(figures_dir,'/',name,'_proportional_trend.html'),selfcontained = T)
+    }
+    }
+  
+  return(list(number = fig, proportion = fig2))
+}
+
+
+#### Extract the data
+years = min_year:max_year
+date = paste0(years, '-12-31')
+
+
+plant_existing = BGSmartR::exist_at_date(date, AccessionYear = interest$AccYear,
+                       ItemStatusDate = interest$ItemStatusDate,
+                       ItemStatusType = interest$ItemStatusType,post_date = '3000-01-01')
+
+# Extract the number of 'Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families' in the LC each year.
+time_series_info = pbapply::pblapply(plant_existing, function(x){
+  garden_current = report[x,]
+  
+  # Number of families.
+  families = data.frame(original = garden_current$Family, POWO = garden_current$POWO_family)
+  use_family = families$POWO
+  use_family[is.na(use_family)] = families$original[is.na(use_family)]
+  family = unique(use_family)
+  no_families <- length(family)
+
+  # Number of genera.
+  genus = data.frame(original = garden_current$Genus, POWO = garden_current$POWO_genus)
+  use_genus = genus$POWO
+  use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+  no_genera <- length(unique(use_genus))
+
+
+   #No species (#remove cultivars, indeterminate taxa, hybrids )
+  POWO_GenusSpecies = rep(NA, nrow(garden_current))
+  POWO_GenusSpecies[!is.na(garden_current$POWO_plant_name_id)] = paste0(garden_current$POWO_genus[!is.na(garden_current$POWO_plant_name_id)], ' ', garden_current$POWO_species[!is.na(garden_current$POWO_plant_name_id)])
+  species_data = data.frame(original = garden_current$GenusSpecies, POWO = POWO_GenusSpecies, infra = garden_current$taxon_type)
+  species_only = species_data[!grepl('5|6|0',species_data$infra),]
+  species_only = species_only[!is.na(species_only$infra),]
+  use_species = species_only$POWO
+  use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
+  no_species = length(unique(use_species))
+  
+  # Number of Taxa.
+    taxa = data.frame(sanitsed_name = paste0(garden_current$sanitised_taxon, ' ', garden_current$extracted_author), powo_name = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors))
+    taxa$powo_name[taxa$powo_name == 'NA NA'] = NA
+  use_taxa = taxa$powo_name
+  use_taxa[is.na(use_taxa)] = taxa$sanitsed_name[is.na(use_taxa)]
+  no_taxa <- length(unique(use_taxa))
+
+  # Number of accessions.
+  unique_accessions = unique(garden_current$AccNoFull)
+  unique_accessions = unique_accessions[!is.na(unique_accessions)]
+  no_accessions = length(unique_accessions)
+  
+  # Number of items
+  no_items = nrow(garden_current)
+  
+  return(c(no_items, no_accessions, no_taxa, no_species, no_genera, no_families))
+}) |> data.frame() |> t() |> data.frame()
+names(time_series_info) = c('Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families')
+
+
+
+
+# For accessions across categories / subsets.
+unique_accessions = unique(interest$AccNoFull)
+  LossYear = rep(NA,nrow(interest))
+  ItemStatusYear = as.numeric(stringr::str_extract(interest$ItemStatusDate,pattern = '[0-9]{4}'))
+  LossYear[interest$ItemStatusType %in% c('NotExisting', 'Not Existing')] = ItemStatusYear[interest$ItemStatusType %in% c('NotExisting', 'Not Existing')]
+  interest$LossYear = LossYear
+  # Order the items where the lower indices have the most recent death date.
+  LossYear_dummy = LossYear
+  LossYear_dummy[is.na(LossYear_dummy)] = 4000
+  ordered_items = order(LossYear_dummy,decreasing = T)
+  interest2 = interest[ordered_items, ]
+  #Match to the ordered accessions.
+  match_to_best = match(unique_accessions,interest2$AccNoFull)
+  
+  #Reduce the data to unique accessions with most recent death date.
+  interest = interest2[match_to_best,]
+  
+  plant_existing = BGSmartR::exist_at_date(date, 
+                                           AccessionYear = interest$AccYear,
+                       ItemStatusDate = interest$ItemStatusDate ,
+                       ItemStatusType = interest$ItemStatusType,
+                       post_date = '3000-12-31')
+
+  time_series_info_subsets = pbapply::pblapply(plant_existing, function(x){
+  garden_current = interest[x,]
+  # Breakdown of infrageneric diversity.
+  breakdown_infrageneric = table(garden_current$taxon_type)
+  
+  # Breakdown of provenance.
+  breakdown_provenance = table(garden_current$ProvenanceCode)
+  
+  # Breakdown of endemic
+  breakdown_endemic = table(garden_current$endemic)
+  
+  # Number of native
+  breakdown_native = table(garden_current$native)
+
+  # Breakdown of threatened
+  breakdown_threatened = table(garden_current$threatened)
+  
+  # Breakdown of threatened categories
+  breakdown_threatened_cateogory = table(garden_current$threatened_category)
+
+  # Breakdown by tree
+  breakdown_tree= table(garden_current$tree)
+
+  
+  return(list(breakdown_infrageneric = breakdown_infrageneric, breakdown_provenance = breakdown_provenance, breakdown_endemic = breakdown_endemic, breakdown_native = breakdown_native, breakdown_threatened = breakdown_threatened, breakdown_threatened_cateogory = breakdown_threatened_cateogory, breakdown_tree = breakdown_tree))
+})
+names(time_series_info_subsets) = names(plant_existing)
+
+```
+
+#### For collection size 
+
+```{r, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+time_series_info_normalised = as.data.frame(t(t(time_series_info)/as.numeric(apply(time_series_info, MARGIN=c(2), max))))
+names(time_series_info_normalised) = paste0(names(time_series_info_normalised),'_Norm')
+time_series_info_normalised = data.frame(years = years, time_series_info, time_series_info_normalised) 
+data_names = names(time_series_info_normalised)
+
+to_plot = c("Items", "Accessions", "Taxa", "Species", "Genera", "Families")
+colours = scales::brewer_pal(palette = palette, direction = 1)(length(to_plot))
+fig <- plot_ly(time_series_info_normalised, x = ~years)
+fig <- fig %>%  add_trace(x = ~years, y = min(time_series_info_normalised[,8:13]), hoverinfo='text', type = 'scatter', text = ~years,
+            mode = 'markers', marker=list(size=0, color='white'),
+            showlegend=FALSE, opacity=0)
+for(i in 1:length(to_plot)){
+  fig <- fig %>% add_trace(y = time_series_info_normalised[,grepl(to_plot[i], data_names) & grepl('Norm', data_names)], name = to_plot[i], mode = 'lines',type = 'scatter', line = list(color = colours[i]),
+                           text=paste0(to_plot[i], ': ',time_series_info_normalised[,which(grepl(to_plot[i], data_names))[1]]), hoverinfo = 'text') 
+}
+
+fig <- fig |> layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "")) 
+fig <- fig |> layout(hovermode = 'x unified',
+         yaxis = list(showline= F,
+                      showticklabels = F
+                      # range = c(min(time_series_info_normalised[,5:7]),max(time_series_info_normalised[,5:7]))
+                      ),
+         margin = list(l=0, r=0, t=20, b=0, pad = 4),
+         autosize = T,
+         xaxis = list(range = c(min(years)-0.5, max(years))))
+
+ if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/items_accessions_taxa_species_genera_families_trend.html'),selfcontained = T)
+    }
+
+fig
+```
+
+***
+
+#### For categories 
+
+```{r, Change over time number all categories together (entire collection; Trends module)}
+taxon_type_categories = c('Species', 'Infraspecific', 'Horticultural', 'Indeterminate')
+no_taxon_type = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_infrageneric
+  
+  no_indet = sum(details[grepl('0', names(details))])
+  no_hort = sum(details[grepl('5|6', names(details))])
+  no_species = sum(details[!grepl('0|5|6|2|3|4', names(details))])
+  no_infra = sum(details[!grepl('0|5|6', names(details)) & grepl('2|3|4', names(details))])
+  
+  return(c(no_species, no_infra, no_hort, no_indet))
+  }))))
+names(no_taxon_type) = taxon_type_categories
+
+int_plots = group_trend_plots(years, no_taxon_type, "Types of plant", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
+
+
+```
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number"}`
+```{r  taxon_type trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+int_plots$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  taxon_type trend (proportion) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+int_plots$proportion
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***
+
+#### For key-collections 
+
+```{r, Change over number time key-collections together (Trends module), fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+Endemic_categories = unique(interest$endemic)
+no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_endemic
+  no_prov = as.numeric(details[match(Endemic_categories, names(details))])
+  no_prov[is.na(no_prov)] = 0
+  return(no_prov)
+  }))))
+names(no_endemic) = Endemic_categories
+no_endemic = no_endemic[,c(2,1)]
+
+native_categories = unique(interest$native)
+no_native = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_native
+  no_prov = as.numeric(details[match(native_categories, names(details))])
+  no_prov[is.na(no_prov)] = 0
+  return(no_prov)
+  }))))
+names(no_native) = native_categories
+no_native = no_native[,c(2,1)]
+
+threatened_categories = unique(interest$threatened)
+no_threatened = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_threatened
+  no_prov = as.numeric(details[match(threatened_categories, names(details))])
+  no_prov[is.na(no_prov)] = 0
+  return(no_prov)
+  }))))
+names(no_threatened) = threatened_categories
+no_threatened = no_threatened[,c(2,1)]
+
+Tree_categories = unique(interest$tree)
+no_tree = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_tree
+  no_prov = as.numeric(details[match(Tree_categories, names(details))])
+  no_prov[is.na(no_prov)] = 0
+  return(no_prov)
+  }))))
+names(no_tree) = Tree_categories
+no_threatened = no_threatened[,c(2,1)]
+
+combined_data = data.frame(Threatened = no_threatened$Threatened,
+                           Endemic = no_endemic$Endemic,
+                           Native = no_native$Native,
+                           Tree = no_tree$Tree)
+
+time_series_info_normalised = as.data.frame(t(t(combined_data)/as.numeric(apply(combined_data, MARGIN=c(2), max))))
+names(time_series_info_normalised) = paste0(names(time_series_info_normalised),'_Norm')
+time_series_info_normalised = data.frame(years = years, combined_data, time_series_info_normalised) 
+data_names = names(time_series_info_normalised)
+
+
+to_plot = c('Threatened', "Endemic", "Native", 'Tree')
+colours = interactive_colour(length(to_plot))
+fig <- plot_ly(time_series_info_normalised, x = ~years)
+fig <- fig %>%  add_trace(x = ~years, y = min(time_series_info_normalised[,which(grepl('Norm',names(time_series_info_normalised)))]), hoverinfo='text', type = 'scatter', text = ~years,
+            mode = 'markers', marker=list(size=0, color='white'),
+            showlegend=FALSE, opacity=0)
+for(i in 1:length(to_plot)){
+  fig <- fig |> add_trace(y = time_series_info_normalised[,grepl(to_plot[i], data_names) & grepl('Norm', data_names)], name = to_plot[i], mode = 'lines',type = 'scatter', line = list(color = colours[i]),
+                           text=paste0(to_plot[i], ': ',time_series_info_normalised[,which(grepl(to_plot[i], data_names))[1]]), hoverinfo = 'text') 
+}
+
+fig <- fig |> layout(title = "",
+         xaxis = list(title = "Year"),
+         yaxis = list (title = "")) 
+fig <- fig |> layout(hovermode = 'x unified',
+         yaxis = list(showline= F, showticklabels = F),
+         margin = list(l=0, r=0, t=20, b=0, pad = 4),
+         autosize = T,
+         xaxis = list(range = c(min(years)-0.5, max(years))))
+
+ if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/key_taxa_combined_trend.html'),selfcontained = T)
+ }
+fig
+
+```
+
+
+
+***
+
+####  By provenance 
+
+```{r, Change over time proportion by provenance (entire collection; Trends module)}
+
+Provenance_categories = unique(interest$ProvenanceCode)
+no_prov = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
+  details = x$breakdown_provenance
+  no_prov = as.numeric(details[match(Provenance_categories, names(details))])
+  no_prov[is.na(no_prov)] = 0
+  return(no_prov)
+  }))))
+names(no_prov) = Provenance_categories
+no_prov = no_prov[,match(c('Wild', 'Wild-derived', 'Garden', 'Unknown'), names(no_prov))] # Choose the ordering we want
+
+int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
+
+
+
+```
+
+`r if(report_kind == 'interactive'){"#####  Provenance Trends {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number"}`
+```{r  Provenance trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+int_plots$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  Provenance trend (proportion) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+int_plots$proportion
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+***
+
+### Turnover
+
+```{r, Get Trends, echo = F}
+interest = report
+LossYear = rep(NA,nrow(interest))
+ItemStatusYear = as.numeric(stringr::str_extract(interest$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[interest$ItemStatusType == 'NotExisting'] = ItemStatusYear[interest$ItemStatusType == 'NotExisting']
+interest$LossYear = LossYear
+
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+years = min_year:max_year
+date = paste0(years, '-12-31')
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  interest$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+still_issue = nrow(interest) - length(to_keep)
+interest = interest[to_keep,]
+
+date = paste0(years, '-12-31')
+plant_existing = BGSmartR::exist_at_date(date, AccessionYear = interest$AccYear,
+                       ItemStatusDate = interest$ItemStatusDate,
+                       ItemStatusType = interest$ItemStatusType,
+                       post_date = '3000-01-01')
+names(plant_existing) = date
+trends = pbapply::pblapply(plant_existing, function(x){
+  garden_current = interest[x,]
+  
+  accessions = nrow(garden_current)
+  
+  # Breakdown of infrageneric diversity.
+  breakdown_infrageneric = table(garden_current$taxon_type)
+  
+  # Breakdown of provenance.
+  breakdown_provenance = table(garden_current$ProvenanceCode)
+  
+  # Breakdown of endemic
+  breakdown_endemic = table(garden_current$endemic)
+  
+  # Number of native
+  breakdown_native = table(garden_current$native)
+
+  # Breakdown of threatened
+  breakdown_threatened = table(garden_current$threatened)
+  
+  # Breakdown of threatened categories
+  breakdown_threatened_cateogory = table(garden_current$threatened_category)
+
+  # Breakdown by tree
+  breakdown_tree= table(garden_current$tree)
+
+  
+  return(list(accessions = accessions, breakdown_infrageneric = breakdown_infrageneric, breakdown_provenance = breakdown_provenance, breakdown_endemic = breakdown_endemic, breakdown_native = breakdown_native, breakdown_threatened = breakdown_threatened, breakdown_threatened_cateogory = breakdown_threatened_cateogory, breakdown_tree = breakdown_tree))
+})
+names(trends) = names(plant_existing)
+```
+
+```{r, functions for turnover}
+turnover_items <- function(report){
+  report = report[(report$LossYear >= min_year & report$LossYear <= max_year) | is.na(report$LossYear),]
+  combined = data.frame(Year = years)
+  
+  # Items
+  gain = data.frame(table(report$AccYear))
+  if(nrow(gain) == 0){
+    gained = rep(0,nrow(combined))
+    combined$gain_items = gained
+  }else{
+    names(gain) = c('Year', 'Items')
+    gain$Year = as.numeric(as.character(gain$Year))
+    gain = gain[gain$Year >=min_year & gain$Year <= max_year,]
+    gained = rep(0,nrow(combined))
+    gained[match(gain$Year, combined$Year)] = gain$Items
+    combined$gain_items = gained
+  }
+  
+  
+  loss = data.frame(table(report$LossYear))
+  if(nrow(loss) == 0){
+    lost = rep(0,nrow(combined))
+    combined$loss_items = lost
+  }else{
+    names(loss) = c('Year', 'Items')
+    loss$Year = as.numeric(as.character(loss$Year))
+    loss = loss[loss$Year >=min_year & loss$Year <= max_year,]
+    lost = rep(0,nrow(combined))
+    lost[match(loss$Year, combined$Year)] = loss$Items
+    combined$loss_items = lost
+  }
+  
+  
+  combined$net_items = combined$gain_items - combined$loss_items
+  return(combined)
+}
+
+plots_turnover <- function(turnover, trend, report_kind, text = '', separate_figure_folder, data_type = 'items'){
+    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+    names(dataA) = LETTERS[1:3]
+    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+    names(dataB) = LETTERS[1:3]
+    items_data = rbind(dataA, dataB)
+  if(report_kind == 'static'){
+
+    p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
+      geom_line(aes(color=C)) +
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,'')) +
+      guides(color=guide_legend(title=paste0('Gain/Loss'))) +
+      # theme(text = element_text(size=table_font_size)) +
+      scale_color_manual(values=c("blue", "red"))+
+      theme(legend.direction = "horizontal", legend.position = "top", legend.justification = "right")
+    
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.pdf'),device = 'pdf', scale = 1, width = 20, height = 12, limitsize = FALSE)
+    }
+    p1=p
+    
+    # Color based on value
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    p = ggplot(turnover, aes(x = Year, y = net_items)) +
+      geom_bar(stat = "identity",
+               show.legend = FALSE,
+               fill = color,      # Background color
+               color = "white") + # Border color
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Net turnover of ",text," in the LC (By ",data_type,")"),
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    # theme(text = element_text(size=table_font_size))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Net_turnover_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    p2=p
+    
+    
+    # Trend plot.
+    trend_data = data.frame(year = turnover$Year, trend = trend)
+    p = ggplot(trend_data, aes(x = year, y = trend)) +
+      geom_line(width = 1.1) +
+      labs(title="",
+           x ="Year",
+           y = paste0('Number of ',data_type,''))
+    p3 = p
+    return(list(gain_loss = p1, net = p2, trend = p3))
+  }
+  if(report_kind == 'interactive'){
+    # gain_loss plot
+    colors = c("lightblue", "pink")
+    fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','line-turnover_',stringr::str_replace_all(text, ' ', '_'),'_gain_loss_',data_type,'.html'))
+    }
+    fig1 = fig
+    
+    # net plot
+    colors = c("pink", "lightblue")
+    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    texto = paste0('Net: ', turnover$net_items, '<br>',
+                   'Gain: ', turnover$gain_items, '<br>',
+                   'Loss: ', turnover$loss_items, '<br>'
+    )
+    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar-Net_',stringr::str_replace_all(text, ' ', '_'),'turnover_of_',data_type,'.html'))
+    }
+    fig2 = fig
+    
+    # Trend plot.
+    trend_data = data.frame(year = turnover$Year, trend = trend)
+    fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    fig3= fig
+    
+    # Combined trend and net.
+    fig <- plot_ly()
+    # Add traces
+    ay <- list(
+      tickfont = list(color = "black"),
+      overlaying = "y",
+      side = "right",
+      title = paste0("Total ", tolower(data_type)))
+    
+      fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+     
+    fig <- fig %>% add_trace(x = years, y = trend, name = "Total", mode = "lines+markers", type = "scatter", line = list(color = 'black'), marker = list(color = 'black'),yaxis = "y2")
+    
+  
+    # Set figure title, x and y-axes titles
+    fig <- fig |> layout(
+      title = "", yaxis2 = ay,
+      xaxis = list(title="Year"),
+      yaxis = list(title = paste0("Net turnover of ", tolower(data_type)))
+    ) |>
+      layout(plot_bgcolor='white',
+             xaxis = list(
+               zerolinecolor = '#ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff'),
+             yaxis2 = list(
+               zeroline = TRUE,
+               zerolinecolor = 'ffff',
+               zerolinewidth = 2,
+               gridcolor = 'ffff',
+               showgrid = FALSE),
+              yaxis = list(
+                zeroline = TRUE,
+                zerolinecolor = '#f0f0f0',
+                zerolinewidth = 1,
+                gridcolor = '#f0f0f0',
+                griddash = 'solid',
+                gridwidth = 1,showgrid = T),
+             margin = list(t = 10, l = 20, r = 70, b = 20, pad = 4),
+             autosize = T
+      )
+    fig <- fig |> layout(hovermode = 'x unified')
+    fig4 = fig
+    
+    return(list(gain_loss = fig1, net = fig2, trend = fig3, trend_and_net = fig4))
+    
+  }
+}
+
+proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
+                                        report_kind, text = '', data_type = 'items'){
+  if(report_kind == 'static'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'lightblue', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      labs(title=paste0("Proportion of gained ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    p1 = p
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_gain_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    p = ggplot(plot_data, aes(y=prop_specific, x=year)) + 
+      geom_bar(stat="identity", width = 1, fill = 'pink', col = 'black') +
+      geom_point(aes(x = year, y = prop_specific_collection))+
+      # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+      labs(title=paste0("Proportion of lost ",data_type," that are ",text," in the LC"),
+           x ="Year",
+           y = "Percentage (%)") +
+      # theme(text = element_text(size=table_font_size)) +
+      labs(caption = paste0("Black points are proportion of ",data_type," in the LC that are ",text," each year."))
+    
+    if(separate_figure_folder){
+      ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/',stringr::str_replace_all(text,' ','_'),'_loss_',data_type,'_proportion.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+    }
+    
+    return(list(gain = p1, loss = p, data_gain = plot_data_gain, data_loss = plot_data_loss))
+  }
+  if(report_kind =='interactive'){
+    # Gain
+    plot_data = data.frame(year = turnover[,1],
+                           specific = turnover[,2], 
+                           all = overall_turnover[,2])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_gain = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    fig1 = fig
+    
+    ### Plot of proportion of lost items being native.
+    
+    plot_data = data.frame(year =  turnover[,1],
+                           specific = turnover[,3], 
+                           all = overall_turnover[,3])
+    plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
+    plot_data$prop_specific_collection = collection_proportion*100
+    plot_data_loss = plot_data
+    
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
+                         xaxis = list(title = "Year"))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
+    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
+    }
+    
+    return(list(gain = fig1, loss = fig,  data_gain = plot_data_gain, data_loss = plot_data_loss))
+    
+  }
+}
+```
+
+```{r Overall net + gain/loss turnover (Turnover module)}
+existing_each_year_LC = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = as.character(report$AccYear),
+                        ItemStatusDate = as.character(report$ItemStatusDate),
+                        ItemStatusType = as.character(report$ItemStatusType),
+                        post_date = '3000-01-01')))
+
+overall_trend = existing_each_year_LC
+overall_turnover = turnover_items(interest)
+plots = plots_turnover(turnover = overall_turnover, trend = overall_trend, report_kind = 'interactive', separate_figure_folder = separate_figure_folder, data_type = 'accessions')
+```
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Net"}`
+```{r  Net turnover of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+plots$trend_and_net
+
+```
+
+`r if(report_kind == 'interactive'){"###### Gain/Loss"}`
+```{r  Gain/Loss of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+plots$gain_loss
+
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+#### Gain Percentage over time by provenance (Turnover module)
+
+```{r, turnover of provenance}
+exporting_data_store = list()
+##### UNKNOWN
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_provenance[grepl('Unknown', names(x$breakdown_provenance))])
+})))
+do_unknown = TRUE
+interest_cur = interest[which(interest$ProvenanceCode == 'Unknown'),]
+if(nrow(interest_cur) == 0){
+  do_unknown = FALSE
+}else{
+  turnover = turnover_items(interest_cur)
+exporting_data_store$turnover_provenance_unknown = turnover
+
+plots_unknown = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'unknown provenance', data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = interest_cur$AccYear,
+                        ItemStatusDate = interest_cur$ItemStatusDate,
+                        ItemStatusType = interest_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional_unknown = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'unknown provenance',
+                                                 data_type = 'accessions')
+exporting_data_store$proportional_turnover_unknown_provenance_gain = plots_proportional_unknown$data_gain
+exporting_data_store$proportional_turnover_unknown_provenance_loss = plots_proportional_unknown$data_loss
+}
+
+##### Garden
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_provenance[grepl('Garden', names(x$breakdown_provenance))])
+})))
+do_garden = TRUE
+interest_cur = interest[which(interest$ProvenanceCode == 'Garden'),]
+if(nrow(interest_cur) == 0){
+  do_garden = FALSE
+}else{
+  turnover = turnover_items(interest_cur)
+exporting_data_store$turnover_provenance_garden = turnover
+
+plots_garden = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'garden provenance', data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = interest_cur$AccYear,
+                        ItemStatusDate = interest_cur$ItemStatusDate,
+                        ItemStatusType = interest_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional_garden = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'garden provenance',
+                                                 data_type = 'accessions')
+exporting_data_store$proportional_turnover_garden_provenance_gain = plots_proportional_garden$data_gain
+exporting_data_store$proportional_turnover_garden_provenance_loss = plots_proportional_garden$data_loss
+}
+
+##### Wild-derived
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_provenance[grepl('Wild-derived', names(x$breakdown_provenance))])
+})))
+do_wild_derived = TRUE
+interest_cur = interest[which(interest$ProvenanceCode == 'Wild-derived'),]
+if(nrow(interest_cur) == 0){
+  do_wild_derived = FALSE
+}else{
+  turnover = turnover_items(interest_cur)
+exporting_data_store$turnover_provenance_wild_derived = turnover
+
+plots_wild_derived = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild-derived provenance', data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = interest_cur$AccYear,
+                        ItemStatusDate = interest_cur$ItemStatusDate,
+                        ItemStatusType = interest_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional_wild_derived = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'wild-derived provenance',
+                                                 data_type = 'accessions')
+exporting_data_store$proportional_turnover_wild_derived_provenance_gain = plots_proportional_wild_derived$data_gain
+exporting_data_store$proportional_turnover_wild_derived_provenance_loss = plots_proportional_wild_derived$data_loss
+}
+
+##### Wild-derived
+trend = as.numeric(unlist(lapply(trends,function(x){
+  sum(x$breakdown_provenance[names(x$breakdown_provenance) == 'Wild'])
+})))
+do_wild = TRUE
+interest_cur = interest[which(interest$ProvenanceCode == 'Wild'),]
+if(nrow(interest_cur) == 0){
+  do_wild = FALSE
+}else{
+  turnover = turnover_items(interest_cur)
+exporting_data_store$turnover_provenance_wild = turnover
+
+plots_wild = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'wild provenance', data_type = 'accessions')
+
+existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                        AccessionYear = interest_cur$AccYear,
+                        ItemStatusDate = interest_cur$ItemStatusDate,
+                        ItemStatusType = interest_cur$ItemStatusType,
+                        post_date = '3000-01-01')))
+collection_proportion = existing_each_year/ existing_each_year_LC
+
+plots_proportional_wild = proportional_plots_turnover(turnover = turnover,
+                                                 overall_turnover = overall_turnover,
+                                                 collection_proportion = collection_proportion,
+                                                 report_kind = report_kind,
+                                                 separate_figure_folder = separate_figure_folder,
+                                                 text = 'wild provenance',
+                                                 data_type = 'accessions')
+exporting_data_store$proportional_turnover_wild_provenance_gain = plots_proportional_wild$data_gain
+exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proportional_wild$data_loss
+}
+```
+
+```{r, provenance together}
+ordered_provenance = c('Wild','Wild-derived', 'Garden', 'Unknown')
+gain_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
+                      unknown = exporting_data_store$turnover_provenance_unknown$gain_items,
+                      garden = exporting_data_store$turnover_provenance_garden$gain_items,
+                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$gain_items,
+                      wild = exporting_data_store$turnover_provenance_wild$gain_items)
+
+loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
+                      unknown = exporting_data_store$turnover_provenance_unknown$loss_items,
+                      garden = exporting_data_store$turnover_provenance_garden$loss_items,
+                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$loss_items,
+                      wild = exporting_data_store$turnover_provenance_wild$loss_items)
+
+ dd = reshape(gain_all, idvar = "year", varying = list(2:ncol(gain_all)),
+      v.names = "count", timevar = "group", times = names(gain_all)[-1], direction = "long")
+ dd$group = stringr::str_to_title(dd$group)
+ dd$group[dd$group == 'Wild_derived'] = 'Wild-derived'
+ dd$group = factor(dd$group, levels = ordered_provenance)
+ 
+ gain_all_prop = gain_all[,-1]
+ gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop)*100
+ gain_all_prop = data.frame(year = gain_all$year, gain_all_prop)
+ gain_all_prop = gain_all_prop[which(rowSums(gain_all[,-1])!= 0),]
+
+ dd_prop = reshape(gain_all_prop, idvar = "year", varying = list(2:ncol(gain_all_prop)),
+      v.names = "count", timevar = "group", times = names(gain_all_prop)[-1], direction = "long")
+ dd_prop$group = stringr::str_to_title(dd_prop$group)
+ dd_prop$group[dd_prop$group == 'Wild_derived'] = 'Wild-derived'
+ dd_prop$group = factor(dd_prop$group, levels =ordered_provenance)
+ 
+ #loss
+  ff = reshape(loss_all, idvar = "year", varying = list(2:ncol(loss_all)),
+      v.names = "count", timevar = "group", times = names(loss_all)[-1], direction = "long")
+ ff$group = stringr::str_to_title(ff$group)
+ ff$group[ff$group == 'Wild_derived'] = 'Wild-derived'
+ ff$group = factor(ff$group, levels = ordered_provenance)
+ 
+ loss_all_prop = loss_all[,-1]
+ loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop)*100
+ loss_all_prop = data.frame(year = gain_all$year, loss_all_prop)
+ loss_all_prop = loss_all_prop[which(rowSums(loss_all[,-1])!= 0),]
+
+ ff_prop = reshape(loss_all_prop, idvar = "year", varying = list(2:ncol(loss_all_prop)),
+      v.names = "count", timevar = "group", times = names(loss_all_prop)[-1], direction = "long")
+ ff_prop$group = stringr::str_to_title(ff_prop$group)
+ ff_prop$group[ff_prop$group == 'Wild_derived'] = 'Wild-derived'
+ ff_prop$group = factor(ff_prop$group, levels = ordered_provenance)
+ 
+if(report_kind == 'interactive'){
+  ## gain
+   colour_scale = rev(interactive_colour(4))
+  dd$colors = colour_scale[dd$group]
+  dd$group
+ fig = plot_ly(data = dd, x = ~year, y = ~count, color = ~group, colors = colour_scale, type = 'bar',
+         marker = list(color = ~colors,
+                       line = list(color = 'black', width = 0))
+         )
+ fig <- fig |> layout(hovermode = 'x unified',
+                         bargap =0,
+                         title = "",
+                         xaxis = list(title = "Year"),
+                         yaxis = list (title = stringr::str_to_title('accessions')),
+                         barmode = 'stack',
+                         legend = list(traceorder = 'normal'))
+ fig1 = fig
+
+ 
+  colour_scale = rev(interactive_colour(4))
+  colors = colour_scale[dd_prop$group]
+  dd_prop$colors  = colors
+ fig = plot_ly(data = dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
+         marker = list(color = colors,
+                       line = list(color = 'black', width = 0)),
+         customdata = ~group,
+         hovertemplate = paste("%{customdata}: %{y:.2f}%<extra></extra>")
+         )
+ fig <- fig |> layout(hovermode = 'x unified',
+                         bargap =0,
+                         title = "",
+                         xaxis = list(title = "Year"),
+                         yaxis = list (title = "Gain Percentage"),
+                         barmode = 'stack',
+                      legend = list(traceorder = 'normal'))
+ fig2 = fig
+
+ 
+  colour_scale = interactive_colour(4)
+  colors = colour_scale[ff$group]
+ fig = plot_ly(data = ff, x = ~year, y = ~count, color = ~group, type = 'bar',
+         marker = list(color = colors,
+                       line = list(color = 'black', width = 0))
+         )
+ fig <- fig |> layout(hovermode = 'x unified',
+                         bargap =0,
+                         title = "",
+                         xaxis = list(title = "Year"),
+                         yaxis = list (title = stringr::str_to_title('accessions')),
+                         barmode = 'stack', legend = list(traceorder = 'normal'))
+ fig3 = fig
+
+ 
+  colour_scale = interactive_colour(4)
+  colors = colour_scale[ff_prop$group]
+  ff_prop$colors  = colors
+ fig = plot_ly(data = ff_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
+         marker = list(color = colors,
+                       line = list(color = 'black', width = 0)),
+         customdata = ~group,
+         hovertemplate = paste("%{customdata}: %{y:.2f}%<extra></extra>")
+         )
+ fig <- fig |> layout(hovermode = 'x unified',
+                         bargap =0,
+                         title = "",
+                         xaxis = list(title = "Year"),
+                         yaxis = list (title = "Loss Percentage"),
+                         barmode = 'stack',legend = list(traceorder = 'normal'))
+ fig4 = fig
+ fig4
+ plots_prov_all = list(gain = fig1, gain_prop = fig2,
+                       loss = fig3, loss_prop = fig4)
+}
+```
+
+
+`r if(report_kind == 'interactive'){"#####  Gain by provenance {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Gain (Number)"}`
+```{r  Gain (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_prov_all$gain
+```
+
+`r if(report_kind == 'interactive'){"###### Gain (Percentage)"}`
+```{r  Gain (Percentage) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_prov_all$gain_prop
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+***
+
+
+### Taxonomic diversity
+
+To visualise the taxonomic diversity below we produce a sunburst chart of all species held in the collection by the number of individuals each species contains. The species are then grouped into genera, families and higher levels.
+
+```{r, Current taxonomic diversity Sunburst (Taxonomic diversity module),  fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+interest = report[report$ItemStatusType == 'Existing',]
+interest = interest[!grepl('5',interest$taxon_type), ]
+
+#No families.
+# = Use POWO family if available if not use the original.
+families = data.frame(original = interest$Family, POWO = interest$POWO_family)
+use_family = families$POWO
+use_family[is.na(use_family)] = families$original[is.na(use_family)]
+interest$use_family = use_family
+no_families <- length(unique(use_family))
+
+#No genus
+# = Use POWO genus if available if not use the original.
+genus = data.frame(original = interest$Genus, POWO = interest$POWO_genus)
+use_genus = genus$POWO
+use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+interest$use_genus = use_genus
+no_genus <- length(unique(use_genus))
+
+
+#No species
+POWO_GenusSpecies = rep(NA, nrow(interest))
+POWO_GenusSpecies[!is.na(interest$POWO_plant_name_id)] = paste0(interest$POWO_genus[!is.na(interest$POWO_plant_name_id)],
+                                                              ' ',
+                                                              interest$POWO_species[!is.na(interest$POWO_plant_name_id)])
+species_data = data.frame(original = interest$GenusSpecies, POWO = POWO_GenusSpecies, infra = interest$taxon_type)
+use_genus_species = species_data$POWO
+use_genus_species[is.na(use_genus_species)] = species_data$original[is.na(use_genus_species)]
+interest$use_genus_species= use_genus_species
+
+report_div  = interest
+#restrict to only matched to POWO.
+report_div = report_div[!is.na(report_div$POWO_plant_name_id),]
+report_div = report_div[report_div$ItemStatusType == 'Existing',]
+
+
+Diversity_class = BGSmartR::Diversity_classification
+Classification <- as.data.frame(Diversity_class$Classification)
+synomym_families <- as.data.frame(Diversity_class$synomym_families)
+
+fam = report_div$POWO_family
+
+# Convert from conserved family name to family name where applicable. 
+AA = apply(synomym_families, 2, function(x){
+  fam[fam == as.character(x[2])] = as.character(x[1])
+  })
+report_div$family = fam
+
+matched_families = match(fam, Classification$family)
+order = Classification$order[matched_families]
+major_Eudicot_lineage = Classification$`major Eudicot lineage`[matched_families]
+major_Angiosperm_lineage = Classification$`major Angiosperm lineage`[matched_families]
+major_Land_Plants_lineage = Classification$`major Land Plants lineage`[matched_families]
+
+
+report_div$order = order
+report_div$major_Eudicot_lineage = major_Eudicot_lineage
+report_div$major_Angiosperm_lineage = major_Angiosperm_lineage
+report_div$major_Land_Plants_lineage = major_Land_Plants_lineage
+
+use_species = report_div$use_genus_species |> stringr::str_split(' ')
+use_species = unlist(lapply(use_species, function(x)x[2]))
+report_div$use_species = use_species
+
+report_cur = report_div
+
+combined_taxo = paste0(report_cur$use_species,'---',
+                                       report_cur$use_genus,'---',
+                                       report_cur$use_family,'---',
+                                       report_cur$order,'---',
+                                       report_cur$major_Eudicot_lineage,'---',
+                                       report_cur$major_Angiosperm_lineage,'---',
+                                       report_cur$major_Land_Plants_lineage)
+
+with_issue = sum(which(grepl('---NA$',combined_taxo)))
+
+#remove those without major land plants lineage. (i.e ends in ---NA).
+if(with_issue > 0){
+  combined_taxo = combined_taxo[-which(grepl('---NA$',combined_taxo))]
+}
+# Convert NA in species to Indet.
+combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+
+table_species = table(combined_taxo)
+data = data.frame(ID = names(table_species), count = as.numeric(table_species))
+non_combined  = data.frame(t(data.frame(stringr::str_split(data$ID,pattern = '---'))))
+names(non_combined) = c('species', 'genus', 'family', 'order', 'major_Eudicot_lineage',
+                        'major_Angiosperm_lineage', 'major_Land_Plants_lineage')
+rownames(non_combined) = 1:nrow(non_combined)
+
+data = data.frame(data, non_combined)
+
+# push species names to genus species (otherwise issues with repeated species names with different genera)
+data$species = paste0(data$species,'---',data$genus)
+
+labels = c(unique(data$major_Land_Plants_lineage), unique(data$major_Angiosperm_lineage), unique(data$major_Eudicot_lineage),
+           unique(data$order), unique(data$family), unique(data$genus), unique(data$species))
+major_Land_Plants_lineage_index = 1:length(unique(data$major_Land_Plants_lineage))
+major_Angiosperm_lineage_index = (max(major_Land_Plants_lineage_index)+1):(max(major_Land_Plants_lineage_index)+length(unique(data$major_Angiosperm_lineage)))
+major_Eudicot_lineage_index = (max(major_Angiosperm_lineage_index)+1):(max(major_Angiosperm_lineage_index)+length(unique(data$major_Eudicot_lineage)))
+order_index = (max(major_Eudicot_lineage_index)+1):(max(major_Eudicot_lineage_index)+length(unique(data$order)))
+family_index = (max(order_index)+1):(max(order_index)+length(unique(data$family)))
+genus_index = (max(family_index)+1):(max(family_index)+length(unique(data$genus)))
+species_index = (max(genus_index)+1):(max(genus_index)+length(unique(data$species)))
+
+parents = rep('', length(labels))
+parents[major_Angiosperm_lineage_index] = data$major_Land_Plants_lineage[match(labels[major_Angiosperm_lineage_index], data$major_Angiosperm_lineage)]
+parents[major_Eudicot_lineage_index] = data$major_Angiosperm_lineage[match(labels[major_Eudicot_lineage_index], data$major_Eudicot_lineage)]
+parents[order_index] = data$major_Eudicot_lineage[match(labels[order_index], data$order)]
+parents[family_index] = data$order[match(labels[family_index], data$family)]
+parents[genus_index] = data$family[match(labels[genus_index], data$genus)]
+parents[species_index] = data$genus[match(labels[species_index], data$species)]
+
+values = rep(NA, length(labels))
+values[species_index] = data$count[match(labels[species_index], data$species)]
+total_for_genus <-  aggregate(. ~genus, data[,c(4,2)], sum, na.rm = TRUE)
+values[genus_index] = total_for_genus$count[match(labels[genus_index], total_for_genus$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,2)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,2)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,2)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,2)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,2)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+
+
+data_formatted = data.frame(ID = labels, labels=labels, parents = parents, values = values)
+
+#Go back to just species names.
+data_formatted$labels[grepl('---', data_formatted$labels)] = unlist(lapply(stringr::str_split(data_formatted$labels[grepl('---', data_formatted$labels)], pattern = '---'), function(x){x[1]}))
+data_formatted$ID[grepl('---', data_formatted$ID)] = unlist(lapply(stringr::str_split(data_formatted$ID[grepl('---', data_formatted$ID)], pattern = '---'), function(x){x[1]}))
+# data_formatted$labels=unlist(lapply(stringr::str_split(data_formatted$labels, ' '),function(x){x[length(x)]}))
+data_formatted$ID = paste0(data_formatted$labels, '---', data_formatted$parents)
+
+data_formatted$parents = paste0(data_formatted$parents,'---',data_formatted$parents[match(data_formatted$parents, data_formatted$labels)])
+data_formatted$parents[data_formatted$parents == "---NA"] =''
+
+# Collapse levels.
+data_formatted$labels[data_formatted$labels == 'None_Eudicots'] = 'Other'
+data_formatted$labels[data_formatted$labels == 'None_Angiosperms'] = 'Other'
+
+# Remove Intermediate levels.
+remove_nodes = c('None_Monocots', 'None_Ferns', 'None_Ferns_Eudicot',"None_Gymnosperms", 'None_Lycophytes',   'None_Liverworts', 'None_Hornworts', 'None_Gymnosperms_Eudicot', 'None_Lycophytes_Eudicot', 'None_Liverworts_Eudicot', 'None_Hornworts_Eudicot', 'No_Mosses_Angiosperm_lineage', 'No_Mosses_Eudicot_lineage', 'None_Angiosperms_Eudicot_lineage')
+AA = lapply(remove_nodes, function(node){
+  # Select the row to remove (begining with "*node*---")
+  to_remove = which(grepl(paste0('^',node,'---'), data_formatted$ID))
+  if(length(to_remove)> 0 ){
+    #Get new parent id and new label from the node to remove.
+    new_parent = data_formatted[to_remove,]$parents
+    new_label =  unlist(stringr::str_split(new_parent,'---'))[1]
+    # Remove the row.
+    data_formatted = data_formatted[-to_remove,]
+    # Update End of the ID for the new parent
+    data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)] = unlist(stringr::str_replace(data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)],paste0('---',node), paste0('---',new_label)))
+    # Update the parents for each node who originally has 'node' as the value. 
+    data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
+    # Update the parents for each node who originally has 'node' as the parent. 
+    data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
+    data_formatted <<- data_formatted
+  }
+ 
+  return()
+})
+
+
+# Add header of 'Collection'
+data_formatted$ID[grepl('---$', data_formatted$ID)] = paste0(data_formatted$ID[grepl('---$', data_formatted$ID)] , 'Collection')
+data_formatted$parents[grepl('---$', data_formatted$parents)] = paste0(data_formatted$parents[grepl('---$', data_formatted$parents)] , 'Collection')
+data_formatted$parents[data_formatted$parents == ''] = 'Collection'
+
+data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(data_formatted$values[data_formatted$parents == 'Collection']))
+
+
+### Subfamily level information
+{
+  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
+file = '/Users/jakepowell/Downloads/classification.csv'
+data = read.csv(file, sep = '\t')
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+## Create a summary of families and their subfamilies.
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
+
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_tribe <- data_care[data_care$tribe != '',] |>
+  dplyr::group_by(.data$subfamily) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
+data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
+data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
+
+data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_subtribe <- data_care[data_care$subtribe != '',] |>
+  dplyr::group_by(.data$tribe) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   subfamily = toString(unique(.data$subfamily)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+
+}
+
+### Add subfamily info to data_formatted
+{
+  #############################################################################
+## Add subfamilies (All)
+#############################################################################
+## Get the genus that are linked to each sub family.
+families_with_sub = data_simp$family[data_simp$subfamily != ""]
+data_fam_sub = data_care[data_care$family %in% families_with_sub,]
+data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
+data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+subfamily_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
+subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
+
+subfamily_genus_simp <- subfamily_genus_simp[as.numeric(subfamily_genus_simp$no_genera)>1,]
+# Remove those without a subfamily (we will deal with these later)
+subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
+save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+
+for(i in 1:nrow(subfamily_genus_simp)){
+  subfamily_info = subfamily_genus_simp[i,]
+  subfamily_genera = unlist(stringr::str_split(subfamily_info$all_genera ,', '))
+  subfamily_genera = subfamily_genera[subfamily_genera !=  ""]
+  if(length(subfamily_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
+                         grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+   if(length(in_formatted) == 0){
+    next
+  }
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(subfamily_info$sub_family,'---', subfamily_info$family)
+    new = c(new_ID, subfamily_info$sub_family, data_want$parents[1], sum(as.numeric(data_want$values)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = subfamily_info$family, replacement = subfamily_info$sub_family)
+    data_want$parents = new_ID
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+
+    # Need to also update the parents of the next tier.
+    index = grepl(paste0(subfamily_info$family,'$'),data_formatted$parents) &
+                     grepl(paste0(paste(subfamily_genera,'$', sep =''),collapse = '|'),data_formatted$ID)
+    data_formatted$parents[index] = stringr::str_replace( data_formatted$parents[index],
+                                                          pattern = subfamily_info$family,
+                                                          replacement = subfamily_info$sub_family)
+}
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+families_with_subfamilies = unique(subfamily_genus_simp$family)
+all_subfamilies = unique(subfamily_genus_simp$sub_family)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(families_with_subfamilies)){
+  family = families_with_subfamilies[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0(family,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---family (i.e no  subfamily)
+  without_subfamily = which(!data_want$labels %in% all_subfamilies)
+
+  #If we have at least one genus-family we need to group these into no subfamily.
+  if(length(without_subfamily) == 0){
+    next
+  }
+    data_without_subfam = data_want[without_subfamily,]
+    original_IDs = data_without_subfam$ID
+    new_ID = paste0('No Subfamily','---', family)
+
+    new_node = c(new_ID, 'No Subfamily', data_want$parents[1], sum(as.numeric(data_without_subfam$values)))
+
+    data_without_subfam$ID = stringr::str_replace(data_without_subfam$ID,pattern = family, replacement = 'No Subfamily')
+    data_without_subfam$parents = new_ID
+    new_IDs = data_without_subfam$ID
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_subfamily],] = data_without_subfam
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+
+    # Change lower tier information
+    data_want = data_formatted$parents[data_formatted$parents %in% original_IDs]
+    data_want = stringr::str_replace(data_want,
+                                             pattern = family,
+                                             replacement = 'No Subfamily')
+    data_formatted$parents[data_formatted$parents %in% original_IDs] = data_want
+
+}
+
+
+#############################################################################
+## Add tribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+## Get the genus that are linked to each sub family.
+subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
+data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
+data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
+data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+tribe_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
+tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$tribe != "No Tribe",]
+save(tribe_genus_simp, file = 'tribe_genus_simp.rda')
+
+for(i in 1:nrow(tribe_genus_simp)){
+  tribe_info = tribe_genus_simp[i,]
+  tribe_genera = unlist(stringr::str_split(tribe_info$all_genera ,', '))
+  tribe_genera = tribe_genera[tribe_genera !=  ""]
+  if(length(tribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0('--',tribe_info$sub_family, '$'),data_formatted$ID) &
+                         grepl(paste0(paste('^',tribe_genera,'--',sep =''), collapse = '|'),data_formatted$ID))
+  if(length(in_formatted) ==0){
+    next
+  }
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(tribe_info$tribe,'---', tribe_info$sub_family)
+    new = c(new_ID, tribe_info$tribe, data_want$parents[1], sum(as.numeric(data_want$values)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = tribe_info$sub_family, replacement = tribe_info$tribe)
+    data_want$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+
+     # Need to also update the parents of the next tier.
+    index = grepl(paste0(tribe_info$sub_family,'$'),data_formatted$parents) &
+                     grepl(paste0(paste('^',tribe_genera,'--', sep =''),collapse = '|'),data_formatted$parents)
+    data_child = data_formatted[index,]
+    data_child$parents = stringr::str_replace( data_child$parents,
+                                                          pattern = paste0(tribe_info$sub_family,'$'),
+                                                          replacement = tribe_info$tribe)
+    data_formatted[index,] = data_child
+
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+subfamilies_with_tribes = unique(tribe_genus_simp$sub_family)
+all_tribes = unique(tribe_genus_simp$tribe)
+# ggg = data_formatted =ggg
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(subfamilies_with_tribes)){
+  # for(i in 1:19){
+  subfamily = subfamilies_with_tribes[i]
+
+  # Fine records whose parent is the family in question and extract the data.
+  in_formatted = which(grepl(paste0('--',subfamily,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---subfamily (i.e no  subfamily)
+  without_tribe = which(!data_want$labels %in% all_tribes)
+  # print(i)
+  # print(without_tribe)}
+  #If we have at least one genus-subfamily we need to group these into no subfamily.
+  if(length(without_tribe) %in% c(0,nrow(data_want)) ){
+    next
+  }
+    data_without_tribe = data_want[without_tribe,]
+    original_IDs = data_without_tribe$ID
+
+    new_ID = paste0('No Tribe','---', subfamily)
+
+    new_node = new = c(new_ID, 'No Tribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)))
+
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = subfamily, replacement = 'No Tribe')
+    data_without_tribe$parents = new_ID
+    new_IDs = data_without_tribe$ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_tribe],] = data_without_tribe
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+
+     # Change lower tier information
+    data_child = data_formatted[data_formatted$parents %in% original_IDs,]
+    data_child$parents = stringr::str_replace(data_child$parents,
+                                             pattern = subfamily,
+                                             replacement = 'No Tribe')
+    data_formatted[data_formatted$parents %in% original_IDs,] = data_child
+
+}
+
+
+#############################################################################
+## Add Subtribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+
+## Get the genus that are linked to each sub family.
+tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
+data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
+data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
+data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
+subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
+subtribe_genus_simp <- subtribe_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
+subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
+save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+for(i in 1:nrow(subtribe_genus_simp)){
+  # for(i in 1:30){
+  subtribe_info = subtribe_genus_simp[i,]
+  subtribe_genera = unlist(stringr::str_split(subtribe_info$all_genera ,', '))
+  subtribe_genera = subtribe_genera[subtribe_genera !=  ""]
+  if(length(subtribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) &
+                         grepl(paste0(paste('^',subtribe_info,'--',sep =''), collapse = '|'),data_formatted$ID))
+  if(length(in_formatted) == 0){
+    next
+  }
+  data_want = data_formatted[in_formatted,]
+  new_ID = paste0(subtribe_info$subtribe,'---', subtribe_info$tribe)
+  new = c(new_ID, subtribe_info$subtribe, data_want$parents[1], sum(as.numeric(data_want$values)))
+  data_want$ID = stringr::str_replace(data_want$ID,pattern = subtribe_info$tribe, replacement = subtribe_info$subtribe)
+  data_want$parents = new_ID
+
+
+  # Replace original genus-family with the new genus-subfamily.
+  data_formatted[in_formatted,] = data_want
+
+  # Add the new node for the subfamily.
+  data_formatted[nrow(data_formatted)+1,] = new
+
+  # Need to also update the parents of the next tier.
+  index = grepl(paste0(subtribe_info$tribe,'$'),data_formatted$parents) &
+    grepl(paste0(paste('^',subtribe_genera,'--', sep =''),collapse = '|'),data_formatted$parents)
+  data_child = data_formatted[index,]
+  data_child$parents = stringr::str_replace( data_child$parents,
+                                             pattern = paste0(subtribe_info$tribe,'$'),
+                                             replacement = subtribe_info$subtribe)
+  data_formatted[index,] = data_child
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+tribes_with_subtribes = unique(subtribe_genus_simp$tribe)
+all_subtribes = unique(subtribe_genus_simp$subtribe)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(tribes_with_subtribes)){
+  tribe = tribes_with_subtribes[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0('--',tribe,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---tribe (i.e no  tribe)
+  without_subtribe = which(!data_want$labels %in% all_subtribes)
+
+  #If we have at least one genus-tribe we need to group these into no tribe
+  if(length(without_subtribe) %in% c(0,nrow(data_want))){
+    next
+  }
+
+    data_without_tribe = data_want[without_subtribe,]
+    original_IDs = data_without_tribe$ID
+
+    new_ID = paste0('No Subtribe','---', tribe)
+
+    new_node = new = c(new_ID, 'No Subtribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)))
+
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = tribe, replacement = 'No Subtribe')
+    data_without_tribe$parents = new_ID
+    new_IDs = data_without_tribe$ID
+
+
+    # Replace original genus-family with the new genus-tribe
+    data_formatted[in_formatted[without_subtribe],] = data_without_tribe
+
+    # Add the new node for the tribe
+    data_formatted[nrow(data_formatted)+1,] = new_node
+
+    # Change lower tier information
+    data_child = data_formatted[data_formatted$parents %in% original_IDs,]
+    data_child$parents = stringr::str_replace(data_child$parents,
+                                              pattern = tribe,
+                                              replacement = 'No Subtribe')
+    data_formatted[data_formatted$parents %in% original_IDs,] = data_child
+
+
+}
+
+
+#############################################################################
+
+
+}
+
+
+ data_formatted$values = as.numeric(data_formatted$values)
+ fig <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'sunburst',
+                             insidetextorientation='radial',
+                             branchvalues = 'total',
+                             maxdepth = 4)
+ 
+ fig
+```
+
+***
+
+### Survival in the collection
+
+In this section we apply survival analysis to all records in the collection (including historical records) to determine the survival probability within the collection and key categories. 
+
+
+```{r Overall Survival probability,  fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+interest = report
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  interest$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+still_issue = nrow(interest) - length(to_keep)
+interest = interest[to_keep,]
+
+do_survival = TRUE
+enriched_report_wanted = interest[as.numeric(interest$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]
+
+# Create a data-frame of the information we want.
+wanted_data = enriched_report_wanted[c('TaxonNameFull',
+                                       'AccYear',
+                                       'ItemStatusDate',
+                                       'ItemStatusType',
+                                       'native',
+                                       'endemic',
+                                       'threatened',
+                                       'tree')]
+
+
+if(nrow(wanted_data) == 0){
+  do_survival = FALSE
+}
+if(do_survival){
+  #Set accession date (just chose the first of June)
+pre_date = rep(NA, length(wanted_data$AccYear))
+pre_date = paste(wanted_data$AccYear, "06", "01", sep = "-")
+
+# Convert ItemStatusDate into all dates (i.e if month or day missing add one)
+post_date = rep(as.character(Sys.Date()), length(wanted_data$AccYear))
+post_date[which(wanted_data$ItemStatusType == "NotExisting")] = as.character(wanted_data$ItemStatusDate[which(wanted_data$ItemStatusType == 
+  "NotExisting")])
+
+post_date[which(stringr::str_length(post_date) == 4)] = paste(post_date[which(stringr::str_length(post_date) == 
+  4)], "12", "28", sep = "-")
+post_date[which(stringr::str_length(post_date) == 7)] = paste(post_date[which(stringr::str_length(post_date) == 
+  7)], "28", sep = "-")
+
+# Create the time difference between accession and ItemStatusDate.
+time = as.numeric(as.Date(post_date) - as.Date(pre_date)) /365.25
+
+# Create status to tell whether the last item status date was item death or just a check.
+status = rep(0,length(wanted_data$AccYear))
+status[wanted_data$ItemStatusType == 'NotExisting'] = 1
+
+wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
+                         StatusDate = post_date,
+                         time = time,
+                         Alive_dead = status)
+
+
+# We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
+missing_itemstatusdate_index = which(wanted_data$time > 0)
+wanted_data = wanted_data[missing_itemstatusdate_index,]
+enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
+
+
+data_to_analyse = wanted_data
+
+}
+
+fit_all = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_to_analyse)
+fit_all$surv = fit_all$surv*100
+fit_all$hover = paste0('Collection survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
+
+fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                data = data_to_analyse[which(data_to_analyse$native == 'Native'),])
+fit_native$surv = fit_native$surv*100
+fit_native$hover = paste0('Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
+
+fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                 data = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),])
+fit_endemic$surv = fit_endemic$surv*100
+fit_endemic$hover = paste0('Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
+
+fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                    data = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),])
+fit_threatened$surv = fit_threatened$surv*100
+fit_threatened$hover = paste0('Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
+
+fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$tree == 'Tree'),])
+fit_tree$surv = fit_tree$surv*100
+fit_tree$hover = paste0('Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
+
+colors = scales::brewer_pal(palette = palette, direction = 1)(5)
+
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'All', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]) )
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_native$time, y = fit_native$surv, name = 'Native', hoverinfo = "text",  hovertext = fit_native$hover, line = list(color = colors[2]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_endemic$time, y = fit_endemic$surv, name = 'Endemic', hoverinfo = "text",  hovertext = fit_endemic$hover, line = list(color = colors[3]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_threatened$time, y = fit_threatened$surv, name = 'Threatened', hoverinfo = "text",  hovertext = fit_threatened$hover, line = list(color = colors[4]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_tree$time, y = fit_tree$surv, name = 'Tree', hoverinfo = "text",  hovertext = fit_tree$hover, line = list(color = colors[5]))
+
+fig <- fig |> layout(title = "",
+                     # hovermode = 'x unified',
+         xaxis = list(title = "Years"),
+         yaxis = list (title = "Survival Probability")
+         )
+fig
+
+```
+***

@@ -140,8 +140,8 @@ Any analyses over time reconstructs the existing plants in the collection on the
 
 ```{r ,What proportion of the plants linearage is represented in a LC, echo = F}
 # Get the families contained in each group.
-major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes"
-                 # "Bryophytes", "Hornworts", "Liverworts" "Mosses"
+major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes",
+                 "Bryophytes", "Hornworts", "Liverworts", "Mosses"
                  )
 Angiosperm_groups = c('Eudicots', 'Monocots')
 Eudicot_groups = c('Asterids', 'Rosids')
