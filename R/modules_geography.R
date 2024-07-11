@@ -30,6 +30,7 @@
 #' @param color_binary colours for the representation of species.
 #' @param endemic_species_per_region A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #' @param accepted_species_per_region A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
+#' @param tree_species_per_region A data frame detailing the number of accepted trees (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #'
 #' @return renders the native (word document) or interactive report (html document)
 #' @export
@@ -51,6 +52,7 @@ create_geography_report <- function(enriched_report,
                                     value_on_fig = FALSE,
                                     endemic_species_per_region = NULL,
                                     accepted_species_per_region = NULL,
+                                    tree_species_per_region = NULL,
 
                                     color_binary = c('darkgray','darkgreen'),
                                     palette = 'Greens',
@@ -110,6 +112,7 @@ create_geography_report <- function(enriched_report,
                                       output_dir = output_dir,
                                       endemic_species_per_region = endemic_species_per_region,
                                       accepted_species_per_region = accepted_species_per_region,
+                                      tree_species_per_region = tree_species_per_region,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -135,6 +138,7 @@ create_geography_report <- function(enriched_report,
                                       output_dir = output_dir,
                                       endemic_species_per_region = endemic_species_per_region,
                                       accepted_species_per_region = accepted_species_per_region,
+                                      tree_species_per_region = tree_species_per_region,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -162,6 +166,7 @@ create_geography_report <- function(enriched_report,
                                     output_dir = output_dir,
                                     endemic_species_per_region = endemic_species_per_region,
                                     accepted_species_per_region = accepted_species_per_region,
+                                    tree_species_per_region = tree_species_per_region,
                                     value_on_fig = value_on_fig),
                       output_file = output_file,
                       output_dir = output_dir,

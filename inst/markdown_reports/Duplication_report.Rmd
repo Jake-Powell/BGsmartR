@@ -1,6 +1,7 @@
 ---
 title: "Duplication and rarity at the global and local scales"
 output: html_document
+always_allow_html: true
 ---
 
 ###### {-} 
@@ -25,12 +26,57 @@ color_binary <- rev(c('#f46d43', '#e6e6e6'))
 palette = 'Oranges'
 ```
 
-```{css, echo=FALSE}
-.boxBorder {
-     border: 2px solid #990066;
-     padding: 20px;
-     outline: #990066 solid 1px;
-   }
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f46d43;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+
+.blackbox {
+  padding: 1em;
+  background: #FDAE6B;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
+}
 ```
 
 ```{r, imported parameters}
@@ -41,14 +87,21 @@ palette = 'Oranges'
 # separate_figure_folder = FALSE
 # output_dir = '/Users/jakepowell/Desktop/Reports/ICCP at Royal Botanic Gardens Edinburgh'
 # report_kind = 'static'
-ggtheme = NULL
+# ggtheme = NULL
 # value_on_fig = TRUE
-min_year = 1970
-join_bigger_than = 4
+# min_year = 1970
+# join_bigger_than = 4
 # export_data  =T
 # save_excel = T
 bru_codes = NA
 ```
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+```
+
 
 ```{r theme_ggplot2, echo = FALSE}
 library(ggplot2)
@@ -234,8 +287,15 @@ nativeo[native_index] = 'Native'
 report$native = nativeo
 rm(nativeo)
 
+# Extract tree
+tree = rep('Not Tree', nrow(report))
+tree_index = which(report$Enrich_is_tree)
+tree[tree_index] = 'Tree'
+report$tree = tree
+rm(tree)
+
 #Select columns of interest
-report = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'best_name', 'no_gardens', 'endemic', 'threatened', 'native', 'ItemStatusType', 'taxon_type', 'AccYear'), names(report))]
+report = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'best_name', 'no_gardens', 'endemic', 'threatened', 'native', 'tree', 'ItemStatusType', 'taxon_type', 'AccYear'), names(report))]
 index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
 no_want = length(index_want)
 interest = report[index_want,]
@@ -270,12 +330,13 @@ deaccessioning_list_format <- deaccessioning_list |>
                     global = .data$no_gardens[1],
                      accessions = toString(unique(.data$AccNoFull)),
                      endemic = .data$endemic[1],
-                     threatened = .data$threatened[1]
+                     threatened = .data$threatened[1],
+                    tree = .data$tree[1]
     ) |>
     dplyr::ungroup() 
 deaccessioning_list_format = deaccessioning_list_format[deaccessioning_list_format$no_items_in_LC > 3,]
 deaccessioning_list_format = deaccessioning_list_format[,-1]
-names(deaccessioning_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status")
+names(deaccessioning_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status", "Tree")
 writexl::write_xlsx(deaccessioning_list_format, path =paste0(output_dir,'/',collection,'_deaccessioning_list.xlsx'))
 
 
@@ -296,29 +357,30 @@ rare_global_list_format <- rare_global_list |>
                     global = .data$no_gardens[1],
                      accessions = toString(unique(.data$AccNoFull)),
                      endemic = .data$endemic[1],
-                     threatened = .data$threatened[1]
+                     threatened = .data$threatened[1],
+                    tree = .data$tree[1]
     ) |>
     dplyr::ungroup() 
 no_different_rare_taxa = sum(!rare_global_list_format$match_powo_issue)
 rare_global_list_format = rare_global_list_format[,-1]
-names(rare_global_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Original Taxonomic Name same as POWO", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status")
+names(rare_global_list_format) = c("Original Report Taxonomic Name", "Matched POWO Taxonomic Name", "Original Taxonomic Name same as POWO", "Number of Items in the LC", "Number of global LC's holding Taxon", "Accessions in the LC", "Endemic status", "Threatened status", "Tree")
 writexl::write_xlsx(rare_global_list_format, path =paste0(output_dir,'/',collection,'_rare_global_list.xlsx'))
 
 
 ```
 
-This report explores duplication for existing plants at `r collection`. This is performed in two ways:
+This report explores duplication for existing plants at **`r collection`**. This is performed in two ways:
 
-- Global level: how many collections globally are taxa in the LC found.
+- Global level: how many collections globally are taxa in the living collection found.
 - Collection Level: investigates how many items or accessions there are for each taxa.
 
 In all sections we only consider plants that are:
 
 - Are not hybrids or cultivars.
 
-This reduces the number of records in the LC to `r format(no_records, big.mark =',')` from `r format(nrow(interest), big.mark =',')`.
+This reduces the number of records in the living collection to `r format(no_records, big.mark =',')` from `r format(nrow(interest), big.mark =',')`.
 
-Moreover, where possible we will use the taxonomic name from matching to POWO online, if this is not possible we use the original name from the LC. 
+Moreover, where possible we will use the taxonomic name from matching to POWO online, if this is not possible we use the original name from the living collection. 
 
 ***
 
@@ -332,9 +394,9 @@ Moreover, where possible we will use the taxonomic name from matching to POWO on
 `r if(do_global){"- Use the taxonomic name and authority to match to BGCI's plant search."}`
 `r if(do_global){"- Extract the number of ex-situ sites, if the record does not exist set the number of gardens to zero."}`
 
-`r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the LC classed as very rare (<= 10 LCs globally) where the original taxonomic name from the report and POWO's taxonomic name differ. See 'rare global list' management sheet for further detail.")}`
+`r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the living collection classed as very rare (<= 10 living collections globally) where the original taxonomic name from the report and POWO's taxonomic name differ. See downloadable data at the end of this section.")}`
 
-`r if(do_global){"Below we show the number of taxa in the LC against the number of sites the taxa is held globally. This is shown for all taxa as well as key collections - threatened, endemic, native. \n"}`
+`r if(do_global){"Below we show the number of taxa in the living collection against the number of sites the taxa is held globally. This is shown for all taxa as well as key collections - threatened, endemic, native. \n"}`
 
 
 ```{r, taxa in collection against how many sites globally - data, eval = do_global}
@@ -354,12 +416,13 @@ data_plot <- report_unique |>
                      threatened = sum(threatened == 'Threatened'),
                      endemic = sum(endemic == 'Endemic'),
                      native = sum(native == 'Native'),
+                     tree = sum(tree == 'Tree')
     ) |>
     dplyr::ungroup() |> as.data.frame()
 
 # data formatted if we want to export/save it.
-globally_held_taxa = data_plot[,c(1,4,3,2)]
-names(globally_held_taxa) = c("Number of global LCs", "Number of species in LC", "Example taxa", "All taxa")
+globally_held_taxa = data_plot[,c(1,4,2)]
+names(globally_held_taxa) = c("Number of global LCs", "Number of species in LC", "All taxa")
 
 ```
 
@@ -381,7 +444,7 @@ if(report_kind == 'static'){
     scale_fill_manual(values = colors) +
   geom_point(data = data_plot, aes(x=no_gardens, y=no_species_in_garden)) +
   labs(title=paste0(""),
-       x ="Number of LC's holding \n the taxa worldwide",
+       x ="Number of living collections holding \n the taxa worldwide",
        y = paste0('Number of taxa grown \n at the collection')) +
     theme(legend.position = "none")
 
@@ -397,12 +460,13 @@ if(report_kind == 'static'){
 
 ```{r, taxa in collection against how many sites globally - interactive figure, fig.dim = c(10, 4), eval = do_global}
 if(report_kind == 'interactive'){
+colo_rare = rev(scales::brewer_pal(palette = palette, direction = 1)(5))
 
 figs = list()
 for(i in 4:ncol(data_plot)){
     text = paste0(as.vector(data_plot[,i]), ' ', rep(names(data_plot)[i],nrow(data_plot)), ' species in the garden are found in ', data_plot$no_gardens, ' collections globally')
   if(i == 4){
-     text = paste0(data_plot$no_species_in_garden, ' species in the garden are found in ', data_plot$no_gardens, ' collections globally. <br> For example: ', data_plot$one_plant)
+     text = paste0(data_plot$no_species_in_garden, ' species in the garden are found in ', data_plot$no_gardens, ' collections globally.')
   }
     data_plot_cur = data_plot
     data_plot_cur$text = text
@@ -411,28 +475,28 @@ for(i in 4:ncol(data_plot)){
   fig <- plot_ly(data_plot_cur, x = ~no_gardens, y = data_plot_cur[,i], 
          type = 'scatter',  mode = 'markers', hoverinfo = "text",  hovertext = ~text, colors = rgb(0,0,0,alpha=0.7), color = 'color')
 fig <- fig |> layout(title = "",
-  xaxis = list(title = "Number of LCs holding the taxa worldwide"),
+  xaxis = list(title = "Number of living collections holding the taxa worldwide"),
   yaxis = list (title = "Number of taxa grown at the collection")) 
 fig <- layout(fig,
              shapes = list(
                list(type = "rect",
-                    fillcolor = "#f46d43", line = list(color = "#f46d43"), opacity = 0.3,
+                    fillcolor = colo_rare[1], line = list(color = colo_rare[1]), opacity = 0.3,
                     x0 = 0, x1 = 1.5, xref = "x",
                     y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                list(type = "rect",
-                    fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
+                    fillcolor = colo_rare[2], line = list(color = colo_rare[2]), opacity = 0.3,
                     x0 = 1.5, x1 = 10.5, xref = "x",
                     y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                 list(type = "rect",
-                    fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
+                    fillcolor = colo_rare[3], line = list(color = colo_rare[3]), opacity = 0.3,
                     x0 = 10.5, x1 = 50.5, xref = "x",
                     y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                list(type = "rect",
-                    fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
+                    fillcolor = colo_rare[4], line = list(color = colo_rare[4]), opacity = 0.3,
                     x0 = 50.5, x1 = 100.5, xref = "x",
                     y0 = 0, y1 = max(data_plot[,i]), yref = "y"),
                 list(type = "rect",
-                    fillcolor = "#d9f0a3", line = list(color = "#d9f0a3"), opacity = 0.3,
+                    fillcolor = colo_rare[5], line = list(color = colo_rare[5]), opacity = 0.3,
                     x0 = 100.5, x1 = max(data_plot$no_gardens), xref = "x",
                     y0 = 0, y1 = max(data_plot[,i]), yref = "y")               
               ))
@@ -470,8 +534,12 @@ figs$endemic
 figs$native
 ```
 
-`r if(report_kind == 'interactive'){"##### {-}"}`
+`r if(report_kind == 'interactive'){"###### Tree"}`
+```{r detailed rarity tree  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$tree
+```
 
+`r if(report_kind == 'interactive'){"##### {-}"}`
 
 
 Next we group taxa by the number of collections they are found in globally. These are:
@@ -484,9 +552,10 @@ Next we group taxa by the number of collections they are found in globally. Thes
 
 Moreover, we do this for all taxa in the collection as well as the key collections (threatened, endemic and native). 
 
-Rarity of species at the LC
+Rarity of species at the living collection
 
 ```{r, grouped rarity - data, fig.dim = c(10, 4), eval = do_global}
+colo_rare = rev(scales::brewer_pal(palette = palette, direction = 1)(5))
 counter <- 1
 columns = names(data_plot)[4:ncol(data_plot)]
 plot_data = lapply(columns, function(column){
@@ -498,7 +567,7 @@ plot_data = lapply(columns, function(column){
   
   doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
                         no_items = c(unique_, v_rare, rare, common, v_common),
-                        color = c("#f46d43",'#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+                        color = colo_rare)
 doughnut_data$percent = round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1)
 doughnut_data$type = rep(column, nrow(doughnut_data))
 doughnut_data
@@ -507,7 +576,7 @@ plot_data = do.call('rbind',plot_data)
 plot_data$type[plot_data$type == "no_species_in_garden"] = 'all'
 plot_data$rarity = factor(plot_data$rarity, levels = unique(plot_data$rarity))
 plot_data$type = stringr::str_to_title(plot_data$type)
-plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native', 'Tree'))
 plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_items,') of taxa are classed as ',plot_data$rarity,'' )
 hor_stack_bar_plot = plot_ly(plot_data,
                              type = 'bar',
@@ -517,7 +586,7 @@ hor_stack_bar_plot = plot_ly(plot_data,
                              colors = unique(plot_data$color),
                              orientation = 'h',
                             hovertext = ~hover, hoverinfo = 'text')
-hor_stack_bar_plot_acc <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
+hor_stack_bar_plot_acc <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of taxa"),
                                    yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 
 
@@ -529,7 +598,7 @@ v_common = sum(data_plot$no_species_in_garden[data_plot$no_gardens %in% 100:1500
 
 doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
                         no_items = c(unique_, v_rare, rare, common, v_common),
-                        color = c("#f46d43",'#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+                        color = colo_rare)
 doughnut_data$percent = paste0(round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1),'%')
 
 
@@ -539,46 +608,46 @@ names(globally_held_taxa_grouped) = c("Rarity in global LCs",   "Number of Taxa 
 ```
 
 ```{r, grouped rarity - static figure, fig.dim = c(10, 4), eval = do_global}
-if(report_kind == 'static'){
-
-  doughnut_data <- doughnut_data |> 
-  dplyr::mutate(csum = rev(cumsum(rev(no_items))), 
-         pos = no_items/2 + dplyr::lead(csum, 1),
-         pos = dplyr::if_else(is.na(pos), no_items/2, pos))
-
-  
-  p = ggplot(doughnut_data, aes(x="", y=no_items, fill=forcats::fct_inorder(rarity))) +
-  geom_bar(stat="identity", width=1, color="white") +
-  # ggtheme(base_size = 18) +
-  coord_polar("y", start=0) +
-  ggtitle('') +
-  scale_fill_manual(values= colors,) +
-  theme(axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        panel.background=element_blank(),
-        panel.border=element_blank(),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        plot.background=element_blank(),
-        plot.title = element_text(hjust = 0.5)) +
-    guides(fill=guide_legend(title="Rarity"))
-  
-  if(value_on_fig){
-    p = p + geom_label_repel(aes(y = pos,label = percent),
-        size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")
-  }
-  
-
-if(separate_figure_folder){
-   ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-grouped_global_rarity.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-p
-}
+# if(report_kind == 'static'){
+# 
+#   doughnut_data <- doughnut_data |> 
+#   dplyr::mutate(csum = rev(cumsum(rev(no_items))), 
+#          pos = no_items/2 + dplyr::lead(csum, 1),
+#          pos = dplyr::if_else(is.na(pos), no_items/2, pos))
+# 
+#   
+#   p = ggplot(doughnut_data, aes(x="", y=no_items, fill=forcats::fct_inorder(rarity))) +
+#   geom_bar(stat="identity", width=1, color="white") +
+#   # ggtheme(base_size = 18) +
+#   coord_polar("y", start=0) +
+#   ggtitle('') +
+#   scale_fill_manual(values= colors,) +
+#   theme(axis.line=element_blank(),
+#         axis.text.x=element_blank(),
+#         axis.text.y=element_blank(),
+#         axis.ticks=element_blank(),
+#         axis.title.x=element_blank(),
+#         axis.title.y=element_blank(),
+#         panel.background=element_blank(),
+#         panel.border=element_blank(),
+#         panel.grid.major=element_blank(),
+#         panel.grid.minor=element_blank(),
+#         plot.background=element_blank(),
+#         plot.title = element_text(hjust = 0.5)) +
+#     guides(fill=guide_legend(title="Rarity"))
+#   
+#   if(value_on_fig){
+#     p = p + geom_label_repel(aes(y = pos,label = percent),
+#         size = 4.5, nudge_x = 1, show.legend = FALSE, fill = "white")
+#   }
+#   
+# 
+# if(separate_figure_folder){
+#    ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Pie-grouped_global_rarity.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
+# }
+# 
+# p
+# }
 
 ```
 
@@ -602,9 +671,29 @@ hor_stack_bar_plot_acc
 ```
 
 
+:::: {.blackbox data-latex=""}
+
+Further information about the rarity of items in the living collection can be downloaded using the button below
+
+```{r}
+rare_global_list_format |>
+  download_this(
+    output_name = "rare_global_list",
+    output_extension = ".xlsx",
+    button_label = "Download rarity information (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained =  T
+  )
+```
+
+::::
+
 ***
 
-## Duplication in the LC
+## Duplication in the living collection
 
 Top 20 most common taxa (removing cultivars and hybrids) in the collection
 
@@ -625,21 +714,62 @@ unique_not_in_sum = data.frame(name = unique_not_in_BGCI$best_name, in_BGCI = 'F
 
 most_rare = rbind(unique_sum, unique_not_in_sum)
 names(most_rare) = c('Taxa', "Is in BGCI's PlantSearch?")
- most_rare_table = DT::datatable(data = most_rare, rownames = FALSE, options = list(dom = 'tp',pageLength =  10))
- 
- 
+most_rare_table = most_rare |>  DT::datatable(extensions = 'Buttons',
+                                              rownames = FALSE,
+                                              options = list(scrollX = TRUE,
+                                                             pageLength = min(nrow(most_rare),10),
+                                                             dom = 'Btp',
+                                                             buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                                             paging=ifelse(nrow(most_rare)>10,T,F),
+                                                             ordering=T))
+
+# DT::datatable(data = most_rare, rownames = FALSE, options = list(dom = 'tp',pageLength =  10))
+
+
 most_common = data.frame(taxa_count[1:20])
-names(most_common) = c('Taxa', 'Number of Individuals in the LC')
-  most_common_table = DT::datatable(data = most_common, rownames = FALSE, options = list(dom = 'tp',pageLength =  5))
+names(most_common) = c('Taxa', 'Number of items in the living collection')
+most_common_table = most_common |>  DT::datatable(extensions = 'Buttons',
+                                                  rownames = FALSE,
+                                                  options = list(scrollX = TRUE,
+                                                                 pageLength = min(nrow(most_common),10),
+                                                                 dom = 'Btp',
+                                                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                                                 paging=ifelse(nrow(most_rare)>10,T,F),
+                                                                 ordering=T))
+
+
+
+
+
+# DT::datatable(data = most_common, rownames = FALSE, options = list(dom = 'tp',pageLength =  5))
 
 ```
 
-`r most_common_table`
+`r if(report_kind == "interactive"){most_common_table}`
 
-In the LC there are `r no_unique +  no_unique_not_in_BGCI` taxa that are unique to the collection (either not contained (`r no_unique_not_in_BGCI`) or belongs to a single garden in BGCI's PlantSearch (`r no_unique`)) and only a single individual exists in the collection. There are shown in the table below. 
+In the living collection there are `r no_unique +  no_unique_not_in_BGCI` taxa that are unique to the collection (either not contained (`r no_unique_not_in_BGCI`) or belongs to a single garden in BGCI's PlantSearch (`r no_unique`)) and only a single item exists in the collection. There are shown in the table below. 
 
-`r most_rare_table`
+`r if(report_kind == "interactive"){most_rare_table}`
 
+:::: {.blackbox data-latex=""}
+
+Further information (such as accession number, threatened status, etc) can be downloaded below
+
+```{r}
+rare_global_list_format |>
+  download_this(
+    output_name = "rare_global_list",
+    output_extension = ".xlsx",
+    button_label = "Download rare global list (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained =  T
+  )
+```
+
+::::
 Further information (such as accession number, threatened status, etc) can be found in 'rare_global_list.xlsx'. management sheet. 
 
 
@@ -699,7 +829,7 @@ plot_data = data.frame(accessions, cum_densities)
       geom_line(aes(linetype = group), linewidth = 1.1) +
       # scale_color_manual(values = c(colours[1:3]))+
       # scale_linetype_manual(values = c(1,1,1,1)) +
-      labs(x = 'Number of individuals per species', y = '% of species', caption = '') +
+      labs(x = 'Number of items per species', y = '% of species', caption = '') +
       labs(color  = "", linetype = "") +
       scale_y_continuous(label = scales::label_number(suffix = ""))+
       scale_x_continuous(
@@ -717,7 +847,7 @@ plot_data = data.frame(accessions, cum_densities)
 
 ### Duplication of taxa
 
-In this section we explore the duplication of taxa in the collection across both individuals and accessions. 
+In this section we explore the duplication of taxa in the collection across both items and accessions. 
 
 ```{r, number of accessions per taxa - data}
 # Reduced to only unique accessions.
@@ -732,6 +862,7 @@ accession_taxa_group = accessions |> dplyr::group_by(best_name) |>
   dplyr::summarise(threatened = .data$threatened[1],
                    endemic = .data$endemic[1],
                    native = .data$native[1],
+                   tree = .data$tree[1],
                    total = length(.data$best_name)
                    )
 
@@ -739,7 +870,7 @@ accession_taxa_group = accessions |> dplyr::group_by(best_name) |>
 accession_taxa = table(accession_taxa_group$total)
 accession_taxa = data.frame(total_accessions = as.numeric(names(accession_taxa)), 
                             no_species = as.numeric(accession_taxa))
-top_name = accession_taxa_group$best_name[which(accession_taxa_group$total == max(accession_taxa$total_accessions))][1]
+top_name_acc = accession_taxa_group$best_name[which(accession_taxa_group$total == max(accession_taxa$total_accessions))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of threatened taxa by the number of accessions they have 
@@ -747,7 +878,7 @@ acc_threat = accession_taxa_group[accession_taxa_group$threatened =='Threatened'
 accession_taxa_threat = table(acc_threat$total)
 accession_taxa_threat = data.frame(total_accessions = as.numeric(names(accession_taxa_threat)), 
                             no_species = as.numeric(accession_taxa_threat))
-top_name_threat = acc_threat$best_name[which(acc_threat$total == max(accession_taxa_threat$total_accessions))][1]
+top_name_threat_acc = acc_threat$best_name[which(acc_threat$total == max(accession_taxa_threat$total_accessions))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of endemic taxa by the number of accessions they have 
@@ -755,7 +886,7 @@ acc_endemic = accession_taxa_group[accession_taxa_group$endemic =='Endemic',]
 accession_taxa_endemic = table(acc_endemic$total)
 accession_taxa_endemic = data.frame(total_accessions = as.numeric(names(accession_taxa_endemic)), 
                             no_species = as.numeric(accession_taxa_endemic))
-top_name_endemic = acc_endemic$best_name[which(acc_endemic$total == max(accession_taxa_endemic$total_accessions))][1]
+top_name_endemic_acc = acc_endemic$best_name[which(acc_endemic$total == max(accession_taxa_endemic$total_accessions))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of native taxa by the number of accessions they have 
@@ -763,13 +894,22 @@ acc_nat = accession_taxa_group[accession_taxa_group$native =='Native',]
 accession_taxa_nat = table(acc_nat$total)
 accession_taxa_nat = data.frame(total_accessions = as.numeric(names(accession_taxa_nat)), 
                             no_species = as.numeric(accession_taxa_nat))
-top_name_nat = acc_nat$best_name[which(acc_nat$total == max(accession_taxa_nat$total_accessions))][1]
+top_name_nat_acc = acc_nat$best_name[which(acc_nat$total == max(accession_taxa_nat$total_accessions))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of tree taxa by the number of accessions they have 
+acc_tree = accession_taxa_group[accession_taxa_group$tree =='Tree',]
+accession_taxa_tree = table(acc_tree$total)
+accession_taxa_tree = data.frame(total_accessions = as.numeric(names(accession_taxa_tree)), 
+                            no_species = as.numeric(accession_taxa_tree))
+top_name_tree_acc = acc_tree$best_name[which(acc_tree$total == max(accession_taxa_tree$total_accessions))][1]
+
 
 accession_taxa_all_type = list(all = accession_taxa,
                                threatened = accession_taxa_threat,
                                endemic = accession_taxa_endemic,
-                               native = accession_taxa_nat
+                               native = accession_taxa_nat,
+                               tree = accession_taxa_tree
                                )
 
 
@@ -816,7 +956,7 @@ data_supp
 plot_data = do.call('rbind',plot_data)
 plot_data$total_accessions = factor(plot_data$total_accessions, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
-plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native','Tree'))
 plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of taxa have ',plot_data$total_accessions,' accession/s.' )
 hor_stack_bar_plot = plot_ly(plot_data,
                              type = 'bar',
@@ -826,8 +966,13 @@ hor_stack_bar_plot = plot_ly(plot_data,
                              colors = scales::brewer_pal(palette = palette, direction = 1)(5),
                              orientation = 'h',
                             hovertext = ~hover, hoverinfo = 'text')
-hor_stack_bar_plot_acc <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
-                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
+hor_stack_bar_plot_acc <- hor_stack_bar_plot |>
+  plotly::layout(xaxis = list(title = "Percentage of taxa"),
+                 yaxis = list(title = ''),
+                 barmode = 'stack',
+                 hovermode = 'y unified',
+                 legend=list(title=list(text='Number of<br>accessions'))
+                 )
 ```
 
 ```{r, number of items per taxa - data}
@@ -843,6 +988,7 @@ item_taxa_group = items |> dplyr::group_by(best_name) |>
   dplyr::summarise(threatened = .data$threatened[1],
                    endemic = .data$endemic[1],
                    native = .data$native[1],
+                   tree = .data$tree[1],
                    total = length(.data$best_name)
                    )
 
@@ -854,33 +1000,42 @@ top_name = item_taxa_group$best_name[which(item_taxa_group$total == max(item_tax
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of threatened taxa by the number of items they have 
-acc_threat = item_taxa_group[item_taxa_group$threatened =='Threatened',]
-item_taxa_threat = table(acc_threat$total)
+item_threat = item_taxa_group[item_taxa_group$threatened =='Threatened',]
+item_taxa_threat = table(item_threat$total)
 item_taxa_threat = data.frame(total_items = as.numeric(names(item_taxa_threat)), 
                             no_species = as.numeric(item_taxa_threat))
-top_name_threat = acc_threat$best_name[which(acc_threat$total == max(item_taxa_threat$total_items))][1]
+top_name_threat = item_threat$best_name[which(item_threat$total == max(item_taxa_threat$total_items))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of endemic taxa by the number of items they have 
-acc_endemic = item_taxa_group[item_taxa_group$endemic =='Endemic',]
-item_taxa_endemic = table(acc_endemic$total)
+item_endemic = item_taxa_group[item_taxa_group$endemic =='Endemic',]
+item_taxa_endemic = table(item_endemic$total)
 item_taxa_endemic = data.frame(total_items = as.numeric(names(item_taxa_endemic)), 
                             no_species = as.numeric(item_taxa_endemic))
-top_name_endemic = acc_endemic$best_name[which(acc_endemic$total == max(item_taxa_endemic$total_items))][1]
+top_name_endemic = item_endemic$best_name[which(item_endemic$total == max(item_taxa_endemic$total_items))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 # Group the number of native taxa by the number of items they have 
-acc_nat = item_taxa_group[item_taxa_group$native =='Native',]
-item_taxa_nat = table(acc_nat$total)
+item_nat = item_taxa_group[item_taxa_group$native =='Native',]
+item_taxa_nat = table(item_nat$total)
 item_taxa_nat = data.frame(total_items = as.numeric(names(item_taxa_nat)), 
                             no_species = as.numeric(item_taxa_nat))
-top_name_nat = acc_nat$best_name[which(acc_nat$total == max(item_taxa_nat$total_items))][1]
+top_name_nat = item_nat$best_name[which(item_nat$total == max(item_taxa_nat$total_items))][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
+# Group the number of tree taxa by the number of items they have 
+item_tree = item_taxa_group[item_taxa_group$tree =='Tree',]
+item_taxa_tree = table(item_tree$total)
+item_taxa_tree = data.frame(total_items = as.numeric(names(item_taxa_tree)), 
+                            no_species = as.numeric(item_taxa_tree))
+top_name_tree = item_tree$best_name[which(item_tree$total == max(item_taxa_tree$total_items))][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
 item_taxa_all_type = list(all = item_taxa,
                                threatened = item_taxa_threat,
                                endemic = item_taxa_endemic,
-                               native = item_taxa_nat
+                               native = item_taxa_nat,
+                          tree = item_taxa_tree
                                )
 
 
@@ -927,7 +1082,7 @@ data_supp
 plot_data = do.call('rbind',plot_data)
 plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
-plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native', 'Tree'))
 plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of taxa have ',plot_data$total_items,' item/s.' )
 hor_stack_bar_plot = plot_ly(plot_data,
                              type = 'bar',
@@ -937,8 +1092,18 @@ hor_stack_bar_plot = plot_ly(plot_data,
                              colors = scales::brewer_pal(palette = palette, direction = 1)(5),
                              orientation = 'h',
                             hovertext = ~hover, hoverinfo = 'text')
-hor_stack_bar_plot_items <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Taxa"),
-                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
+hor_stack_bar_plot_items <- hor_stack_bar_plot |>
+  plotly::layout(xaxis = list(title = "Percentage of taxa"),
+                 yaxis = list(title = ''),
+                 barmode = 'stack',
+                 hovermode = 'y unified',
+                 legend=list(title=list(text='Number of<br>items'))
+                 )
+
+
+# Create a dataset of all plants that have only one item (add whether they are threatened endemic or native).
+item_taxa_group_dataset = item_taxa_group[which(item_taxa_group$total == 1),]
+
 ```
 
 Below we show a comparison of the number of accessions and items per taxa across key collections. 
@@ -961,7 +1126,28 @@ hor_stack_bar_plot_items
 
 <!-- </div> -->
 
-Next we go into further detail across each key collection for individuals and accessions separately.
+<!-- :::: {.blackbox data-latex=""} -->
+
+<!-- The taxa in the collection with a single item can be downloaded below -->
+
+<!-- ```{r} -->
+<!-- item_taxa_group_dataset |> -->
+<!--   download_this( -->
+<!--     output_name = "taxa_single_item", -->
+<!--     output_extension = ".xlsx", -->
+<!--     button_label = "Download taxa with a single item in the collection (xlsx)", -->
+<!--     button_type = "default", -->
+<!--     has_icon = TRUE, -->
+<!--     icon = "fa fa-save", -->
+<!--     class = "hvr-sweep-to-left", -->
+<!--     self_contained =  T -->
+<!--   ) -->
+<!-- ``` -->
+
+<!-- :::: -->
+
+
+Next we go into further detail across each key collection for items and accessions separately.
 
 #### Accessions per taxa 
  
@@ -974,7 +1160,7 @@ figs_acc$all
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name`**. 
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name_acc`**. 
 - The mean number of accessions per taxa is **`r round(mean(accession_taxa_group$total),digits=2)`**.
 - The median number of accessions per taxa is **`r median(accession_taxa_group$total)`**.
 - **`r format(sum(accession_taxa_group$total == 1), big.mark =',')`** taxa have a single accession.
@@ -988,7 +1174,7 @@ figs_acc$threatened
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_threat$total_accessions)`** this occurs for the accession **`r top_name_threat`**. 
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_threat$total_accessions)`** this occurs for the accession **`r top_name_threat_acc`**. 
 - The mean number of accessions per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
 - The median number of accessions per taxa is **`r median(acc_threat$total)`**.
 - **`r format(sum(acc_threat$total == 1), big.mark =',')`** taxa have a single accession.
@@ -1000,7 +1186,7 @@ figs_acc$endemic
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_endemic$total_accessions)`** this occurs for the accession **`r top_name_endemic`**. 
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_endemic$total_accessions)`** this occurs for the accession **`r top_name_endemic_acc`**. 
 - The mean number of accessions per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
 - The median number of accessions per taxa is **`r median(acc_endemic$total)`**.
 - **`r format(sum(acc_endemic$total == 1), big.mark =',')`** taxa have a single accession.
@@ -1013,17 +1199,29 @@ figs_acc$native
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_nat$total_accessions)`** this occurs for the accession **`r top_name_nat`**. 
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_nat$total_accessions)`** this occurs for the accession **`r top_name_nat_acc`**. 
 - The mean number of accessions per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
 - The median number of accessions per taxa is **`r median(acc_nat$total)`**.
 - **`r format(sum(acc_nat$total == 1), big.mark =',')`** taxa have a single accession.
+
+`r if(report_kind == 'interactive'){"###### Tree"}`
+```{r Number of accessions per tree  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_acc$tree
+```
+
+Where 
+
+- The maximum number of accessions for a given taxon is **`r max(accession_taxa_tree$total_accessions)`** this occurs for the accession **`r top_name_tree_acc`**. 
+- The mean number of accessions per taxa is **`r round(mean(acc_tree$total),digits=2)`**.
+- The median number of accessions per taxa is **`r median(acc_tree$total)`**.
+- **`r format(sum(acc_tree$total == 1), big.mark =',')`** taxa have a single accession.
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
 
 ***
 
-#### Individuals per taxa 
+#### Items per taxa 
  
 `r if(report_kind == 'interactive'){"#####   {.tabset}"}`
 `r if(report_kind == 'interactive'){"###### All"}`
@@ -1051,7 +1249,7 @@ Where
 - The maximum number of items for a given taxon is **`r max(item_taxa_threat$total_items)`** this occurs for the item **`r top_name_threat`**. 
 - The mean number of items per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
 - The median number of items per taxa is **`r median(acc_threat$total)`**.
-- **`r format(sum(acc_threat$total == 1), big.mark =',')`** taxa have a single item.
+- **`r format(sum(item_threat$total == 1), big.mark =',')`** taxa have a single item.
 
 `r if(report_kind == 'interactive'){"###### Endemic"}`
 ```{r Number of items per endemic taxa  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -1063,7 +1261,7 @@ Where
 - The maximum number of items for a given taxon is **`r max(item_taxa_endemic$total_items)`** this occurs for the item **`r top_name_endemic`**. 
 - The mean number of items per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
 - The median number of items per taxa is **`r median(acc_endemic$total)`**.
-- **`r format(sum(acc_endemic$total == 1), big.mark =',')`** taxa have a single item.
+- **`r format(sum(item_endemic$total == 1), big.mark =',')`** taxa have a single item.
 
 
 `r if(report_kind == 'interactive'){"###### Native"}`
@@ -1076,7 +1274,20 @@ Where
 - The maximum number of items for a given taxon is **`r max(item_taxa_nat$total_items)`** this occurs for the item **`r top_name_nat`**. 
 - The mean number of items per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
 - The median number of items per taxa is **`r median(acc_nat$total)`**.
-- **`r format(sum(acc_nat$total == 1), big.mark =',')`** taxa have a single item.
+- **`r format(sum(item_nat$total == 1), big.mark =',')`** taxa have a single item.
+
+
+`r if(report_kind == 'interactive'){"###### Tree"}`
+```{r Number of items per tree  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs_items$tree
+```
+
+Where 
+
+- The maximum number of items for a given taxon is **`r max(item_taxa_tree$total_items)`** this occurs for the item **`r top_name_tree`**. 
+- The mean number of items per taxa is **`r round(mean(acc_tree$total),digits=2)`**.
+- The median number of items per taxa is **`r median(acc_tree$total)`**.
+- **`r format(sum(item_tree$total == 1), big.mark =',')`** taxa have a single item.
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
@@ -1084,9 +1295,7 @@ Where
 
 ### Accession size 
 
-We can view accession size in two ways, either the number of individuals in an accession at the time of accessioning or the current number of individuals existing in an accession (i.e including individual death/removal). We shall use both approaches. 
-
-We first produce a summary bar chart showing how the number of individuals per accession varies across the key collections. 
+We produce a summary bar chart showing how the number of items per accession varies across the key collections. 
 
 ```{r, number of items per accessions - data}
 # Reduced to only unique items.
@@ -1101,6 +1310,7 @@ item_taxa_group = items |> dplyr::group_by(AccNoFull) |>
   dplyr::summarise(threatened = .data$threatened[1],
                    endemic = .data$endemic[1],
                    native = .data$native[1],
+                   tree = .data$tree[1],
                    total = length(.data$AccNoFull)
                    )
 
@@ -1140,10 +1350,20 @@ top_acc_nat = item_nat$AccNoFull[which(item_nat$total == max(item_taxa_nat$total
 top_name_nat = items$best_name[items$AccNoFull == top_acc_nat][1]
 # top_name = interest$print_name[match(top_name,interest$best_name)]
 
+# Group the number of native taxa by the number of items they have 
+item_tree = item_taxa_group[item_taxa_group$tree =='Tree',]
+item_taxa_tree = table(item_tree$total)
+item_taxa_tree = data.frame(total_items = as.numeric(names(item_taxa_tree)), 
+                            no_species = as.numeric(item_taxa_tree))
+top_acc_tree = item_tree$AccNoFull[which(item_tree$total == max(item_taxa_tree$total_items))][1]
+top_name_tree = items$best_name[items$AccNoFull == top_acc_tree][1]
+# top_name = interest$print_name[match(top_name,interest$best_name)]
+
 item_taxa_all_type = list(all = item_taxa,
                                threatened = item_taxa_threat,
                                endemic = item_taxa_endemic,
-                               native = item_taxa_nat
+                               native = item_taxa_nat,
+                          tree = item_taxa_tree
                                )
 
 
@@ -1190,8 +1410,8 @@ data_supp
 plot_data = do.call('rbind',plot_data)
 plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
-plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
-plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_items,' individual/s.' )
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native','Tree'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_items,' item/s.' )
 hor_stack_bar_plot = plot_ly(plot_data,
                              type = 'bar',
                              y = ~type,
@@ -1200,11 +1420,16 @@ hor_stack_bar_plot = plot_ly(plot_data,
                              colors = scales::brewer_pal(palette = palette, direction = 1)(5),
                              orientation = 'h',
                             hovertext = ~hover, hoverinfo = 'text')
-hor_stack_bar_plot_items <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Accessions"),
-                                   yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
+hor_stack_bar_plot_items <- hor_stack_bar_plot |>
+  plotly::layout(xaxis = list(title = "Percentage of accessions"),
+                 yaxis = list(title = ''),
+                 barmode = 'stack',
+                 hovermode = 'y unified',
+                 legend = list(title = list(text = 'Number of<br>items'))
+                 )
 ```
 
-```{r, number of items per accessions at time of accessioning - data}
+```{r, number of items per accessions at time of accessioning - data, eval = F}
 # Reduced to only unique items.
 acc_to_consider = unique(interest$AccNoFull)
 individals = report[report$AccNoFull %in% acc_to_consider,]
@@ -1218,6 +1443,7 @@ individal_taxa_group = individals |> dplyr::group_by(AccNoFull) |>
   dplyr::summarise(threatened = .data$threatened[1],
                    endemic = .data$endemic[1],
                    native = .data$native[1],
+                   tree = .data$tree[1]
                    total = length(.data$AccNoFull)
                    )
 
@@ -1257,10 +1483,20 @@ individal_taxa_nat = data.frame(total_individals = as.numeric(names(individal_ta
 a_top_acc_nat = acc_nat$AccNoFull[which(acc_nat$total == max(individal_taxa_nat$total_individals))][1]
 a_top_name_nat = individals$best_name[individals$AccNoFull == a_top_acc_nat][1]
 
+# Group the number of tree taxa by the number of individals they have 
+acc_tree = individal_taxa_group[individal_taxa_group$tree =='Tree',]
+individal_taxa_tree = table(acc_tree$total)
+individal_taxa_tree = data.frame(total_individals = as.numeric(names(individal_taxa_tree)), 
+                            no_species = as.numeric(individal_taxa_tree))
+
+a_top_acc_tree = acc_tree$AccNoFull[which(acc_tree$total == max(individal_taxa_tree$total_individals))][1]
+a_top_name_tree = individals$best_name[individals$AccNoFull == a_top_acc_tree][1]
+
 individal_taxa_all_type = list(all = individal_taxa,
                                threatened = individal_taxa_threat,
                                endemic = individal_taxa_endemic,
-                               native = individal_taxa_nat
+                               native = individal_taxa_nat,
+                               tree = individal_taxa_tree
                                )
 
 
@@ -1307,8 +1543,8 @@ data_supp
 plot_data = do.call('rbind',plot_data)
 plot_data$total_individals = factor(plot_data$total_individals, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
-plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native'))
-plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_individals,' individual/s.' )
+plot_data$type =  factor(plot_data$type, levels = c('All', 'Threatened', 'Endemic', 'Native', 'Tree'))
+plot_data$hover = paste0(plot_data$percent, '% (',plot_data$no_species,') of accessions have ',plot_data$total_individals,' item/s.' )
 hor_stack_bar_plot = plot_ly(plot_data,
                              type = 'bar',
                              y = ~type,
@@ -1317,169 +1553,34 @@ hor_stack_bar_plot = plot_ly(plot_data,
                              colors = scales::brewer_pal(palette = palette, direction = 1)(5),
                              orientation = 'h',
                             hovertext = ~hover, hoverinfo = 'text')
-hor_stack_bar_plot_items_acc_time <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of Accessions"),
+hor_stack_bar_plot_items_acc_time <- hor_stack_bar_plot |> plotly::layout(xaxis = list(title = "Percentage of accessions"),
                                    yaxis = list(title = ''),barmode = 'stack',hovermode = 'y unified')
 ```
 
-`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
 
-`r if(report_kind == 'interactive'){"###### Exisiting individuals only"}`
 ```{r Number of items per accessions summary  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 hor_stack_bar_plot_items
 ```
 
-`r if(report_kind == 'interactive'){"###### Existing accessions (At time of accessioning)"}`
-```{r Number of items per accessions summary timeof accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-hor_stack_bar_plot_items_acc_time
-```
-
-`r if(report_kind == 'interactive'){"##### {-}"}`
-
-
-In the following sections we look in further detail of the number of individuals per accession and how this has varied over time across the whole collection as well as key collections.
-
 ***
 
-#### Individuals per accession (current) 
- 
- In this section we explore the number of individuals per accession that are currently existing in the collection.
- 
-`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
-`r if(report_kind == 'interactive'){"###### All"}`
 
-```{r Number of individuals per accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_items$all
-```
+#### Gained accessions by item size 
 
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(item_taxa$total_items)`** this occurs for the accession **`r top_acc`** ( **`r top_name`** ). 
-- The mean number of individuals per accession is **`r round(mean(item_taxa_group$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(item_taxa_group$total)`**.
-- **`r format(sum(item_taxa_group$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-
-`r if(report_kind == 'interactive'){"###### Threatened"}`
-```{r Number of accessions per threatened accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_items$threatened
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(item_taxa_threat$total_items)`** this occurs for the accession **`r top_acc_threat`** (**`r top_name_threat`**). 
-- The mean number of individuals per accession is **`r round(mean(item_threat$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(item_threat$total)`**.
-- **`r format(sum(item_threat$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-`r if(report_kind == 'interactive'){"###### Endemic"}`
-```{r Number of accessions per endemic accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_items$endemic
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(item_taxa_endemic$total_items)`** this occurs for the accession **`r top_acc_endemic`** (**`r top_name_endemic`**). 
-- The mean number of individuals per accession is **`r round(mean(item_endemic$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(item_endemic$total)`**.
-- **`r format(sum(item_endemic$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-`r if(report_kind == 'interactive'){"###### Native"}`
-```{r Number of accessions per native accession  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_items$native
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(item_taxa_nat$total_items)`** this occurs for the accession **`r top_acc_nat`** (**`r top_name_nat`**). 
-- The mean number of individuals per accession is **`r round(mean(item_nat$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(item_nat$total)`**.
-- **`r format(sum(item_nat$total == 1), big.mark =',')`** accessions have a single individual.
-
-`r if(report_kind == 'interactive'){"##### {-}"}`
-
-
-***
-
-#### Individuals per accession (at time of accessioning) 
- 
-  In this section we explore the number of individuals per accession at the time of accessioning (for existing accessions in the collection).
-
-`r if(report_kind == 'interactive'){"#####   {.tabset}"}`
-`r if(report_kind == 'interactive'){"###### All"}`
-
-```{r Number of individuals per accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_acc$all
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(individal_taxa$total_individal)`** this occurs for the accession **`r a_top_acc`** ( **`r a_top_name`** ). 
-- The mean number of individuals per accession is **`r round(mean(individal_taxa_group$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(individal_taxa_group$total)`**.
-- **`r format(sum(individal_taxa_group$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-
-`r if(report_kind == 'interactive'){"###### Threatened"}`
-```{r Number of accessions per threatened accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_acc$threatened
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(individal_taxa_threat$total_individals)`** this occurs for the accession **`r a_top_acc_threat`** (**`r a_top_name_threat`**). 
-- The mean number of individuals per accession is **`r round(mean(acc_threat$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(acc_threat$total)`**.
-- **`r format(sum(acc_threat$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-`r if(report_kind == 'interactive'){"###### Endemic"}`
-```{r Number of accessions per endemic accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_acc$endemic
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(individal_taxa_endemic$total_individals)`** this occurs for the accession **`r a_top_acc_endemic`** (**`r a_top_name_endemic`**). 
-- The mean number of individuals per accession is **`r round(mean(acc_endemic$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(acc_endemic$total)`**.
-- **`r format(sum(acc_endemic$total == 1), big.mark =',')`** accessions have a single individual.
-
-
-`r if(report_kind == 'interactive'){"###### Native"}`
-```{r Number of accessions per native accession at time of accessioning  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-figs_acc$native
-```
-
-Where 
-
-- The maximum number of individuals for a given accession is **`r max(individal_taxa_nat$total_individals)`** this occurs for the accession **`r a_top_acc_nat`** (**`r a_top_name_nat`**). 
-- The mean number of individuals per accession is **`r round(mean(acc_nat$total),digits=2)`**.
-- The median number of individuals per accession is **`r median(acc_nat$total)`**.
-- **`r format(sum(acc_nat$total == 1), big.mark =',')`** accessions have a single individual.
-
-`r if(report_kind == 'interactive'){"##### {-}"}`
-
-
-
-***
-
-#### How the number of individuals per accession has varied over time
-
- In this section we explore how the number of individuals per accession at the time of accessioning has varied across time.
+ In this section we explore how the number of items per accession varied across gained accessions each year.
  
 ```{r data prep for items per accession over time}
+max_year = format(Sys.Date(),'%Y') |> as.numeric()
+years = min_year:max_year
 accession_size_info = report |> dplyr::group_by(AccNoFull) |>
   dplyr::summarise(threatened = sum(threatened == 'Threatened'),
                    endemic = sum(endemic == 'Endemic'),
                    native = sum(native == 'Native'),
+                   tree = sum(tree == 'Tree'),
                    year = .data$AccYear[1],
                    all = length(.data$AccNoFull)
                    )
-columns = c('all','threatened','endemic', 'native')
+columns = c('all','threatened','endemic', 'native','tree')
 items_per_acc_over_time = lapply(columns, function(column){
   item_dists = lapply(years, function(year){
     item_per_access = accession_size_info[[column]][accession_size_info$year == year]
@@ -1511,9 +1612,9 @@ figs = lapply(columns, function(column){
   d$text = paste0(round(d$no_accessions,digits = 2), ' accessions have ', d$total_items, ' items')
 
 fig <- plot_ly(d, x = ~year, y = ~no_accessions, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text, sort = FALSE, colors = scales::brewer_pal(palette = palette, direction = 1)(5))
-fig <- fig |> layout(yaxis = list(title = 'Number of Accessions'),
+fig <- fig |> layout(yaxis = list(title = 'Number of accessions'),
                      xaxis = list(title = "Year"),
-                     legend=list(title=list(text='Number of Items')),
+                     legend=list(title=list(text='Number of<br>items')),
                      barmode = 'stack')
 fig <- fig |> layout(hovermode = 'x unified', bargap =0)
 fig1 = fig
@@ -1524,9 +1625,9 @@ if(separate_figure_folder){
 
 d$text = paste0(round(d$percent,digits = 2), '% of accessions have ', d$total_items, ' items')
 fig <- plot_ly(d, x = ~year, y = ~percent, color = ~total_items, type = 'bar',  hoverinfo = "text",  hovertext = ~text, colors = scales::brewer_pal(palette = palette, direction = 1)(5))
-fig <- fig |> layout(yaxis = list(title = 'Percentage of Accessions'),
+fig <- fig |> layout(yaxis = list(title = 'Percentage of accessions'),
                      xaxis = list(title = "Year"),
-                     legend=list(title=list(text='Number of Items')),
+                     legend=list(title=list(text='Number of<br>items')),
                      barmode = 'stack')
 fig <- fig |> layout(hovermode = 'x unified', bargap =0)
 
@@ -1637,6 +1738,12 @@ figs$endemic$percent
 ```{r item per accession over time native  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 figs$native$number
 figs$native$percent
+```
+
+`r if(report_kind == 'interactive'){"###### Tree"}`
+```{r item per accession over time tree  - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+figs$tree$number
+figs$tree$percent
 ```
 
 `r if(report_kind == 'interactive'){"##### {-}"}`

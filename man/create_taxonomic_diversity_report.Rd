@@ -8,7 +8,7 @@ create_taxonomic_diversity_report(
   enriched_report,
   collection = NULL,
   wcvp = NULL,
-  PlantClassification = BGSmartR::Diversity_classification,
+  PlantClassification = BGSmartR::Diversity_classification$Classification,
   min_year = 1970,
   report_kind = "static",
   output_file = NULL,

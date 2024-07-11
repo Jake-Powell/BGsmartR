@@ -1,5 +1,5 @@
 ---
-title: "Trends in the LC"
+title: "Trends in the living collection"
 output: html_document
 ---
 
@@ -12,6 +12,17 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
+
+color_binary <- c('#f46d43', '#e6e6e6')
+palette = 'Oranges'
 ```
 
 
@@ -235,11 +246,11 @@ enriched_report$tree = tree
 rm(tree)
 
 # Extract native.
-native = rep('Not Native', nrow(enriched_report))
+nativeo = rep('Not Native', nrow(enriched_report))
 native_index = grepl(location_code,enriched_report$geography_codes)
-native[native_index] = 'Native'
-enriched_report$native = native
-rm(native)
+nativeo[native_index] = 'Native'
+enriched_report$native = nativeo
+rm(nativeo)
 
 # Create a sanitised taxonomic name.
 enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
@@ -272,6 +283,17 @@ if(!is.null(old_accession_year_codes)){
 to_keep = which(as.numeric(report$AccYear) >= earliest_allowable_record  & as.numeric(report$AccYear) <= max_year)
 still_issue = nrow(report) - length(to_keep)
 report = report[to_keep,]
+
+report = report[!is.na(report$ItemStatusDate),]
+
+report_after_old_acc = report
+### Find the number of items/accessions where we have to do some fixing to the most recent status update.
+post_date = report$ItemStatusDate
+index_string_length_4 = which(stringr::str_length(post_date) == 4)
+index_string_length_7 = which(stringr::str_length(post_date) == 7)
+missing_date = length(c(index_string_length_4, index_string_length_7))
+
+### (END) Find the number of items/accessions where we have to do some fixing to the most recent status update.
 ```
 
 This report uses data from **`r collection`** and analyses trends in the collection from **`r min_year`** to **`r max_year`**.
@@ -280,9 +302,12 @@ This report uses data from **`r collection`** and analyses trends in the collect
 
 `r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis.
 
-This document outlines the changes in the number of items, accessions, taxa, species, genera, families, provenance, endemic species, native species, threatened species and trees. 
+To determine how long a plant survives in the collection we use the date of the plants most recent update and whether the plant was noted to be alive or dead. All plants that were alive at their most recent check are assumed to be alive to the present day. For plants that are dead we take the most recent update date to be their date of death. 
+`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
 
-For each year we take a snapshot of what is existing on the 31st of December.
+This document outlines the changes in the number of items, accessions, taxa, species, genera, families, provenance and key collections. 
+
+Using the accession date and the last item status date, for each year we recreate a snapshot of what was existing on the 31st of December.
 
 ```{r, Get Trends, echo = F}
 # 
@@ -399,10 +424,10 @@ single_trend_plot <- function(years, values, name, report_kind, separate_figure_
   if(report_kind == 'interactive'){
     df$text = paste0('Date: ', years, '-01-01 <br>', name,': ', values)
     
-    fig <- plot_ly(df, x = ~years, y = ~values, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text')
+    fig <- plot_ly(df, x = ~years, y = ~values, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text', line = list(color = interactive_colour(1)))
     fig <- fig %>% layout(title = "",
              xaxis = list(title = "Year"),
-             yaxis = list(title = paste0("Number of ", name))) 
+             yaxis = list(title = paste0("Number of ", name |> tolower()))) 
     fig <- fig %>% layout(hovermode = 'x')
 
     if(separate_figure_folder){
@@ -426,13 +451,17 @@ single_trend_plot <- function(years, values, name, report_kind, separate_figure_
 
 }
 
-group_trend_plots <- function(years, data, name, report_kind, separate_figure_folder, data_type, split = FALSE){
+group_trend_plots <- function(years, data, name, report_kind, separate_figure_folder, data_type, split = FALSE, group_order = NULL){
   data_prop = data /rowSums(data)*100
   tt = data.frame(year = years, data)
   names(tt) = c('year', names(data))
   dd = reshape(tt, idvar = "year", varying = list(2:ncol(tt)),
       v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
-  dd$group = factor(dd$group, levels = unique(dd$group))
+  if(is.null(group_order)){
+      dd$group = factor(dd$group, levels = unique(dd$group))
+  }else{
+    dd$group = factor(dd$group, levels = group_order)
+  }
   
   tt_prop = data.frame(year = years, data_prop)
   names(tt_prop) = c('year', names(data))
@@ -475,12 +504,121 @@ group_trend_plots <- function(years, data, name, report_kind, separate_figure_fo
     }
     }
     if(report_kind == 'interactive'){
-
     # fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', line = list(color = interactive_colour(length(unique(dd$group)))))
     fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', colors = interactive_colour(length(unique(dd$group))))
 
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                        xaxis = list(title = "Year"))
+    fig <- fig |> layout(hovermode = 'x unified')
+    
+    if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/',name,'_trend.html'),selfcontained = T)
+    }
+    
+    
+    dd_prop = data.frame(dd_prop, total = dd$count)
+    
+    fig2 <- plot_ly(dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
+                    hovertext = paste0(dd_prop$group,": ", round(dd_prop$count,digits = 1),'% (', dd_prop$total,')'),
+                    hoverinfo = "x+text",
+                    colors = interactive_colour(length(unique(dd$group))))
+    
+    
+    fig2 <- fig2 |> layout(yaxis = list(title = paste0("Percentage")),
+                       xaxis = list(title = "Year"))
+    fig2 <- fig2 |> layout(hovermode = 'x unified',
+                           barmode = 'stack',
+                           bargap =0,
+                           legend = list(traceorder = 'normal'),
+                           yaxis = list(ticksuffix = '%'))
+    fig2
+    
+      if(separate_figure_folder){
+      htmlwidgets::saveWidget(fig2, file = paste0(figures_dir,'/',name,'_proportional_trend.html'),selfcontained = T)
+    }
+    }
+  
+  return(list(number = fig, proportion = fig2))
+}
+
+group_trend_plots_pair <- function(years, data, name, report_kind, separate_figure_folder, data_type, split = FALSE, group_order = NULL){
+  if(!is.null(group_order)){data = data[,match(names(data),group_order)]}
+  data_prop = data /rowSums(data)*100
+  
+  tt = data.frame(year = years, data)
+  names(tt) = c('year', names(data))
+  
+  dd = reshape(tt, idvar = "year", varying = list(2:ncol(tt)),
+      v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
+  if(is.null(group_order)){
+      dd$group = factor(dd$group, levels = unique(dd$group))
+  }else{
+    dd$group = factor(dd$group, levels = group_order)
+  }
+  
+  tt_prop = data.frame(year = years, data_prop)
+  names(tt_prop) = c('year', names(data))
+  dd_prop = reshape(tt_prop, idvar = "year", varying = list(2:ncol(tt)),
+    v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
+   if(is.null(group_order)){
+      dd_prop$group = factor(dd_prop$group, levels = unique(dd_prop$group))
+  }else{
+    dd_prop$group = factor(dd_prop$group, levels = group_order)
+  }
+
+    if(report_kind == 'static'){
+      p1 = ggplot(dd, aes(x=year, y = count, group = group, color = group)) +
+        geom_line(linewidth  =1.1 ) + 
+        guides(color=guide_legend(title=paste0(name))) + 
+        labs(title="",
+            x ="Year",
+            y = stringr::str_wrap(paste0("Number of ", data_type),width = 18)) +
+             scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+        theme(legend.position="bottom")
+
+ 
+       p2 = ggplot(dd_prop, aes(fill=group, y=count, x=year)) + 
+        geom_bar(position="stack", stat="identity", width = 1) +
+         scale_x_continuous(expand = c(0, 0)) +
+         scale_y_continuous(expand = c(0, 0)) +
+        labs(title="",
+          x ="Year",
+          y = "Percentage (%)") +
+        guides(fill=guide_legend(title=paste0('Provenance')))
+      
+       p = ggpubr::ggarrange(p1, p2, labels = c("A", "B"),
+          common.legend = TRUE, legend = "bottom", ncol = 1, nrow = 2, align = 'v')
+       
+   if(separate_figure_folder){
+     ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/', name, '_trend.pdf'),device = 'pdf', scale = 1)
+   }
+    if(split){
+      return(list(number = p1, proportion = p2))
+    }else{
+         return(p)
+
+    }
+    }
+    if(report_kind == 'interactive'){
+
+      colours = color_binary
+      fig <- plot_ly(tt,
+                     x = ~year,
+                     y = tt[,2],
+                     type = 'scatter',
+                     mode = 'lines',
+                     name = names(tt)[2],
+                     line = list(color = color_binary[1]),
+                     visible = T, showlegend = T) |>
+        add_trace(y = tt[,3], 
+                  name = names(tt)[3],
+                   line = list(color = color_binary[2]),
+                  visible='legendonly'
+                  )|> 
+        layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
+               xaxis = list(title = "Year"),
+               hovermode = 'x unified')
     fig <- fig |> layout(hovermode = 'x unified')
     
     if(separate_figure_folder){
@@ -514,9 +652,9 @@ group_trend_plots <- function(years, data, name, report_kind, separate_figure_fo
 }
 ```
 
-### Trends in Collection Size 
+### Trends in collection size 
 
-In this section, we are interested in trends in the collection size by exploring the change in items, accessions, taxa, species, genera and families. Taxa is defined by the combination of taxonomic name and authority such as *Androsace sarmentosa* subsp. *primuloides* (Hook.f.) Govaerts. Species is defined by the genus and species pair such as *Androsace sarmentosa*.
+In this section, we are interested in trends over time in the collection size by exploring the change in items, accessions, taxa, species, genera, and families. In this context, taxa are all the biological names at the species or infraspecific levels (subsp., var., or f.; e.g. Androsace sarmentosa subsp. primuloides (Hook.f.) Govaerts); species are taxa but considered only to the species level (the binomial; e.g. Androsace sarmentosa). You can explore these trends in each category independently, or combined onto a single graph by normalising the values to allow for comparison. 
 
 
 ```{r  category trends - static, fig.dim = c(10, 5), eval = report_kind == 'static', fig.cap=paste0("Trends of items, accessions, taxa, species, genera and family in the LC since ", min_year)}
@@ -549,7 +687,7 @@ if(separate_figure_folder){
 p
 ```
 
-`r if(report_kind == 'interactive'){"#####  Individual Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Items"}`
 ```{r  Items trend - interactive,  fig.dim = c(10, 4), eval = report_kind == 'interactive',out.extra='style="background-color: #9ecff7; padding:10px; display: inline-block;"'}
@@ -590,7 +728,6 @@ single_trend_plot(years = years, values = time_series_info$Families, name = 'Fam
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-Next we combine each trend onto a single graph by normalising the values, to allow for comparison of the trends. 
 
 ```{r  category trends all in one - static, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static', fig.cap=paste0("Combined trends of items, accessions, taxa, species, genera and family in the LC since ", min_year)}
 time_series_info_normalised = as.data.frame(t(t(time_series_info)/as.numeric(apply(time_series_info, MARGIN=c(2), max))))
@@ -607,7 +744,7 @@ p = ggplot(dd, aes(x=year, y = count, group = group, color = group)) +
   scale_y_continuous(expand = c(0.01, 0.01)) +
   labs(title="",
             x ="Year",
-            y = "") +
+            y = "% of maximum") +
     theme(legend.position="bottom")+
   theme(axis.text.y=element_blank(), 
       axis.ticks.y=element_blank())
@@ -626,7 +763,7 @@ time_series_info_normalised = data.frame(years = years, time_series_info, time_s
 data_names = names(time_series_info_normalised)
 
 to_plot = c("Items", "Accessions", "Taxa", "Species", "Genera", "Families")
-colours = interactive_colour(length(to_plot))
+colours = scales::brewer_pal(palette = palette, direction = 1)(length(to_plot))
 fig <- plot_ly(time_series_info_normalised, x = ~years)
 fig <- fig %>%  add_trace(x = ~years, y = min(time_series_info_normalised[,8:13]), hoverinfo='text', type = 'scatter', text = ~years,
             mode = 'markers', marker=list(size=0, color='white'),
@@ -638,7 +775,7 @@ for(i in 1:length(to_plot)){
 
 fig <- fig %>% layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "")) 
+         yaxis = list (title = "% of maximum")) 
 fig <- fig %>% layout(hovermode = 'x unified',
          yaxis = list(showline= F,
                       showticklabels = F
@@ -658,17 +795,9 @@ fig
 
 ***
 
-### Trends in Categories
+### Trends by type of plant
 
-In this section we group the `r tolower(data_type)` in the collection into the following categories:
-
-`r if(FALSE){paste0("Biological: ", tolower(data_type), "that are either a genus and species pair, or contains subspecies, varities and forma. Excluding records that are horticultural.")}`
-- Species: `r tolower(data_type)` whose taxonomic name is composed of a genus and species only,
-- Infraspecific: `r tolower(data_type)` with an infraspecific marker (subsp., var., f.) that are not horticultural. 
-- Horticultural: `r tolower(data_type)` that are classed as either cultivars or hybrids,
-- Indeterminate, records such as *Hydnophytum* sp. or Indet. *caryophyllaceae*. 
-
-Note that the groups above have being defined such that all `r tolower(data_type)` cannot belong to multiple categories. 
+This section explores the trends over time of different types of plants. We use characteristics in the name of plants to determine whether they are classified as indeterminate, species, subspecies, variety, forma, cultivar, and hybrid (see more details in the appendix at the bottom). We are going to explore the trends of biological (species and infraspecific categories), horticultural (hybrids and cultivars), and indeterminate taxa
 
 ```{r Trends in taxon_type data}
 taxon_type_categories = c('Species', 'Infraspecific', 'Horticultural', 'Indeterminate')
@@ -694,7 +823,7 @@ int_plots = group_trend_plots(years, no_taxon_type, "Types of plant", report_kin
 int_plots
 ```
 
-`r if(report_kind == 'interactive'){"#####  Category Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  taxon_type trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -713,14 +842,9 @@ int_plots$proportion
 
 ***
 
-### Trends in Provenance
+### Trends by provenance categories
 
-In this section we explore the trends in provenance. Each accession in the garden has one of the following provenance types:
-
-- Wild: plants that were collected directly from the wild,
-- Wild-derived: cultivated plants descended from plants of known wild origin,
-- Garden: cultivated plants descended from plants not of known wild origin,
-- Unknown: plants with unknown origin.
+In this section we explore the trends over time by provenance categories.
 
 ```{r Trends in Provenance data}
 Provenance_categories = unique(report$ProvenanceCode)
@@ -731,7 +855,9 @@ no_prov = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   return(no_prov)
   }))))
 names(no_prov) = Provenance_categories
-no_prov = no_prov[,match(c('Wild', 'Wild-derived', 'Garden', 'Unknown'), names(no_prov))] # Choose the ordering we want
+force_order_index =match(c('Wild', 'Wild-derived', 'Garden', 'Unknown'), names(no_prov))
+force_order_index = force_order_index[!is.na(force_order_index)]
+no_prov = no_prov[,force_order_index] # Choose the ordering we want
 
 int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type)
 
@@ -742,7 +868,7 @@ int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = report
 int_plots
 ```
 
-`r if(report_kind == 'interactive'){"#####  Provenance Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  Provenance trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -760,14 +886,14 @@ int_plots$proportion
 
 ***
 
-### Trends in Key Collections
+### Trends in key collections
 
-In this section we look at trends across the key collections in the LC, this includes:
+In this section we look at trends across the key collections in the living collection. This includes threatened, endemic, native, and tree species. 
 
-- Threatened species, those classed as extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's Red List](https://www.iucnredlist.org).
-- Endemic species, those in the collection that belong to a single region according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level.
-- Native species, those in the collection that belong to the same region as the collection according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level.
-- Trees accessions in the collection that are contained within [BGCI's GlobalTreeSearch](https://tools.bgci.org/global_tree_search.php) (or synonymous names found in [Plants of the World Online](https://powo.science.kew.org))
+<!-- - Threatened species, those classed as extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's Red List](https://www.iucnredlist.org). -->
+<!-- - Endemic species, those in the collection that belong to a single region according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level. -->
+<!-- - Native species, those in the collection that belong to the same region as the collection according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level. -->
+<!-- - Trees accessions in the collection that are contained within [BGCI's GlobalTreeSearch](https://tools.bgci.org/global_tree_search.php) (or synonymous names found in [Plants of the World Online](https://powo.science.kew.org)) -->
 
 We first look at the normalised trends for all key collections combined.
 
@@ -813,13 +939,14 @@ names(no_tree) = Tree_categories
 no_threatened = no_threatened[,c(2,1)]
 
 
-int_endemic_plots = group_trend_plots(years, no_endemic, "Endemic", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE)
+int_endemic_plots = group_trend_plots_pair(years, no_endemic, "Endemic", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE, group_order = c('Endemic', 'Not Endemic') )
   
-int_native_plots = group_trend_plots(years, no_native, "native", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type,  split = TRUE)
+int_native_plots = group_trend_plots_pair(years, no_native, "native", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type,  split = TRUE)
     
-int_threatened_plots = group_trend_plots(years, no_threatened, "threatened", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE)
+int_threatened_plots = group_trend_plots_pair(years, no_threatened, "threatened", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE,
+                                         group_order = c('Threatened', 'Not Threatened'))
 
-int_tree_plots = group_trend_plots(years, no_tree, "Tree", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type)
+int_tree_plots = group_trend_plots_pair(years, no_tree, "Tree", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, group_order = c('Tree', 'Not Tree'))
 
 
 ```
@@ -856,6 +983,7 @@ if(separate_figure_folder){
 }
 p
 ```
+
 ```{r  Combined key taxa (number) only - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 combined_data = data.frame(Threatened = no_threatened$Threatened,
                            Endemic = no_endemic$Endemic,
@@ -1001,7 +1129,7 @@ fig = ggpubr::ggarrange(p1,p2,p3,p4,p5,p6,
 fig
 ```
 
-`r if(report_kind == 'interactive'){"#####  Threatened Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Threatened trends {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  Threatened trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -1015,7 +1143,7 @@ int_threatened_plots$proportion
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-`r if(report_kind == 'interactive'){"#####  Endemic Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Endemic trends {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  Endemic trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -1029,7 +1157,7 @@ int_endemic_plots$proportion
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-`r if(report_kind == 'interactive'){"#####  Native Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Native trends {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  Native trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -1043,7 +1171,7 @@ int_native_plots$proportion
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-`r if(report_kind == 'interactive'){"#####  Tree Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Tree trends {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
 ```{r  Tree trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
@@ -1289,4 +1417,5 @@ if(report_kind == 'interactive'){
 ```
 
 
-***
+
+

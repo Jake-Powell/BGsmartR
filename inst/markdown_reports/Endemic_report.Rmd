@@ -1,5 +1,5 @@
 ---
-title: "Overview of endemic species in the LC"
+title: "Endemic species in the living collection"
 output: html_document
 ---
   
@@ -17,16 +17,68 @@ library(ggrepel)
 library(downloadthis)
 
 interactive_colour <- function(n){
-  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
   if(n==2){
     return(color[c(1,4)])
   }
   color[1:n]
 }
-color_binary <- rev(c('#f46d43', '#e6e6e6'))
+color_binary <- c('#f46d43', '#e6e6e6')
 palette = 'Oranges'
 ```
 
+```{css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f46d43;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+
+.blackbox {
+  padding: 1em;
+  background: #FDAE6B;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
+}
+```
 ```{r, imported parameters}
 # 
 # collection = 'CUBG'
@@ -153,9 +205,9 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
   if(report_kind == 'interactive'){
     # gain_loss plot
-    colors = c("lightblue", "pink")
+    colors = color_binary |> rev()
     fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
@@ -165,14 +217,14 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     fig1 = fig
     
     # net plot
-    colors = c("pink", "lightblue")
-    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    colors = color_binary |> rev()
+    color <- ifelse(turnover$net_items < 0, colors[1], colors[2])
     texto = paste0('Net: ', turnover$net_items, '<br>',
                    'Gain: ', turnover$gain_items, '<br>',
                    'Loss: ', turnover$loss_items, '<br>'
     )
     fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
-    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
@@ -184,7 +236,7 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     # Trend plot.
     trend_data = data.frame(year = turnover$Year, trend = trend)
     fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     fig3= fig
@@ -238,8 +290,14 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
 }
 
-proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
-                                        report_kind, text = '', data_type = 'items'){
+proportional_plots_turnover <- function(turnover,
+                                        overall_turnover,
+                                        collection_proportion,
+                                        separate_figure_folder, 
+                                        report_kind,
+                                        text = '',
+                                        data_type = 'items',
+                                        quantity = ''){
   if(report_kind == 'static'){
     # Gain
     plot_data = data.frame(year = turnover[,1],
@@ -295,12 +353,24 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_gain = plot_data
-    
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar',
+                  name = paste0('New accessions'),
+                  marker = list(color = color_binary[2]),
+                  hovertemplate = paste("%{y:.2f}% of new accessions <extra></extra>")
+                  )
+                  
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                             hovertemplate = paste("%{y:.2f}% of the collection <extra></extra>")
+                            )
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         xaxis = list(hoverformat = paste0('fvf')),
+                         legend=list(title=list(text=paste0('<b>',text |> stringr::str_to_sentence(), '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -317,11 +387,25 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_loss = plot_data
     
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig = plot_ly(plot_data, x = ~year,
+                  y = ~prop_specific,
+                  type = 'bar',
+                  name = paste0('Lost accessions'),
+                  marker = list(color = color_binary[1]),
+                  hovertemplate = paste("%{y:.2f}% of lost accessions <extra></extra>"))
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year,
+                            y = ~prop_specific_collection,
+                            type = 'scatter',
+                            mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                            hovertemplate = paste("%{y:.2f}% of the collection<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         legend=list(title=list(text=paste0('<b>',text |> stringr::str_to_sentence(), '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -536,11 +620,11 @@ enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
 
 # Add native column.
-native = rep('Non-native', nrow(enriched_report))
+nativeo = rep('Non-native', nrow(enriched_report))
 native_index = which(grepl(location_code, enriched_report$geography_codes))
-native[native_index] = 'Native'
-enriched_report$native = native
-rm(native)
+nativeo[native_index] = 'Native'
+enriched_report$native = nativeo
+rm(nativeo)
 
 LossYear = rep(NA,nrow(enriched_report))
 ItemStatusYear = as.numeric(stringr::str_extract(enriched_report$ItemStatusDate,pattern = '[0-9]{4}'))
@@ -563,7 +647,7 @@ if(separate_figure_folder){
 exporting_data_store = list()
 ```
 
-This report explores endemic species in `r collection`, and how the number of endemic species has varied over time.
+This report explores endemic species in **`r collection`**, and how the number of endemic species has varied over time.
 
 A taxa in the collection is classed as **endemic** if it is native to a single BRU level 3 area. Note that the area does not have to be the one the collection belongs to. Therefore, we need geographic information to quantify if a taxa is endemic.  To determine the geographic distribution of items in the LC we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
 
@@ -690,7 +774,7 @@ writexl::write_xlsx(endemic_accessions, path =paste0(output_dir,'/',collection,'
 
 ### Endemic collection size
 
-In the LC there are `r format(no_endemic_items_existing, big.mark=',')` items corresponding to  `r format(no_endemic_accessions_existing, big.mark=',')` accessions of existing endemic plants. The number of endemic species existing in the LC is summarised below. Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
+In the living collection there are `r format(no_endemic_items_existing, big.mark=',')` items corresponding to  `r format(no_endemic_accessions_existing, big.mark=',')` accessions of existing endemic plants. The number of endemic species existing in the living collection is summarised below. Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
 
 ```{r, How many native species are in the LC - table}
 if(report_kind == 'static'){
@@ -706,19 +790,28 @@ if(report_kind == 'static'){
     autofit()
 }
 if(report_kind == 'interactive'){
-  DT::datatable(endemic_count_table,
-                rownames = FALSE,
-                # caption = paste0('Native plants in the LC (',paste0(location_name, collapse = ', '),')'),
-                options = list(dom = 't'))
+  endemic_count_table |>  DT::datatable(extensions = 'Buttons',
+                  rownames = FALSE,
+                  options = list(scrollX = TRUE,
+                                 pageLength = min(nrow(endemic_count_table), 10),
+                                 dom = 'Btp',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=F,
+                                 ordering=F))
+  
+  # DT::datatable(endemic_count_table,
+  #               rownames = FALSE,
+  #               # caption = paste0('Native plants in the LC (',paste0(location_name, collapse = ', '),')'),
+  #               options = list(dom = 't'))
 }
 
 ```
 
 ***
 
-### Change of endemic species over time
+### Change of endemic over time
 
-In this section we explore how the number of endemic species in the LC has varied over time. For each year we use the accession year and item status date to determine which items in the collection are existing on the 1st of January each year.
+In this section we explore how the number of endemic species in the collection has varied over time. For each year we use the accession year and item status date to determine which items in the collection are existing on the 1st of January each year.
 
 ```{r, What proportion of the LC at `r collection` is endemic and how has this varied over time - static number figures, eval = report_kind == 'static' & do_over_time,  fig.fullwidth=TRUE, fig.dim = c(10, 6)}
 to_do = c('Items', 'Accessions', 'Taxa', 'Species')
@@ -745,7 +838,7 @@ for(i in 1:length(to_do)){
 }
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"##### Number of endemic plants over time  {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"##### Number of endemic over time  {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Number of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -805,7 +898,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
 
-`r if(do_over_time){"Next we view endemic plants in the LC as a percentage of all plants in the LC over time."}`
+`r if(do_over_time){"Next we view endemic plants in the living collection as a percentage of all plants in the collection over time."}`
 
 ```{r, What proportion of the LC at `r collection` is endemic and how has this varied over time - percentage data, eval = do_over_time}
 # Do the same for the whole collection.
@@ -886,7 +979,7 @@ for(i in 1:length(to_do)){
 
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of endemic plants over time graphs {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of endemic over time {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Proportion of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -1010,7 +1103,7 @@ location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands'
 location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
 
 # If we are given wcvp calculate the number of endemic species that each geographic area contains.
-if(!is.null(wcvp) & is.null(endemic_species_per_region)){
+# if(!is.null(wcvp) & is.null(endemic_species_per_region)){
   #Geography data from wcvp
   geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
   # Get the columns in wanted info that contain the geography information we want.
@@ -1045,7 +1138,7 @@ if(!is.null(wcvp) & is.null(endemic_species_per_region)){
   
   location_data$no_endemic_accepted_wcvp_species = no_endemic_accepted_species_wcvp
 
-}
+# }
 if(!is.null((endemic_species_per_region))){
   no_endemic_accepted_species_wcvp = endemic_species_per_region[,2][match(location_data$code,endemic_species_per_region[,1])]
   location_data$no_endemic_accepted_wcvp_species = no_endemic_accepted_species_wcvp
@@ -1102,7 +1195,7 @@ percent_rep = round(sum(plot_info$rep_endemic) / all_endemic *100,digits = 2)
 no_rep = plot_info$LEVEL3_NAM[!plot_info$rep_endemic & plot_info$no_endemic_accepted_wcvp_species != 0 ]
 ```
 
-Next we produce maps showing where in the world the endemic plants in the LC are from. 
+Next we produce maps showing where in the world the endemic plants in the living collection are from. 
 
 Note that not every region has endemic species. In particular, within WCVP there are `r sum(location_data$no_endemic_accepted_wcvp_species == 0)` regions that have no endemic species. For example: `r paste0(location_data$name[location_data$no_endemic_accepted_wcvp_species == 0][1:5], collapse = ', ')`. Therefore, those regions are removed prior to creating the maps.
 
@@ -1287,7 +1380,7 @@ suppressWarnings(fig)
 
 ```
 
-`r if(report_kind == 'interactive'){"###### By Number of Endemic Species Held"}`
+`r if(report_kind == 'interactive'){"###### By number of endemic held"}`
 ```{r  Map of the number of Endemic species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
 rep_endemic = rep('No', nrow(plot_int_info))
 rep_endemic[plot_int_info$rep_endemic] = 'Yes'
@@ -1350,7 +1443,7 @@ rep_endemic[plot_int_info$rep_endemic] = 'Yes'
       zoom =0.46,
       lataxis = list(range = c(-59, 90)))
   ) |>
-    colorbar(title = "")
+    colorbar(title = "Number of <br> taxa")
 
 
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
@@ -1362,7 +1455,7 @@ rep_endemic[plot_int_info$rep_endemic] = 'Yes'
 
 ```
 
-`r if(report_kind == 'interactive'){"###### By Proportion of Accepted Endemic Species held"}`
+`r if(report_kind == 'interactive'){"###### By proportion of accepted endemic held"}`
 ```{r  Map of the proportion of Accepted Endemic species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
  rep_endemic = rep('No', nrow(plot_int_info))
 rep_endemic[plot_int_info$rep_endemic] = 'Yes'
@@ -1396,9 +1489,9 @@ rep_endemic[plot_int_info$rep_endemic] = 'Yes'
       center = list(lon = 0 ,lat= 60),
       zoom =0.46,
       lataxis = list(range = c(-59, 90)))
-  ) |>
+  )  |>
     # hide_colorbar()
-    colorbar(title = "")
+    colorbar(title = "Proportion of <br> taxa")
 
   
   fig = fig |>  add_trace(type="scattermapbox",
@@ -1424,9 +1517,9 @@ rep_endemic[plot_int_info$rep_endemic] = 'Yes'
 ```
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-In the LC `r percent_rep`% of the BRU level 3 regions are represented by endemic species, with `r length(no_rep)` regions un-represented. 
+In the living collection `r percent_rep`% of the BRU level 3 regions are represented by endemic species, with `r length(no_rep)` regions un-represented. 
 
-`r if(length(no_rep) > 0){"Regions with no endemic species in the LC are outlined below, together with the total number of endemic plants in each region."}`
+`r if(length(no_rep) > 0){"Regions with no endemic species in the living collection are outlined below, together with the total number of endemic plants in each region."}`
 
 ```{r families not in the LC - Table, eval = length(no_rep) > 0}
 if(report_kind == 'static'){
@@ -1442,57 +1535,26 @@ if(report_kind == 'static'){
   autofit()
 }
 if(report_kind == 'interactive'){
-  DT::datatable(missing_regions, rownames = FALSE,
-                 options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
+  missing_regions |>  DT::datatable(extensions = 'Buttons',
+                  rownames = FALSE,
+                  options = list(scrollX = TRUE,
+                                 pageLength = min(nrow(missing_regions), 10),
+                                 dom = 'Btp',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=T,
+                                 ordering=T),
+                  filter = list(position = "top"))
+  
+  
+  # DT::datatable(missing_regions, rownames = FALSE,
+  #                options = list(dom = 'tp',pageLength =  5), filter = list(position = "top"))
 }
 
 ```
 
+`r if(length(no_rep) > 0){':::: {.blackbox data-latex=""}'}`
 
 `r if(length(no_rep) > 0){"Further information about the plants from the missing families can be downloaded using the button below."}`
-
-```{css, echo = FALSE}
-/* from https://ianlunn.github.io/Hover/ */
-.hvr-sweep-to-left {
-  display: inline-block;
-  vertical-align: middle;
-  -webkit-transform: perspective(1px) translateZ(0);
-  transform: perspective(1px) translateZ(0);
-  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
-  position: relative;
-  -webkit-transition-property: color;
-  transition-property: color;
-  -webkit-transition-duration: 0.3s;
-  transition-duration: 0.3s;
-}
-.hvr-sweep-to-left:before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #2098D1;
-  -webkit-transform: scaleX(0);
-  transform: scaleX(0);
-  -webkit-transform-origin: 100% 50%;
-  transform-origin: 100% 50%;
-  -webkit-transition-property: transform;
-  transition-property: transform;
-  -webkit-transition-duration: 0.3s;
-  transition-duration: 0.3s;
-  -webkit-transition-timing-function: ease-out;
-  transition-timing-function: ease-out;
-}
-.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
-  color: white;
-}
-.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
-  -webkit-transform: scaleX(1);
-  transform: scaleX(1);
-}
-```
 
 ```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
   wcvp_wanted |>
@@ -1507,7 +1569,8 @@ if(report_kind == 'interactive'){
     self_contained = T
   )
 ```
-<br>
+
+`r if(length(no_rep) > 0){"::::"}`
  
 ***
 
@@ -1562,9 +1625,9 @@ if(export_data){
 
 ```
 
-In this section, we explore the duplication of existing endemic species in the LC. 
+In this section, we explore the duplication of existing endemic species in the living collection. 
 
-Below we produce pie charts and a table of the number of endemic species that have 1, 2, 3, 4 or >4 items or accessions in the LC. 
+Below we produce pie charts and a table of the number of endemic species that have 1, 2, 3, 4 or >4 items or accessions in the living collection. 
 
 ```{r Duplication of endemic plants in the LC - Table}
 flex_data  = flex_data[c(2:5,1),]
@@ -1651,7 +1714,7 @@ p
 
 ```
 
-`r if(report_kind == 'interactive'){"#####  Duplication of endemic species in the LC {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Duplication of endemic species {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Chart"}`
 ```{r  Duplication of existing endemic items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
@@ -1843,11 +1906,10 @@ if(separate_figure_folder){
 
 ***
 
-### Rarity of endemic Species 
+### Rarity of endemic species 
 
 ```{r, rarity of endemic species}
 ### How many items/accessions for each endemic taxa in the LC.
-endemic_existing <<- endemic_existing
 endemic_wanted_info = endemic_existing[c("best_name", "no_gardens")]
 
 endemic_wanted_info <- endemic_wanted_info |> 
@@ -1873,7 +1935,7 @@ v_common = sum(rarity_plot_info$count[rarity_plot_info$global %in% 100:1500])
 
 doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
                         no_items = c(unique_,v_rare, rare, common, v_common),
-                        color = c('#f46d43','#41ab5d', '#78c679', '#addd8e', "#d9f0a3"))
+                        color = scales::brewer_pal(palette = palette, direction = 1)(5))
 doughnut_data$percent = paste0(round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1),'%')
 
 
@@ -1882,7 +1944,7 @@ globally_held_taxa_grouped = doughnut_data[,c(1,2,4,3)]
 names(globally_held_taxa_grouped) = c("Rarity in global LCs",   "Number of Taxa in LC", "Percentage",  "Colour" )
 ```
 
-In this section, we explore the rarity of existing endemic species in the LC on the global scale. To do this we used BGCI's PlantSearch to extract the number of global collections plants are held within.
+In this section, we explore the rarity of existing endemic species in the living collection on the global scale. To do this we used BGCI's PlantSearch to extract the number of global collections plants are held within.
 
 We group taxa by the number of collections they are found in globally. These are:
 
@@ -1918,32 +1980,33 @@ fig
 ```{r, taxa in collection against how many sites globally - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 data_plot = rarity_plot_info
 text = paste0(data_plot$count, ' endemic species in the garden are found in ', data_plot$global, ' collections globally.')
+colo_rare = rev(scales::brewer_pal(palette = palette, direction = 1)(5))
 
 fig <- plot_ly(data_plot, x = ~global, y = ~count, 
          type = 'scatter',  mode = 'markers', hoverinfo = "text",  hovertext = text, colors = 'black', color = 'color')
 fig <- fig |> layout(title = "",
-  xaxis = list(title = "Number of LCs <br> holding the taxa worldwide"),
+  xaxis = list(title = "Number of living collections <br> holding the taxa worldwide"),
   yaxis = list (title = "Number of endemic taxa <br> found in the collection")) 
 fig <- layout(fig,
              shapes = list(
                 list(type = "rect",
-                    fillcolor = "#f46d43", line = list(color = "#f46d43"), opacity = 0.3,
+                    fillcolor = colo_rare[1], line = list(color = colo_rare[1]), opacity = 0.3,
                     x0 = 0, x1 = 1.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$count), yref = "y"),
                list(type = "rect",
-                    fillcolor = "#41ab5d", line = list(color = "#41ab5d"), opacity = 0.3,
+                    fillcolor = colo_rare[2], line = list(color = colo_rare[2]), opacity = 0.3,
                     x0 = 1.5, x1 = 10.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$count), yref = "y"),
                 list(type = "rect",
-                    fillcolor = "#78c679", line = list(color = "#78c679"), opacity = 0.3,
+                    fillcolor = colo_rare[3], line = list(color = colo_rare[3]), opacity = 0.3,
                     x0 = 10.5, x1 = 50.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$count), yref = "y"),
                list(type = "rect",
-                    fillcolor = "#addd8e", line = list(color = "#addd8e"), opacity = 0.3,
+                    fillcolor = colo_rare[4], line = list(color = colo_rare[4]), opacity = 0.3,
                     x0 = 50.5, x1 = 100.5, xref = "x",
                     y0 = 0, y1 = max(data_plot$count), yref = "y"),
                 list(type = "rect",
-                    fillcolor = "#d9f0a3", line = list(color = "#d9f0a3"), opacity = 0.3,
+                    fillcolor = colo_rare[5], line = list(color = colo_rare[5]), opacity = 0.3,
                     x0 = 100.5, x1 = max(data_plot$global), xref = "x",
                     y0 = 0, y1 = max(data_plot$count), yref = "y")               
               ))
@@ -1973,7 +2036,7 @@ In this section we are exploring the provenance of native plants in the collecti
 
 Below we produce a chart and table of provenance for items and accessions.
 
-```{r, Provenance of endemic plants in the LC}
+```{r, Provenance of endemic plants in the LC,  results='hide',fig.keep='all', message=FALSE}
 # LC_native_exisiting the data of existing endemic plants in the LC. 
 wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 prov_items = data.frame(table(endemic_existing$ProvenanceCode))
@@ -2015,6 +2078,55 @@ names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Nu
 if(export_data){
   exporting_data_store$Provenance_of_existing_endemic_plants_in_the_LC = flex_data
 }
+
+### Create provenance by taxa to see if any have multiple provenance codes. 
+taxa_prov_og = endemic_existing |>
+  dplyr::group_by(best_name) |>
+  summarise(wild_items = sum(.data$ProvenanceCode == 'Wild'),
+            z_items = sum(.data$ProvenanceCode == "Wild-derived"),
+            garden_items = sum(.data$ProvenanceCode == 'Garden'),
+            unknown_items = sum(.data$ProvenanceCode == 'Unknown'),
+            original_name = toString(.data$TaxonNameFull |> unique())
+            )
+
+taxa_prov = taxa_prov_og[,c(1:5)] |> as.data.frame()
+for(i in 2:5){taxa_prov[,i] = taxa_prov[,i] |> as.numeric()}
+
+wild_taxa = taxa_prov$best_name[taxa_prov$wild_items > 0]
+z_taxa = taxa_prov$best_name[taxa_prov$z_items > 0]
+g_taxa = taxa_prov$best_name[taxa_prov$garden_items > 0]
+u_taxa = taxa_prov$best_name[taxa_prov$unknown_items > 0]
+x = list() ; category.names = NULL ; colours = NULL
+if(length(wild_taxa) > 0 ){x$w = wild_taxa ; category.names = c(category.names, "Wild") ; colours = c(colours, interactive_colour(4)[c(1)])}
+if(length(u_taxa) > 0 ){x$u = u_taxa ; category.names = c(category.names, "Unknown") ; colours = c(colours, interactive_colour(4)[c(4)])}
+if(length(z_taxa) > 0 ){x$z = z_taxa ; category.names = c(category.names, "Wild-derived"); colours = c(colours, interactive_colour(4)[c(2)])}
+if(length(g_taxa) > 0 ){x$g = g_taxa ; category.names = c(category.names, "Garden"); colours = c(colours, interactive_colour(4)[c(3)])}
+library(VennDiagram)
+venn_diag = venn.diagram(x, filename = NULL,
+                         category.names = category.names,
+                         fill =colours,
+                         disable.logging = TRUE,
+                         main.fontfamily = "arial",
+                         main.fontface = "sans")
+
+
+# Make a data.frame of the overlapping taxa for a download.
+taxa_prov_og$no_val =  lapply(taxa_prov_og[,-6] |> as.data.frame() |> t() |> as.data.frame(),function(x){
+  sum(as.numeric(x[-1]) != 0)
+}) |> unlist()
+
+taxa_prov = taxa_prov_og[taxa_prov_og$no_val > 1,]
+taxa_prov = taxa_prov[,-7]
+taxa_prov =taxa_prov[,c(1,6,2,3,4,5)]
+names(taxa_prov) = c("Best name found by BGSmartR",
+                     "Original Taxonomic name/s",
+                     "Number of Wild Origin Items",
+                     "Number of Wild-derived Origin Items",
+                     "Number of Garden Origin Items",
+                     "Number of Unknown Origin Items")
+
+
+### (END) Create provenance by taxa to see if any have multiple provenance codes. 
 ```
 
 ```{r Provenance of endemic plants in the LC - Table}
@@ -2103,15 +2215,16 @@ p
 
 ```
 
-`r if(report_kind == 'interactive'){"#####  Provenance of endemic species in the LC {.tabset}"}`
+`r if(report_kind == 'interactive'){"#####  Provenance of endemic species {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Chart"}`
 ```{r  Provenance of existing endemic items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
 figs = list()
-
+colo = interactive_colour(4)
+colo = colo[match(unique(prov_items$Provenance), wanted_order)]
 # Items
 text = paste0(prov_items$Items, ' ',prov_items$Provenance,' origin endemic items')
-fig1 <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig1 <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = colo))
 fig1 <- fig1 |> add_pie(hole = 0.6)
 fig1 <- fig1 |> layout(title = "Items",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
@@ -2119,7 +2232,7 @@ fig1 <- fig1 |> layout(title = "Items",
 figs$items = fig1
 #Accessions
 text = paste0(prov_accessions$Accessions, ' ',prov_accessions$Provenance,' origin endemic items')
-fig2 <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig2 <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = colo))
 fig2 <- fig2 |> add_pie(hole = 0.6)
 fig2 <- fig2 |> layout(title = "Accessions",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
@@ -2129,10 +2242,10 @@ figs$accessions = fig2
 # Together
 p <- plot_ly() |>
   add_pie(data = prov_items, labels = ~Provenance, values = ~Items, hole = 0.6,
-          title = "Items", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+          title = "Items", name ='', sort = FALSE, marker = list(colors = colo),
           domain = list(row = 0, column = 0)) |>
   add_pie(data = prov_accessions, labels = ~Provenance, values = ~Accessions, hole = 0.6,
-          title = "Accessions", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+          title = "Accessions", name ='', sort = FALSE, marker = list(colors = colo),
          domain = list(row = 0, column = 1))  |>
   layout(title = "", showlegend = TRUE,
           grid=list(rows=1, columns=2),
@@ -2154,16 +2267,21 @@ p
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Table"}`
 ```{r Provenance of existing endemic items in the LC - table, eval = report_kind == 'interactive'}
-DT::datatable(flex_data, rownames = FALSE,
-                # caption = paste0('Native plants in the LC (',paste0(location_name, collapse = ', '),')'),
-                options = list(dom = 't'))
+flex_data |>  DT::datatable(extensions = 'Buttons',
+                  rownames = FALSE,
+                  options = list(scrollX = TRUE,
+                                 pageLength = nrow(flex_data),
+                                 dom = 'Bt',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=FALSE,
+                                 ordering=F))
 ```
 
 `r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
 
-`r if(do_over_time){"We will now look at how the provenance of endemic plants in the LC has changed over time."}`
+`r if(do_over_time){"We will now look at how the provenance of endemic plants in the living collection has changed over time."}`
 
-`r if(!do_over_time){"We do not have the information to explore how provenance of endemic plants in the LC has changed over time."}`
+`r if(!do_over_time){"We do not have the information to explore how provenance of endemic plants in the living collection has changed over time."}`
 
 ```{r, Provenance of endemic plants in the LC- change over time data, eval = do_over_time}
 # For each year get the number in each group (species and genera)
@@ -2234,7 +2352,7 @@ for(i in 1:length(to_do)){
 }
 ```
 
-`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of endemic species in the LC over time {.tabset}"}`
+`r if(report_kind == 'interactive'& do_over_time){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
 ```{r  Provenance of endemic items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'& do_over_time}
@@ -2278,8 +2396,12 @@ if(export_data){
 text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items) ')
 data_wanted$text = text
 data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
+
+colo = interactive_colour(4)
+colo = colo[match(levels(data_wanted$Provenance), wanted_order)]
+
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',  colors = interactive_colour(4),
+               hovertemplate = '%{text}',  colors = colo,
                sort = FALSE)
 fig <- fig |> layout(yaxis = list(title = 'Percentage'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
@@ -2336,8 +2458,12 @@ if(export_data){
 text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' accessions) ')
 data_wanted$text = text
 data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
+
+colo = interactive_colour(4)
+colo = colo[match(levels(data_wanted$Provenance), wanted_order)]
+
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}', colors = interactive_colour(4),
+               hovertemplate = '%{text}', colors = colo,
                sort = FALSE)
 fig <- fig |> layout(yaxis = list(title = 'Percentage'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
@@ -2353,12 +2479,38 @@ if(separate_figure_folder){
 
 `r if(report_kind == 'interactive'& do_over_time){"##### {-}"}`
 
+In the above analysis we have considered endemic items and accessions where provenance is unique (i.e each accession can only be in one provenance group). Next we look at provenance across taxa. In this case a taxa can be contained in the garden by multiple provenance codes (i.e. one accession of wild origin and one accession of garden origin). To visualise the provenance by taxa we use a Venn diagram visualise how taxa can be expressed by multiple provenances. 
+
+```{r, draw provenace by taxa (venn), results='hide',fig.keep='all', message=FALSE, fig.dim=c(4,4), fig.align = 'center', eval = report_kind == 'interactive' }
+grid.newpage()
+grid.draw(venn_diag)
+```
+
+
+:::: {.blackbox data-latex=""}
+
+Taxa with multiple provenance types can be downloaded below
+
+```{r}
+taxa_prov |>
+  download_this(
+    output_name = "Taxa with multiple provenances",
+    output_extension = ".xlsx",
+    button_label = "Download taxa with multiple provenances (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained =  T
+  )
+```
+::::
 
 ***
   
 ### Turnover analysis
   
-This section looks at the turnover (gain/loss) of accessions of endemic plants in the LC.
+This section looks at the turnover (gain/loss) of accessions of endemic plants in the living collection.
 
 `r if(!do_over_time){"As we do not have information to explore the data over time we cannot perform turnover analysis."}`
 
@@ -2456,14 +2608,14 @@ if(nrow(report_cur) == 0){
 
 `r if(!do_type){"There are no records that are endemic."}`
 
-```{r, Turnover of endemic items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots$gain_loss
-
-plots$net
-
-plots_accessions$gain_loss
-
-plots_accessions$net
+```{r, Turnover of endemic items - static, eval = report_kind == 'static'& do_type & FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+# plots$gain_loss
+# 
+# plots$net
+# 
+# plots_accessions$gain_loss
+# 
+# plots_accessions$net
 
 
 ```
@@ -2485,13 +2637,13 @@ plots$gain_loss
 `r if(!do_type){"We now explore how the gain and loss of endemic species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of endemic species each year. To calculate the proportion of the collection that are endemic each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
 
 ```{r, Proportional Turnover of endemic - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_proportional$gain
-
-plots_proportional$loss
-
-plots_proportional_accessions$gain
-
-plots_proportional_accessions$loss
+# plots_proportional$gain
+# 
+# plots_proportional$loss
+# 
+# plots_proportional_accessions$gain
+# 
+# plots_proportional_accessions$loss
 
 ```
 
@@ -2519,6 +2671,13 @@ do_survival = TRUE
 if(!do_over_time){
   do_survival = FALSE
 }
+
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(enriched_report$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  enriched_report$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+
 enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]
@@ -2561,8 +2720,12 @@ wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
 
 # We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
 missing_itemstatusdate_index = which(wanted_data$time > 0)
-wanted_data = wanted_data[missing_itemstatusdate_index,]
-enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
+status_year = wanted_data$ItemStatusDate |> stringr::str_extract('^[0-9]{4}') |> unlist() |> as.numeric()
+status_before_current_year = which(status_year <= format(Sys.Date(),'%Y') |> as.numeric() )
+to_keep = intersect(missing_itemstatusdate_index,status_before_current_year)
+wanted_data = wanted_data[to_keep,]
+
+enriched_report_wanted = enriched_report_wanted[to_keep,]
 
 
 ## 1) Native or non-native (or doesn't have geography info.)
@@ -2607,7 +2770,12 @@ p = fit |>
     # theme(text = element_text(size=table_font_size))+
   # labs(title=paste0("Survival probability of native and non native plants in the LC")) +
   labs(caption = "Shaded region represents 95% confidence interval.") +
-  ggtheme() + scale_colour_manual(values = c('#f46d43', '#e6e6e6'))
+  scale_colour_manual(values = c('#f46d43', '#848484')) +
+  scale_fill_manual(values = c('#f46d43', '#848484')) +
+   theme(
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.text=element_text(size=10))
 
 if(report_kind == 'static'){
   if(separate_figure_folder){
@@ -2619,12 +2787,12 @@ if(report_kind == 'static'){
 
 ```{r survival_analysis - interactive figure, eval = do_survival,  fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 if(report_kind == 'interactive'){
-  fig = ggplotly(p)
+  fig = ggplotly(p, dynamicTicks = TRUE)
   fig$x$layout$title$text =''
   fig$x$layout$legend$title$text = ''
   fig$x$layout$hovermode = 'x unified'
-  fig$x$data[[2]]$name = 'Not Endemic'
-  fig$x$data[[2]]$legendgroup = 'Not Endemic'
+  fig$x$data[[2]]$name = 'Widespread'
+  fig$x$data[[2]]$legendgroup = 'Widespread'
   fig$x$data[[1]]$name = 'Endemic'
   fig$x$data[[1]]$legendgroup = 'Endemic'
   fig$x$data[[4]]$hoverinfo = 'none'
@@ -2670,6 +2838,17 @@ if(report_kind == 'interactive'){
                                 'Survival probability: ', round(fig$x$data[[1]]$y*100,digits = 2),'% <br>',
                                 '95% confidence Interval: (', lower,'%, ', upper, '%)')
   
+     #Set initial y-axis tick values 
+  fig$x$layout$yaxis$ticktext = c("0.25", "0.50", "0.75", "1.00")
+  fig$x$layout$yaxis$tickvals = c(0.25, 0.50, 0.75, 1.00)
+  fig$x$layout$font$size = 10 # font size
+  fig$x$layout$yaxis$title$font$size = 14
+  fig$x$layout$xaxis$title$font$size = 14
+  fig$x$layout$xaxis$title$font$color = NULL
+   fig$x$layout$yaxis$title$font$color = NULL
+  fig$x$layout$yaxis$tickfont$size = 12
+  fig$x$layout$xaxis$tickfont$size = 12
+  
   if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Endemic_survival_analysis.html'))
 }
@@ -2678,7 +2857,36 @@ fig
 }
 ```
 
-`r if(do_survival){"Next we give the survival probability for particular lengths of time."}`
+`r if(do_survival){"Next we give the median surivival times for endemic and not endemic species in the collection."}`
+
+```{r, survival analysis - median survival tables, echo = FALSE, message=FALSE, eval = do_survival}
+# We can also get survival probabilities in a table
+# 
+
+table_data2 = fit |> 
+  gtsummary::tbl_survfit(
+    probs = c(0.5),
+    label_header = "**Median survival (95% CI)**")
+
+table_data2 = table_data2$table_body
+table_data2 = table_data2[,-c(1:4)]
+table_data2 = table_data2[-1,]
+names(table_data2) = c('Characteristic', 'Median survival + 95% CI (Years)')
+
+table_data2 |>  DT::datatable(extensions = 'Buttons',
+                             rownames = FALSE,
+                             options = list(scrollX = TRUE,
+                                            pageLength = nrow(table_data2),
+                                            dom = 'Bt',
+                                            buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                            paging=FALSE,
+                                            ordering=F))
+
+
+```
+
+
+`r if(do_survival){"Lastly, we give the survival probability for particular lengths of time."}`
 
 ```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
@@ -2699,7 +2907,20 @@ table_data = table_data$table_body
                         '100-year survival (95% CI)')
   table_data = data.frame(t(table_data))
   table_data = table_data[-1,]
-  names(table_data) = c('Endemic', 'Not Endemic')
+  names(table_data) = c('Endemic', 'Widespread')
+  
+  
+  table_data2 = fit |> 
+  gtsummary::tbl_survfit(
+    probs = c(0.5),
+    label_header = "**Median survival (95% CI)**")
+
+table_data2 = table_data2$table_body
+  table_data2 = table_data2[,-c(1:4)]
+  table_data2 = table_data2[-1,]
+  names(table_data2) = c('Characteristic', 'Median survival (95% CI)')
+  
+  
   
 if(report_kind == 'static'){
   table_data |>
@@ -2715,9 +2936,17 @@ if(report_kind == 'static'){
   set_table_properties(width = 1, layout = "autofit")
 }
 if(report_kind == 'interactive'){
-    DT::datatable(table_data,
-                  # caption = 'Survival probability table',
-                   options = list(dom = 't'))
+  table_data$year  =paste0(c(2,5,10,25,50,100), '-year survival')
+  names(table_data)[3] = 'Survival time (95% CI)'
+  table_data = table_data[,c(3,1,2)]
+  table_data |>  DT::datatable(extensions = 'Buttons',
+                  rownames = FALSE,
+                  options = list(scrollX = TRUE,
+                                 pageLength = nrow(table_data),
+                                 dom = 'Bt',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=FALSE,
+                                 ordering=F))
 
 }
 ```
@@ -2764,83 +2993,712 @@ saveWorkbook(wb, file = file)
 
 ```
 
-### Recent changes in the endemic species held in the LC
+```{r, eval = F}
+<!-- ### Recent changes in the endemic species held in the LC -->
 
-```{r, recent changes to endemic species}
-recent_years = recent_year:2024
-endemic_new = endemic[endemic$AccYear %in% recent_years,]
-endemic_new$count = rep(1,nrow(endemic_new))
-endemic_new$powo_name = paste0(endemic_new$POWO_taxon_name, ' ', endemic_new$POWO_taxon_authors)
-endemic_new$dead = endemic_new$ItemStatusType == 'NotExisting'
+<!-- ```{r, recent changes to endemic species} -->
+<!-- recent_years = recent_year:2024 -->
+<!-- endemic_new = endemic[endemic$AccYear %in% recent_years,] -->
+<!-- endemic_new$count = rep(1,nrow(endemic_new)) -->
+<!-- endemic_new$powo_name = paste0(endemic_new$POWO_taxon_name, ' ', endemic_new$POWO_taxon_authors) -->
+<!-- endemic_new$dead = endemic_new$ItemStatusType == 'NotExisting' -->
 
-new_endemic_accessions <- endemic_new |>
-    dplyr::group_by(.data$good_name) |>
-    dplyr::summarise(original_report_taxon_name = toString(unique(.data$TaxonNameFull)),
-                     powo_taxon_name = toString(unique(.data$powo_name)),
-                     no_items_in_LC = sum(.data$count),
-                     no_dead = sum(.data$dead),
-                     accessions = toString(unique(.data$AccNoFull)),
-                     threatened = .data$threatened[1],
-                     location = .data$geography_codes[1],
-    ) |>
-    dplyr::ungroup() 
+<!-- new_endemic_accessions <- endemic_new |> -->
+<!--     dplyr::group_by(.data$good_name) |> -->
+<!--     dplyr::summarise(original_report_taxon_name = toString(unique(.data$TaxonNameFull)), -->
+<!--                      powo_taxon_name = toString(unique(.data$powo_name)), -->
+<!--                      no_items_in_LC = sum(.data$count), -->
+<!--                      no_dead = sum(.data$dead), -->
+<!--                      accessions = toString(unique(.data$AccNoFull)), -->
+<!--                      threatened = .data$threatened[1], -->
+<!--                      location = .data$geography_codes[1], -->
+<!--     ) |> -->
+<!--     dplyr::ungroup()  -->
 
-alive_prior = unlist(lapply(new_endemic_accessions$accessions, function(x){
-  accessions = unlist(stringr::str_split(x, ', '))
-  taxa = endemic$good_name[endemic$AccNoFull == accessions[1]][1]
-  
-  all_records = endemic[endemic$good_name == taxa,]
-  all_records = all_records[order(all_records$AccYear, all_records$AccNoFull),]
-  items_prior_to_accession = rep(NA, length(accessions))
-  for(i in 1:length(accessions)){
-    if((match(accessions[i], all_records$AccNoFull)-1) == 0){
-      items_prior_to_accession[i] = 'Never in LC before'
-    }else{
-    prior_records =all_records[1:(match(accessions[i], all_records$AccNoFull)-1),]
-    accession_year = all_records$AccYear[match(accessions[i], all_records$AccNoFull)][1]
-    def_dead_before = sum(prior_records$status_year < accession_year & prior_records$ItemStatusType == 'NotExisting')
-    pos_dead_or_alive_before = sum(prior_records$status_year == accession_year & prior_records$ItemStatusType == 'NotExisting')
-    def_alive = nrow(prior_records) - def_dead_before - pos_dead_or_alive_before
-    items_prior_to_accession[i] = paste0('(',def_alive, ', ', pos_dead_or_alive_before ,')')
-    }
-   
+<!-- alive_prior = unlist(lapply(new_endemic_accessions$accessions, function(x){ -->
+<!--   accessions = unlist(stringr::str_split(x, ', ')) -->
+<!--   taxa = endemic$good_name[endemic$AccNoFull == accessions[1]][1] -->
+
+<!--   all_records = endemic[endemic$good_name == taxa,] -->
+<!--   all_records = all_records[order(all_records$AccYear, all_records$AccNoFull),] -->
+<!--   items_prior_to_accession = rep(NA, length(accessions)) -->
+<!--   for(i in 1:length(accessions)){ -->
+<!--     if((match(accessions[i], all_records$AccNoFull)-1) == 0){ -->
+<!--       items_prior_to_accession[i] = 'Never in LC before' -->
+<!--     }else{ -->
+<!--     prior_records =all_records[1:(match(accessions[i], all_records$AccNoFull)-1),] -->
+<!--     accession_year = all_records$AccYear[match(accessions[i], all_records$AccNoFull)][1] -->
+<!--     def_dead_before = sum(prior_records$status_year < accession_year & prior_records$ItemStatusType == 'NotExisting') -->
+<!--     pos_dead_or_alive_before = sum(prior_records$status_year == accession_year & prior_records$ItemStatusType == 'NotExisting') -->
+<!--     def_alive = nrow(prior_records) - def_dead_before - pos_dead_or_alive_before -->
+<!--     items_prior_to_accession[i] = paste0('(',def_alive, ', ', pos_dead_or_alive_before ,')') -->
+<!--     } -->
+
+<!--   } -->
+<!--   return(paste0(items_prior_to_accession, collapse = ', ')) -->
+<!-- })) -->
+<!-- new_endemic_accessions$alive_prior_accession = alive_prior -->
+
+<!-- new_endemic_accessions$location = wgsrpd3$LEVEL3_NAM[match(new_endemic_accessions$location, wgsrpd3$LEVEL3_COD)] -->
+<!-- ``` -->
+
+<!-- In this section we explore new additions to the endemic species to the collection since `r recent_year`. In this time frame there have been `r length(unique(endemic_new$AccNoFull))` accessions of endemic species with a total of `r nrow(endemic_new)` items. The new accessions consists of `r nrow(new_endemic_accessions)` endemic taxa which spans `r length(unique(new_endemic_accessions$location))` different locations. Below we produce a table of `r if(report_kind == 'static'){"the top ten"}` locations by the number of accessions. -->
+
+<!-- ```{r table of top 10 locations by "recent endemic" additions } -->
+<!-- new_endemic_accessions$total_per_taxa = stringr::str_count(new_endemic_accessions$accessions, ',') + 1 -->
+
+<!-- accessions_per_location = as.data.frame(new_endemic_accessions |> dplyr::count(location, name= "total_per_taxa")) -->
+<!-- accessions_per_location = accessions_per_location[order(accessions_per_location$total_per_taxa,decreasing = T),] -->
+<!-- names(accessions_per_location) = c('Location', 'Number of Accessions') -->
+
+<!-- if(report_kind == 'static'){ -->
+<!--   accessions_per_location[1:min(10, nrow(accessions_per_location)),] |> -->
+<!--   flextable() |> -->
+<!--   set_caption(caption = paste0("Locations of Endemic Speices Accessioned since ", recent_year)) |>  -->
+<!--   font(fontname = "Calibri (Body)", part = "all") |>  -->
+<!--   fontsize(size = table_font_size, part = "body") |>  -->
+<!--   # add footer if you want -->
+<!--   # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.",  -->
+<!--   #                colwidths = 4) |>  -->
+<!--   theme_booktabs() |> # default theme -->
+<!--   autofit() -->
+<!-- } -->
+<!-- if(report_kind == 'interactive'){ -->
+<!--   DT::datatable(accessions_per_location, rownames = FALSE,  options = list(dom = 'tp',pageLength =  5)) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- We can use the accession year (no date available) and item status date to calculate how many of the recently accessioned endemic species were new to the LC at the time of accessioning. We do have to be slightly careful since we could have a new accession in the same year as the last previous item of that taxa dying in the same year. In this case, we cannot be sure if the accessioning occurred before or after the plant died. In this case we shall make a note, and class it as "unsure". -->
+
+<!-- Of the `r nrow(new_endemic_accessions)` taxa accessioned `r sum(grepl('Never in LC before', new_endemic_accessions$alive_prior_accession))` were never previously held in the LC. Of those that have being in the LC before (`r sum(new_endemic_accessions$alive_prior_accession != 'Never in LC before')`) `r sum(grepl('^\\(0, 0', new_endemic_accessions$alive_prior_accession))` were not existing at the time of accessions, `r sum(grepl('^\\(0, [1-9]', new_endemic_accessions$alive_prior_accession))` are unsure if they were existing at time of accessioning and `r sum(grepl('^\\([1-9]', new_endemic_accessions$alive_prior_accession))` were already held in the LC. -->
+
+<!-- Of the recently accessioned endemic species `r sum(new_endemic_accessions$no_dead)` items have died, resulting to `r sum(new_endemic_accessions$no_dead == new_endemic_accessions$no_items_in_LC)` taxa having net no new accessions/items since `r recent_year` (i.e all accessioned items have died). This includes `r sum(new_endemic_accessions$no_dead == new_endemic_accessions$no_items_in_LC & grepl('Never in LC before', new_endemic_accessions$alive_prior_accession))` taxa which were never previously held in the LC.  -->
+
+
+```
+
+### Proportion of native taxonomy found in the collection
+
+In this section we create sunburst and treemap charts showing all of the trees found within WCVP (accepted species; by matching to BGCI GlobalTreeSearch), grouped into families, order and higher level lineages. The charts are shaded lighter to darker orange depending on the proportion of the tree lineage found in the collection. 
+
+
+```{r, Create taxonomic diversity genus level, echo = FALSE, message = FALSE}
+geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
+want = c('000','010','001','011','100','110','101')
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes_wcvp = level3codes
+
+endemic_index = which(stringr::str_length(level3codes_wcvp) == 3)
+endemic_plant_ids =  wcvp$geography$plant_name_id[endemic_index]
+endemic_plant_ids = endemic_plant_ids[!is.na(endemic_plant_ids)]
+
+endemic_wcvp = wcvp$wcvp_names[wcvp$wcvp_names$plant_name_id %in% endemic_plant_ids,]
+
+
+
+
+
+report = endemic_wcvp
+report = report[report$taxon_status == 'Accepted',]
+collection_report = endemic_existing
+LC_in_WCVP = match(unique(collection_report$POWO_plant_name_id) ,report$plant_name_id)
+LC_in_WCVP = LC_in_WCVP[!is.na(LC_in_WCVP)]
+in_LC = rep(F, nrow(report))
+in_LC[LC_in_WCVP] = TRUE
+report$in_LC = in_LC
+report = report[c('family', 'genus', 'in_LC')]
+report$fam_gen = paste0(report$family,' ',report$genus)
+report <-  report |> 
+        dplyr::group_by(fam_gen) |> 
+        dplyr::summarise(family = family[1], 
+                         genus = genus[1],
+                         in_LC = any(in_LC)) |>
+  dplyr::ungroup() 
+
+
+
+#No families.
+# = Use POWO family if available if not use the original.
+no_families <- length(unique(report$family))
+
+#No genus
+# = Use POWO genus if available if not use the original.
+no_genus <- length(unique(report$fam_gen))
+
+
+report_div  = report
+
+Diversity_class = BGSmartR::Diversity_classification
+Classification <- as.data.frame(Diversity_class$Classification)
+synomym_families <- as.data.frame(Diversity_class$synomym_families)
+
+fam = report_div$family
+
+# Convert from conserved family name to family name where applicable. 
+AA = apply(synomym_families, 2, function(x){
+  fam[fam == as.character(x[2])] = as.character(x[1])
+  })
+report_div$family = fam
+
+matched_families = match(fam, Classification$family)
+order = Classification$order[matched_families]
+major_Eudicot_lineage = Classification$`major Eudicot lineage`[matched_families]
+major_Angiosperm_lineage = Classification$`major Angiosperm lineage`[matched_families]
+major_Land_Plants_lineage = Classification$`major Land Plants lineage`[matched_families]
+
+
+report_div$order = order
+report_div$major_Eudicot_lineage = major_Eudicot_lineage
+report_div$major_Angiosperm_lineage = major_Angiosperm_lineage
+report_div$major_Land_Plants_lineage = major_Land_Plants_lineage
+
+report_cur = report_div
+
+combined_taxo = paste0(report_cur$genus,'---',
+                                       report_cur$family,'---',
+                                       report_cur$order,'---',
+                                       report_cur$major_Eudicot_lineage,'---',
+                                       report_cur$major_Angiosperm_lineage,'---',
+                                       report_cur$major_Land_Plants_lineage)
+
+with_issue = length(which(grepl('---NA$',combined_taxo)))
+combined_taxo_count = as.numeric(report_cur$in_LC)
+#remove those without major land plants lineage. (i.e ends in ---NA).
+if(with_issue > 0){
+  index_remove = which(grepl('---NA$',combined_taxo))
+  combined_taxo = combined_taxo[-index_remove]
+  combined_taxo_count = combined_taxo_count[-index_remove]
+}
+# Convert NA in species to Indet.
+combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+
+
+data = data.frame(ID = combined_taxo, count = combined_taxo_count, count_all = 1)
+non_combined  = data.frame(t(data.frame(stringr::str_split(data$ID,pattern = '---'))))
+names(non_combined) = c('genus', 'family', 'order', 'major_Eudicot_lineage',
+                        'major_Angiosperm_lineage', 'major_Land_Plants_lineage')
+rownames(non_combined) = 1:nrow(non_combined)
+
+data = data.frame(data, non_combined)
+
+# push species names to genus species (otherwise issues with repeated species names with different genera)
+
+labels = c(unique(data$major_Land_Plants_lineage), unique(data$major_Angiosperm_lineage), unique(data$major_Eudicot_lineage),
+           unique(data$order), unique(data$family), unique(data$genus))
+major_Land_Plants_lineage_index = 1:length(unique(data$major_Land_Plants_lineage))
+major_Angiosperm_lineage_index = (max(major_Land_Plants_lineage_index)+1):(max(major_Land_Plants_lineage_index)+length(unique(data$major_Angiosperm_lineage)))
+major_Eudicot_lineage_index = (max(major_Angiosperm_lineage_index)+1):(max(major_Angiosperm_lineage_index)+length(unique(data$major_Eudicot_lineage)))
+order_index = (max(major_Eudicot_lineage_index)+1):(max(major_Eudicot_lineage_index)+length(unique(data$order)))
+family_index = (max(order_index)+1):(max(order_index)+length(unique(data$family)))
+genus_index = (max(family_index)+1):(max(family_index)+length(unique(data$genus)))
+
+parents = rep('', length(labels))
+parents[major_Angiosperm_lineage_index] = data$major_Land_Plants_lineage[match(labels[major_Angiosperm_lineage_index], data$major_Angiosperm_lineage)]
+parents[major_Eudicot_lineage_index] = data$major_Angiosperm_lineage[match(labels[major_Eudicot_lineage_index], data$major_Eudicot_lineage)]
+parents[order_index] = data$major_Eudicot_lineage[match(labels[order_index], data$order)]
+parents[family_index] = data$order[match(labels[family_index], data$family)]
+parents[genus_index] = data$family[match(labels[genus_index], data$genus)]
+
+values = rep(NA, length(labels))
+values[genus_index] = data$count[match(labels[genus_index], data$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,2)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,2)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,2)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,2)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,2)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+in_collection = values
+
+values = rep(NA, length(labels))
+values[genus_index] = data$count_all[match(labels[genus_index], data$genus)]
+total_for_families <-  aggregate(. ~family, data[,c(5,3)], sum, na.rm = TRUE)
+values[family_index] = total_for_families$count[match(labels[family_index], total_for_families$family)]
+total_for_order <-  aggregate(. ~order, data[,c(6,3)], sum, na.rm = TRUE)
+values[order_index] = total_for_order$count[match(labels[order_index], total_for_order$order)]
+total_for_major_Eudicot_lineage <-  aggregate(. ~major_Eudicot_lineage, data[,c(7,3)], sum, na.rm = TRUE)
+values[major_Eudicot_lineage_index] = total_for_major_Eudicot_lineage$count[match(labels[major_Eudicot_lineage_index], total_for_major_Eudicot_lineage$major_Eudicot_lineage)]
+total_for_major_Angiosperm_lineage <-  aggregate(. ~major_Angiosperm_lineage, data[,c(8,3)], sum, na.rm = TRUE)
+values[major_Angiosperm_lineage_index] = total_for_major_Angiosperm_lineage$count[match(labels[major_Angiosperm_lineage_index], total_for_major_Angiosperm_lineage$major_Angiosperm_lineage)]
+total_for_major_Land_Plants_lineage <-  aggregate(. ~major_Land_Plants_lineage, data[,c(9,3)], sum, na.rm = TRUE)
+values[major_Land_Plants_lineage_index] = total_for_major_Land_Plants_lineage$count[match(labels[major_Land_Plants_lineage_index], total_for_major_Land_Plants_lineage$major_Land_Plants_lineage)]
+total_wcvp = values
+
+
+data_formatted = data.frame(ID = labels, labels=labels, parents = parents, values = total_wcvp,  in_LC = in_collection)
+
+#Go back to just species names.
+data_formatted$labels[grepl('---', data_formatted$labels)] = unlist(lapply(stringr::str_split(data_formatted$labels[grepl('---', data_formatted$labels)], pattern = '---'), function(x){x[1]}))
+data_formatted$ID[grepl('---', data_formatted$ID)] = unlist(lapply(stringr::str_split(data_formatted$ID[grepl('---', data_formatted$ID)], pattern = '---'), function(x){x[1]}))
+# data_formatted$labels=unlist(lapply(stringr::str_split(data_formatted$labels, ' '),function(x){x[length(x)]}))
+data_formatted$ID = paste0(data_formatted$labels, '---', data_formatted$parents)
+
+data_formatted$parents = paste0(data_formatted$parents,'---',data_formatted$parents[match(data_formatted$parents, data_formatted$labels)])
+data_formatted$parents[data_formatted$parents == "---NA"] =''
+
+# Collapse levels.
+data_formatted$labels[data_formatted$labels == 'None_Eudicots'] = 'Other'
+data_formatted$labels[data_formatted$labels == 'None_Angiosperms'] = 'Other'
+
+# Remove Intermediate levels.
+remove_nodes = c('None_Monocots', 'None_Ferns', 'None_Ferns_Eudicot',"None_Gymnosperms", 'None_Lycophytes',   'None_Liverworts', 'None_Hornworts', 'None_Gymnosperms_Eudicot', 'None_Lycophytes_Eudicot', 'None_Liverworts_Eudicot', 'None_Hornworts_Eudicot', 'No_Mosses_Angiosperm_lineage', 'No_Mosses_Eudicot_lineage', 'None_Angiosperms_Eudicot_lineage')
+AA = lapply(remove_nodes, function(node){
+  # Select the row to remove (begining with "*node*---")
+  to_remove = which(grepl(paste0('^',node,'---'), data_formatted$ID))
+  if(length(to_remove)> 0 ){
+    #Get new parent id and new label from the node to remove.
+    new_parent = data_formatted[to_remove,]$parents
+    new_label =  unlist(stringr::str_split(new_parent,'---'))[1]
+    # Remove the row.
+    data_formatted = data_formatted[-to_remove,]
+    # Update End of the ID for the new parent
+    data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)] = unlist(stringr::str_replace(data_formatted$ID[grepl(paste0(node,'$'),data_formatted$ID)],paste0('---',node), paste0('---',new_label)))
+    # Update the parents for each node who originally has 'node' as the value. 
+    data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
+    # Update the parents for each node who originally has 'node' as the parent. 
+    data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
+    data_formatted <<- data_formatted
   }
-  return(paste0(items_prior_to_accession, collapse = ', '))
-}))
-new_endemic_accessions$alive_prior_accession = alive_prior
+ 
+  return()
+})
 
-new_endemic_accessions$location = wgsrpd3$LEVEL3_NAM[match(new_endemic_accessions$location, wgsrpd3$LEVEL3_COD)]
+
+# Add header of 'Collection'
+data_formatted$ID[grepl('---$', data_formatted$ID)] = paste0(data_formatted$ID[grepl('---$', data_formatted$ID)] , 'WCVP')
+data_formatted$parents[grepl('---$', data_formatted$parents)] = paste0(data_formatted$parents[grepl('---$', data_formatted$parents)] , 'WCVP')
+data_formatted$parents[data_formatted$parents == ''] = 'WCVP'
+
+data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatted$values[data_formatted$parents == 'WCVP']), sum(data_formatted$in_LC[data_formatted$parents == 'WCVP']) )
+
+### Subfamily level information
+{
+  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
+file = '/Users/jakepowell/Downloads/classification.csv'
+data = read.csv(file, sep = '\t')
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+## Create a summary of families and their subfamilies.
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
+
+
+data_accepted = data[data$taxonomicStatus == 'Accepted',]
+data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+
+data_simp <- data_care |>
+  dplyr::group_by(.data$family) |>
+  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+
+data_simp = data_simp[rev(order(data_simp$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_tribe <- data_care[data_care$tribe != '',] |>
+  dplyr::group_by(.data$subfamily) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   tribe = toString(unique(.data$tribe)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
+data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
+data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
+
+data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+data_subtribe <- data_care[data_care$subtribe != '',] |>
+  dplyr::group_by(.data$tribe) |>
+  dplyr::summarise(family = toString(unique(.data$family)),
+                   subfamily = toString(unique(.data$subfamily)),
+                   subtribe = toString(unique(.data$subtribe)),
+                   majorGroup = toString(unique(.data$majorGroup)),
+                   no_genus = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+
+data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
+writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+
+
+}
+
+### Add subfamily info to data_formatted
+{
+  #############################################################################
+## Add subfamilies (All)
+#############################################################################
+## Get the genus that are linked to each sub family.
+families_with_sub = data_simp$family[data_simp$subfamily != ""]
+data_fam_sub = data_care[data_care$family %in% families_with_sub,]
+data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
+data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+subfamily_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
+subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
+
+# Remove those without a subfamily (we will deal with these later)
+subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
+save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+
+for(i in 1:nrow(subfamily_genus_simp)){
+  # for(i in 1:30){
+  subfamily_info = subfamily_genus_simp[i,]
+  subfamily_genera = unlist(stringr::str_split(subfamily_info$all_genera ,', '))
+  subfamily_genera = subfamily_genera[subfamily_genera !=  ""]
+  if(length(subfamily_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
+                         grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) >0){
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(subfamily_info$sub_family,'---', subfamily_info$family)
+    new = c(new_ID, subfamily_info$sub_family, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = subfamily_info$family, replacement = subfamily_info$sub_family)
+    data_want$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+  }
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+families_with_subfamilies = unique(subfamily_genus_simp$family)
+all_subfamilies = unique(subfamily_genus_simp$sub_family)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(families_with_subfamilies)){
+  family = families_with_subfamilies[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0(family,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---family (i.e no  subfamily)
+  without_subfamily = which(!data_want$labels %in% all_subfamilies)
+
+  #If we have at least one genus-family we need to group these into no subfamily.
+  if(length(without_subfamily) > 0){
+    data_without_subfam = data_want[without_subfamily,]
+
+    new_ID = paste0('No Subfamily','---', family)
+
+    new_node = new = c(new_ID, 'No Subfamily', data_want$parents[1], sum(as.numeric(data_without_subfam$values)), sum(as.numeric(data_without_subfam$in_LC)))
+
+    data_without_subfam$ID = stringr::str_replace(data_without_subfam$ID,pattern = family, replacement = 'No Subfamily')
+    data_without_subfam$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_subfamily],] = data_without_subfam
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+
+}
+
+#############################################################################
+## Add tribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+
+## Get the genus that are linked to each sub family.
+subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
+data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
+data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
+data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
+subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+tribe_genus_simp <- subfamily_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
+tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$sub_family != "No Subfamily",]
+save(tribe_genus_simp, file = 'tribe_genus_simp')
+
+for(i in 1:nrow(tribe_genus_simp)){
+  # for(i in 1:30){
+  tribe_info = tribe_genus_simp[i,]
+  tribe_genera = unlist(stringr::str_split(tribe_info$all_genera ,', '))
+  tribe_genera = tribe_genera[tribe_genera !=  ""]
+  if(length(tribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(tribe_info$sub_family, '$'),data_formatted$ID) &
+                         grepl(paste0(tribe_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) >0){
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(tribe_info$tribe,'---', tribe_info$sub_family)
+    new = c(new_ID, tribe_info$tribe, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = tribe_info$sub_family, replacement = tribe_info$tribe)
+    data_want$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+  }
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+subfamilies_with_tribes = unique(tribe_genus_simp$sub_family)
+all_tribes = unique(tribe_genus_simp$tribe)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(subfamilies_with_tribes)){
+  subfamily = subfamilies_with_tribes[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+
+  in_formatted = which(grepl(paste0(subfamily,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+
+  # Check if we have any records where we have genus---subfamily (i.e no  subfamily)
+  without_tribe = which(!data_want$labels %in% all_tribes)
+
+  #If we have at least one genus-subfamily we need to group these into no subfamily.
+  if(length(without_tribe) > 0){
+    data_without_tribe = data_want[without_tribe,]
+
+    new_ID = paste0('No Tribe','---', subfamily)
+
+    new_node = new = c(new_ID, 'No Tribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)), sum(as.numeric(data_without_tribe$in_LC)))
+
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = subfamily, replacement = 'No Tribe')
+    data_without_tribe$parents = new_ID
+
+
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted[without_tribe],] = data_without_tribe
+
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+
+}
+
+
+#############################################################################
+## Add Subtribes (All)
+#############################################################################
+# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+
+## Get the genus that are linked to each sub family.
+tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
+data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
+data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
+data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
+subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
+subtribe_genus_simp <- subtribe_genus |>
+  dplyr::group_by(.data$together) |>
+  dplyr::summarise(all_genera = toString(unique(.data$genus)),
+                   no_genera = length(unique(.data$genus))
+  ) |>
+  dplyr::ungroup()
+subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
+subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
+
+# Remove those without a subfamily (we will deal with these later)
+subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
+save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+
+for(i in 1:nrow(subtribe_genus_simp)){
+  # for(i in 1:30){
+  subtribe_info = subtribe_genus_simp[i,]
+  subtribe_genera = unlist(stringr::str_split(subtribe_info$all_genera ,', '))
+  subtribe_genera = subtribe_genera[subtribe_genera !=  ""]
+  if(length(subtribe_genera) == 0){
+    next
+  }
+  in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) &
+                         grepl(paste0(subtribe_genera, collapse = '|'),data_formatted$labels))
+  if(length(in_formatted) == 0){
+    next
+  }
+    data_want = data_formatted[in_formatted,]
+    new_ID = paste0(subtribe_info$subtribe,'---', subtribe_info$tribe)
+    new = c(new_ID, subtribe_info$subtribe, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
+    data_want$ID = stringr::str_replace(data_want$ID,pattern = subtribe_info$tribe, replacement = subtribe_info$subtribe)
+    data_want$parents = new_ID
+    
+    
+    # Replace original genus-family with the new genus-subfamily.
+    data_formatted[in_formatted,] = data_want
+    
+    # Add the new node for the subfamily.
+    data_formatted[nrow(data_formatted)+1,] = new
+}
+
+####### Deal with genera with no subfamily (when others in the family have a sub-family.)
+# Get all families with subfamilies and the vector of all subfamilies (irrespective of family)
+tribes_with_subtribes = unique(subtribe_genus_simp$tribe)
+all_subtribes = unique(subtribe_genus_simp$subtribe)
+# Loop over each family to put all non-subfamily genera together into 'No Subfamily group)
+for(i in 1:length(tribes_with_subtribes)){
+  tribe = tribes_with_subtribes[i]
+  # Fine records whose parent is the familiy in question and extract the data.
+  
+  in_formatted = which(grepl(paste0(tribe,'$'),data_formatted$ID))
+  data_want = data_formatted[in_formatted,]
+  
+  # Check if we have any records where we have genus---tribe (i.e no  tribe)
+  without_subtribe = which(!data_want$labels %in% all_subtribes)
+  
+  #If we have at least one genus-tribe we need to group these into no tribe
+  if(length(without_subtribe) > 0){
+    data_without_tribe = data_want[without_subtribe,]
+    
+    new_ID = paste0('No Subtribe','---', tribe)
+    
+    new_node = new = c(new_ID, 'No Subtribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)), sum(as.numeric(data_without_tribe$in_LC)))
+    
+    data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = tribe, replacement = 'No Subtribe')
+    data_without_tribe$parents = new_ID
+    
+    
+    # Replace original genus-family with the new genus-tribe
+    data_formatted[in_formatted[without_subtribe],] = data_without_tribe
+    
+    # Add the new node for the tribe
+    data_formatted[nrow(data_formatted)+1,] = new_node
+  }
+  
+}
+
+
+#############################################################################
+
+}
+
+
+
+data_formatted$percentage = as.numeric(data_formatted$in_LC) / as.numeric(data_formatted$values)
+rbPal <- colorRampPalette(c("#FEEDDE", "#FDD0A2", "#FDAE6B", "#FD8D3C", "#F16913", "#D94801", "#8C2D04"))
+data_formatted$Col <- rbPal(100)[as.numeric(cut(data_formatted$percentage,breaks = 100))]
+
+data_formatted$hover = paste0(round(data_formatted$percentage*100,digits = 2),'% of endemic ', data_formatted$labels, ' genera found within the LC (',data_formatted$in_LC,'/',data_formatted$values,')')
 ```
 
-In this section we explore new additions to the endemic species to the collection since `r recent_year`. In this time frame there have been `r length(unique(endemic_new$AccNoFull))` accessions of endemic species with a total of `r nrow(endemic_new)` items. The new accessions consists of `r nrow(new_endemic_accessions)` endemic taxa which spans `r length(unique(new_endemic_accessions$location))` different locations. Below we produce a table of `r if(report_kind == 'static'){"the top ten"}` locations by the number of accessions.
-
-```{r table of top 10 locations by "recent endemic" additions }
-new_endemic_accessions$total_per_taxa = stringr::str_count(new_endemic_accessions$accessions, ',') + 1
-
-accessions_per_location = as.data.frame(new_endemic_accessions |> dplyr::count(location, name= "total_per_taxa"))
-accessions_per_location = accessions_per_location[order(accessions_per_location$total_per_taxa,decreasing = T),]
-names(accessions_per_location) = c('Location', 'Number of Accessions')
-
-if(report_kind == 'static'){
-  accessions_per_location[1:min(10, nrow(accessions_per_location)),] |>
-  flextable() |>
-  set_caption(caption = paste0("Locations of Endemic Speices Accessioned since ", recent_year)) |> 
-  font(fontname = "Calibri (Body)", part = "all") |> 
-  fontsize(size = table_font_size, part = "body") |> 
-  # add footer if you want
-  # add_footer_row(values = "* p < 0.05. ** p < 0.01. *** p < 0.001.", 
-  #                colwidths = 4) |> 
-  theme_booktabs() |> # default theme
-  autofit()
-}
+```{r, Create  taxonomic diversity at genus with contained/missing, echo = F}
 if(report_kind == 'interactive'){
-  DT::datatable(accessions_per_location, rownames = FALSE,  options = list(dom = 'tp',pageLength =  5))
+ fig <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'sunburst',
+                             insidetextorientation='radial',
+                             branchvalues = 'total',
+                             maxdepth = 4,
+                             marker=list(colors=data_formatted$Col, line = list(color = 'white')),
+                             hoverinfo = "text",  hovertext = data_formatted$hover
+                             )
+
+ fig2 <- plotly::plot_ly(data_formatted,
+                             ids = ~ID,
+                             labels = ~labels,
+                             parents =~parents,
+                             values = ~values,
+                             type = 'treemap',
+                             branchvalues = 'total',
+                             maxdepth = 4,
+                             marker=list(colors=data_formatted$Col, line = list(color = 'white')),
+                         hoverinfo = "text",  hovertext = data_formatted$hover)
+                        
+if(separate_figure_folder){
+  htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','sunburst:taxonomic_diversity.html'))
+  htmlwidgets::saveWidget(fig2, file = paste0(figures_dir, '/','treemap:taxonomic_diversity.html'))
+}
+
 }
 ```
 
-We can use the accession year (no date available) and item status date to calculate how many of the recently accessioned endemic species were new to the LC at the time of accessioning. We do have to be slightly careful since we could have a new accession in the same year as the last previous item of that taxa dying in the same year. In this case, we cannot be sure if the accessioning occurred before or after the plant died. In this case we shall make a note, and class it as "unsure".
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
-Of the `r nrow(new_endemic_accessions)` taxa accessioned `r sum(grepl('Never in LC before', new_endemic_accessions$alive_prior_accession))` were never previously held in the LC. Of those that have being in the LC before (`r sum(new_endemic_accessions$alive_prior_accession != 'Never in LC before')`) `r sum(grepl('^\\(0, 0', new_endemic_accessions$alive_prior_accession))` were not existing at the time of accessions, `r sum(grepl('^\\(0, [1-9]', new_endemic_accessions$alive_prior_accession))` are unsure if they were existing at time of accessioning and `r sum(grepl('^\\([1-9]', new_endemic_accessions$alive_prior_accession))` were already held in the LC.
+`r if(report_kind == 'interactive'){"###### Sunburst"}`
+```{r  Sunburst genera, fig.fullwidth=TRUE, fig.dim = c(10, 8), eval = report_kind == 'interactive'}
+fig
+```
 
-Of the recently accessioned endemic species `r sum(new_endemic_accessions$no_dead)` items have died, resulting to `r sum(new_endemic_accessions$no_dead == new_endemic_accessions$no_items_in_LC)` taxa having net no new accessions/items since `r recent_year` (i.e all accessioned items have died). This includes `r sum(new_endemic_accessions$no_dead == new_endemic_accessions$no_items_in_LC & grepl('Never in LC before', new_endemic_accessions$alive_prior_accession))` taxa which were never previously held in the LC. 
+`r if(report_kind == 'interactive'){"###### Treemap"}`
+```{r  tree map genera, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+fig2
+```
 
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***

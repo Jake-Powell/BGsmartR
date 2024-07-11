@@ -1,5 +1,5 @@
 ---
-title: "Data health of the LC and enhancement"
+title: "Data health and enhancement"
 output: html_document
 ---
 
@@ -71,7 +71,7 @@ palette = 'Oranges'
   left: 0;
   right: 0;
   bottom: 0;
-  background: #2098D1;
+  background: #f46d43;
   -webkit-transform: scaleX(0);
   transform: scaleX(0);
   -webkit-transform-origin: 100% 50%;
@@ -89,6 +89,16 @@ palette = 'Oranges'
 .hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
   -webkit-transform: scaleX(1);
   transform: scaleX(1);
+}
+
+.blackbox {
+  padding: 1em;
+  background: #FDAE6B;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
 }
 ```
 
@@ -252,9 +262,9 @@ enriched_report$geography_codes = level3codes
 `r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
 
 `r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: Each item is assumed to be a unique accession.\n"}`
-`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to POWO will be used (No non-vascular families). \n"}`
-`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to POWO will be used."}`
-`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in POWO will be used."}`
+`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to WCVP will be used (No non-vascular families). \n"}`
+`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to WCVP will be used."}`
+`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in WCVP will be used."}`
 `r if(!'AccYear' %in% names(enriched_report)){"- AccYear: All Accession years set to missing. \n"}`
 `r if(!'ItemStatusDate' %in% names(enriched_report)){"- ItemStatusDate: All set to missing. \n"}`
 `r if(!'ItemStatusType' %in% names(enriched_report)){"- ItemStatusType: All set to exisiting. \n"}`
@@ -410,7 +420,7 @@ if(separate_figure_folder){
 ```
 
 
-This report explores data health within `r collection`, and data enhancement.
+This report explores data health within `r collection`, and routes to data enhancement.
 
 
 ## Taxonomic Standardisation
@@ -563,7 +573,7 @@ The process is outlined in the figure below which visualises the process as pass
 <!-- `r if(report_kind == 'interactive'){"#####   {.tabset}"}` -->
 <!-- `r if(report_kind == 'interactive'){"###### Chart"}` -->
 
-`r funnel_fig`
+`r if(report_kind == 'interactive'){funnel_fig}`
 
 
 <!-- `r if(report_kind == 'interactive'){"###### Table"}` -->
@@ -580,8 +590,7 @@ matching_details_table
 
 Accession level information of taxonomic matching to WCVP can be downloaded using the button below.
 
-
-```{r}
+```{r, eval = report_kind == 'interactive'}
 export_df |>
   download_this(
     output_name = "matching_information",
@@ -595,11 +604,14 @@ export_df |>
   )
 ```
 
+
+***
+
 ## Data Enrichment
 
 In this section we produce visuals using the enriched information added to the collection via BGSmartR.
 
-```{r, download enrichment info}
+```{r, download enrichment info, eval = report_kind == 'interactive'}
 interest = report[c('AccNoFull',
                     'TaxonNameFull',
                     'best_name',
@@ -644,17 +656,17 @@ enrich_download = interest |>
 ```
 
 You can download a selection of enrichment data for the collection (BRU codes, Distribution description from interpretation of BRU codes,
-Distribution description from POWO,
+Distribution description from WCVP,
 Taxa labelled as endemic to 1 BRU level 3 area (or not endemic),
 Taxa labelled as native to the country where the collection is located (or non-native),
-Lifeform from POWO,
-Habitat from POWO,
+<!-- Lifeform from WCVP, -->
+<!-- Habitat from WCVP, -->
 Taxa labelled as tree (or not a tree) according to BGCI's GlobalTreeSearch,
 IUCN red-list category,
 Rarity in cultivation
 ) using the download button below. 
 
-`r enrich_download`
+`r if(report_kind == 'interactive'){enrich_download}`
 
 ### Geographic regions of plants in the collection
 
@@ -859,7 +871,7 @@ By enriching the collection with information from WCVP we retrieve geographic di
 
 Below we produce a map of the geographic regions represented in the collection together with the number of individuals in the collection that are native (not-extinct, not doubtful) to each region specified by WCVP. 
 
-```{r, fig.dim=c(8,6), fig.align = "left"}
+```{r, fig.dim=c(8,6), fig.align = "left", eval = report_kind == 'interactive'}
 map_items
 ```
 
@@ -870,103 +882,154 @@ Within the collection there are `r regions_missing |> length()` regions that are
 
 Plants that belong to a single region are classed as endemic. The number of endemic plants in the collection is outlined below. 
 
-```{r, fig.dim=c(8,6), fig.align = "left"}
+```{r, fig.dim=c(8,6), fig.align = "left", eval = report_kind == 'interactive'}
 map_endemic
 ```
 
 ***
 
-### Proportion of the collection that are trees
+### Proportion of the collection by enriched information
 
-```{r, proportion of trees in collection}
-### Create location data (for items and endemic) ----
-interest = report[c('AccNoFull', 'Enrich_is_tree')]
+Within the enrichment process we extract the number of trees, endemic, threatened and native (to `r location_name`) plants within the collection. 
 
-no_tree = sum(interest$Enrich_is_tree, na.rm = T)
-percent_tree = (no_tree / nrow(interest)*100) |> round(2)
+Below we show the proportion of the collection that are in the categories above. 
+
+```{r, percent enrich info}
+interest = report[report$ItemStatusType == 'Existing',]
+tree = rep('Not tree',nrow(interest))
+tree[which(interest$Enrich_is_tree)] = 'Tree'
+interest$tree = tree
+type  = rep(NA, nrow(interest))
+type[grepl('1', interest$taxon_type)] = 'Species'
+type[grepl('0', interest$taxon_type)] = 'Indeterminate'
+type[grepl('2|3|4', interest$taxon_type)] = 'Infraspecific'
+type[grepl('6', interest$taxon_type)] = 'Hybrid'
+type[grepl('5', interest$taxon_type)] = 'Cultivar'
+interest$type_plant = type
+rarity = rep('Unknown', nrow(interest))
+rarity[interest$no_gardens == 1] = 'Unique'
+rarity[interest$no_gardens %in% c(2:10)] = 'Very Rare'
+rarity[interest$no_gardens %in% c(11:50)] = 'Rare'
+rarity[interest$no_gardens %in% c(51:100)] = 'Common'
+rarity[interest$no_gardens %in% c(101:10000)] = 'Very Common'
+interest$rarity = rarity
+
+interest = interest |>
+  group_by(AccNoFull) |>
+  summarise(type_plant = type_plant[1],
+            ProvenanceCode = ProvenanceCode[1],
+            tree = tree[1],
+            rarity = rarity[1],
+            native = native[1],
+            endemic = endemic[1],
+            threatened = threatened[1],
+            POWO_plant_name_id = POWO_plant_name_id[1],
+            items = length(.data$AccNoFull))
+interest$items[interest$items > 4] = '> 4'
+
+# interest_taxa = interest |>
+#   group_by(AccNoFull) |>
+#   summarise(type_plant = type_plant[1],
+#             taxo_group = taxo_group[1],
+#             tree = tree[1],
+#             rarity = rarity[1],
+#             native = native[1],
+#             endemic = endemic[1],
+#             threatened = threatened[1],
+#             items = length(.data$AccNoFull))
+# interest_taxa$items[interest$items > 5] = '6+'
+
+# factoring groups for order in plot.
+interest$rarity = factor(interest$rarity,
+                             levels = c('Unique', 'Very Rare', 'Rare', 'Common', 'Very Common', 'Unknown'))
+interest$type_plant = factor(interest$type_plant,
+                             levels = c('Species', 'Infraspecific', 'Hybrid', 'Indeterminate', 'Cultivar'))
+interest$native = factor(interest$native, levels = c("Native","Non-native"))
+interest$endemic = factor(interest$endemic, levels = c("Endemic", "Not Endemic"))
+interest$threatened = factor(interest$threatened, levels = c("Threatened", "Not Threatened"))
+interest$tree = factor(interest$tree, levels = c("Tree", "Not tree"))
+interest$ProvenanceCode = factor(interest$ProvenanceCode, levels = c("Wild" , "Wild-derived", "Garden", "Unknown" ))
+interest$items = factor(interest$items, levels = c('1','2','3','4','> 4' ))
+interest_POWO = interest[which(!is.na(interest$POWO_plant_name_id)),]
+
+
+# Extract the wanted information for the composition.
+quant = c( 'tree', 'native', 'endemic', 'threatened')
+info = pbapply::pblapply(quant, function(q){
+  table_counts = interest |> dplyr::count(across(q))
+  table_counts$percent = round(table_counts$n/ sum(table_counts$n) *100, digits = 2)
+  table_counts$type = 'Whole collection'
+  if(nrow(table_counts) %in% c(1,2)){
+    table_counts$colors = color_binary[1:nrow(table_counts)] |> rev()
+  }else if(nrow(table_counts) %in% c(3,4)){
+    table_counts$colors = interactive_colour(nrow(table_counts))
+  }else{
+    table_counts$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts))
+  }
+  
+  table_counts_POWO = interest_POWO |> dplyr::count(across(q))
+  table_counts_POWO$percent = round(table_counts_POWO$n/ sum(table_counts_POWO$n) *100, digits = 2)
+  table_counts_POWO$type = 'Match POWO only'
+  if(nrow(table_counts_POWO) %in% c(1,2)){
+    table_counts_POWO$colors = color_binary[1:nrow(table_counts_POWO)] |> rev()
+  }else if(nrow(table_counts_POWO) %in% c(3,4)){
+    table_counts_POWO$colors = interactive_colour(nrow(table_counts_POWO))
+  }else{
+    table_counts_POWO$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts_POWO))
+  }
+  
+  comb = rbind(table_counts, table_counts_POWO)
+  names(comb) = c('category', 'n', 'percent', 'type', 'color')
+  comb$collect_part = q
+  comb
+  
+})
+names(info) =  c( 'Tree', 'Native', 'Endemic', 'Threatened')
+# info$family_use = info$family_use[order(info$family_use$n, decreasing = T),]
+comb = do.call('rbind',info)
+# comb$category = factor(comb$category, levels = unique(comb$category))
+comb$collect_part  = comb$collect_part |> dplyr::case_match("type_plant" ~ 'Type of Plant',
+                                       "ProvenanceCode" ~ 'Provenance',
+                                       "taxo_group" ~ 'Taxonomic <br> Composition',
+                                        "tree" ~ 'Tree',
+                                        "rarity" ~'Rarity',
+                                       'items' ~ 'Duplication',
+                                        "native" ~ 'Native',
+                                        "endemic" ~ 'Endemic',
+                                        "threatened" ~ 'Threatened')
+comb$collect_part = factor(comb$collect_part, levels = rev(unique(comb$collect_part)))
+comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', comb$category)
+        
+comb$color[which(comb$category == 'Tree')]   = '#f46d43'  
+comb$color[which(comb$category == 'Not tree')]   = '#848484'    
+
+  
+
+### Create the horizontal bar plots.
+comb_cur = comb[comb$type == 'Whole collection',]
+hor_stack_bar_plot = plot_ly(comb_cur,
+                             type = 'bar',
+                             y = ~collect_part,
+                             x = ~percent,
+                             group = ~category,
+                             # colors = ~color,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = FALSE,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of collection (accessions)"),
+                 yaxis = list(title = ''),barmode = 'stack'
+                 # hovermode = 'y unified'
+  )
+
+
 ```
 
-We also match the plants in the collection against BGCI's GlobalTreeSearch where we found `r no_tree |> format(big.mark = ',')` trees in the collection accounting for `r percent_tree`% of all plants in the collection.
+`r if(report_kind == 'interactive'){hor_stack_bar_plot}`
 
 
 ***
 
-### Proportion of native plants
-
-`r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",location_name,".")}`
-`r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",location_name,".")}`
-Therefore, any taxa whose geographic distribution (`r location_type_text`) includes `r location_name` is classed as native to the LC. Otherwise taxa are classed as non-native.
-
-The location of the LC and the native region are outlined below.
-
-```{r, LC location and native region plot}
-collection_geog_details = collection_geog_details_og
-collection_geog_details$occurrence_type = 'native'
-lims <- st_bbox(collection_geog_details)
-p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=TRUE) + 
-  theme(legend.position="none") +
-  geom_sf(data=pnts_sf, fill=interactive_colour(1),col=interactive_colour(1), shape=20, size = 3) +
-  coord_sf(xlim=lims[c(1,3)], ylim=lims[c(2,4)]) +
-  theme(legend.position = "none",
-        axis.line=element_blank(),
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        plot.title = element_text(hjust = 0.5))
-native_plot = p
-if(separate_figure_folder){
-ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','Map_LC_location_and_native region.pdf'),device = 'pdf', scale = 1, limitsize = FALSE)
-}
-
-interest = report[c('AccNoFull','best_name','endemic')]
-interest_taxa = interest[match(unique(interest$best_name),interest$best_name), ]
-
-endemic_items = sum(interest$endemic == 'Endemic')
-endemic_items_percent = (endemic_items/nrow(interest) *100) |>  round(2)
-endemic_taxa = sum(interest_taxa$endemic == 'Endemic')
-endemic_taxa_percent = (endemic_taxa/nrow(interest_taxa) *100) |>  round(2)
-
-```
-
-```{r, create native map, fig.dim=c(5,5), fig.align='center'}
-native_plot
-```
-
-`r endemic_items |> format(big.mark =',')` (`r endemic_items_percent`%) individuals in the collection are native, this corresponds to `r endemic_taxa  |> format(big.mark =',')` (`r endemic_taxa_percent`%) taxa.
-
-
-***
-
-### Lifeform and climate of plants in the collection
-
-```{r, lifeform and climate descriptions}
-### Create location data (for items and endemic) ----
-interest = report[c('AccNoFull', 'POWO_lifeform_description', 'POWO_climate_description')]
-
-lifeforms = table(interest$POWO_lifeform_description) |> data.frame()
-set.seed(33)
-lifeform_wordcloud = wordcloud2::wordcloud2(data = lifeforms, shape = 'pentagon', minSize = 1, shuffle = FALSE)
-```
-
-Within WCVP plants are tagged with a lifeform and a climate description. Below we visualise the most common (by number of individuals) lifeform and climate description of plants found in the collection. 
-
-##### Lifeform
-
-`r lifeform_wordcloud`
-
-##### Climate
-
-```{r}
-climate_data <- table(interest$POWO_climate_description) |> data.frame()
-names(climate_data) = c('word', 'freq')
-climate_data <- climate_data[climate_data$freq |> order(decreasing = T),]
-```
-
-`r wordcloud2::wordcloud2(data = climate_data, shape = 'pentagon', size = 1)`
-
-***
 
 ### Change in IUCN RedListed plants 
 
@@ -1114,17 +1177,17 @@ In the enrichment process we match the original taxonomic names and those matche
 
 `r if(report_kind == 'interactive'){"###### Taxa"}`
 
-`r figs$taxa`
+`r if(report_kind == 'interactive'){figs$taxa}`
 
 `r if(report_kind == 'interactive'){"###### Individuals"}`
 
-`r figs$individuals`
+`r if(report_kind == 'interactive'){figs$individuals}`
 
 `r if(report_kind == 'interactive'){"###### Tables"}`
 
 **Taxa**
 
-```{r}
+```{r, eval = report_kind == 'interactive'}
 table_taxa |> DT::datatable(rownames = FALSE,
                  options = list(scrollX = TRUE,
                                 pageLength = nrow(table_taxa),
@@ -1135,7 +1198,7 @@ table_taxa |> DT::datatable(rownames = FALSE,
 
 **Individuals**
 
-```{r}
+```{r, eval = report_kind == 'interactive'}
 table_item |> DT::datatable(rownames = FALSE,
                  options = list(scrollX = TRUE,
                                 pageLength = nrow(table_item),
@@ -1149,7 +1212,7 @@ table_item |> DT::datatable(rownames = FALSE,
 ***
 
 
-## Data Enhancement
+## Data Enhancement Recommendations
 
 ```{r Data Enhancement information}
 ### Reduce to only the fields that we care about.  ----
@@ -1180,13 +1243,13 @@ ItemStatusDate_details = data.frame(type = c('Missing entirely',
                                              'Only contains the year',
                                              'Only contains the year and month',
                                              'The year is after the current year',
-                                             'The year is prior to 1650',
+                                             # 'The year is prior to 1650',
                                              'The year is prior to the item been accessioned'),
                                     value =  c(length(missing),
                                                length(year_only),
                                                length(year_month_only),
                                                length(year_after_current),
-                                               length(year_too_old),
+                                               # length(year_too_old),
                                                length(before_acc_year))
                               ) 
 ItemStatusDate_details = ItemStatusDate_details[ItemStatusDate_details$value > 0,]
@@ -1199,8 +1262,10 @@ ItemStatusDate_details_table = ItemStatusDate_details |>
                                 paging=FALSE,
                                 ordering = FALSE))
 
-issue_index_for_plot = unique(c(missing, year_after_current, year_too_old))
-issue_df = interest[unique(c(missing, year_only, year_month_only, year_after_current, year_too_old, before_acc_year)),]
+issue_index_for_plot = unique(c(missing, year_after_current, year_too_old
+                                ))
+issue_df = interest[unique(c(missing, year_only, year_month_only, year_after_current,# year_too_old,
+                             before_acc_year)),]
 
 ItemStatusIssue_download = issue_df |>
   download_this(
@@ -1220,14 +1285,16 @@ ItemStatusIssue_download = issue_df |>
 ### Find the number of AccYear that are missing any information or incorrect ----
 missing = which(interest$AccYear == '' |is.na(interest$AccYear))
 year_after_current = which(interest$AccYear > year_cur)
-year_too_old = which(interest$AccYear < 1650)
+# year_too_old = which(interest$AccYear < 1650)
 
 AccYear_details = data.frame(type = c('Missing entirely',
-                                             'The year is after the current year',
-                                             'The year is prior to 1650'),
+                                             'The year is after the current year'
+                                             # 'The year is prior to 1650'
+                                      ),
                                     value =  c(length(missing),
-                                               length(year_after_current),
-                                               length(year_too_old))
+                                               length(year_after_current)
+                                               # length(year_too_old)
+                                               )
                               ) 
 AccYear_details = AccYear_details[AccYear_details$value > 0,]
 names(AccYear_details) = c('Issue', 'Total individuals')
@@ -1239,7 +1306,9 @@ AccYear_details_table = AccYear_details |>
                                 paging=FALSE,
                                 ordering = FALSE))
 
-issue_AccYear_df = interest[unique(c(missing, year_after_current, year_too_old)),]
+issue_AccYear_df = interest[unique(c(missing, year_after_current
+                                     # year_too_old
+                                     )),]
 AccYear_download = issue_AccYear_df |>
   download_this(
     output_name = "Accession Year issues",
@@ -1384,30 +1453,82 @@ old5yr_download = data |>
 
 ### (END)Create table of accessions not updated in last 5 years ----
 
+### Create table after for most recent accession/item update.
+table_data = data.frame(year = last_update_acc$year,
+                        accessions = last_update_acc$no_acc,
+                        acc_cum = last_update_acc$cumulative,
+                        items = last_update_items$no_items,
+                        items_cum = last_update_items$cumulative)
+names(table_data) = c('Year', 'Number of <br> Accessions', 'Cumulative Number<br>of Accessions',
+                      'Number of <br> individuals', 'Cumulative Number<br>of individuals')
+
+table_data_form = table_data |> DT::datatable(extensions = 'Buttons',
+                rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               pageLength = min(10, nrow(table_data)),
+                               dom = 'Btp',
+                               buttons = c('copy', 'csv', 'excel', 'pdf'),
+                               paging=ifelse( nrow(table_data) < 10, FALSE, TRUE),
+                               ordering=T),
+                escape = F,
+                filter = 'top')
+### (END) Create table
+
+### Create pie chart
+### (END) Create pie chart
+
+### Find provenance issues
+interest = report$ProvenanceCode[report$ItemStatusType == 'Existing']
+unique_prov = unique(interest)
+prov_issue = unique_prov[!unique_prov %in% c("Unknown", "Garden", "Wild", "Wild-derived")]
+
+prov_issue_flag = ifelse(length(prov_issue)>0, TRUE,FALSE)
+
+if(prov_issue_flag){
+  table_prov_issue = prov_issue |> table()
+  names(table_prov_issue) = c('Provenance', 'Number of Individuals')
+  table_prov_issue = table_prov_issue |>DT::datatable(rownames = FALSE,
+                 options = list(scrollX = TRUE,
+                                pageLength = nrow(table_prov_issue),
+                                dom = 'tp',
+                                paging=FALSE,
+                                ordering = FALSE))
+}
+### (END) Find provenance issues
 ```
+
+`r if(prov_issue_flag){'### Provenance issues'}`
+
+`r if(prov_issue_flag){paste0('There are ', length(prov_issue), ' individuals that have none-standard provenance codes, these are highlighted in the table below. ')}`
+
+`r if(prov_issue_flag & report_kind == 'interactive'){table_prov_issue}`
+
+`r if(prov_issue_flag){'***'}`
 
 ### Most recent status update issues
 
-Within the collection there are `r nrow(issue_df)` existing individuals that have potential issues with their most recent status update date. The issues are summarised in the table below. 
+Within the collection there are `r nrow(issue_df)` existing individuals that have potential issues with their most recent status update date. 
+`r if( nrow(issue_df) > 0){"The issues are summarised in the table below."}` 
 
 
-`r ItemStatusDate_details_table`
+`r if( nrow(issue_df) > 0 & report_kind == 'interactive'){ItemStatusDate_details_table}`
 
-Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below.
+`r if( nrow(issue_df) > 0){"Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below."}`
 
-`r ItemStatusIssue_download`
+`r if( nrow(issue_df) > 0 & report_kind == 'interactive'){ItemStatusIssue_download}`
 
 ***
  
 ### Accession year issues
 
-Within the collection there are `r nrow(issue_AccYear_df)` existing individuals that have potential issues with their accession year. The issues are summarised in the table below. 
+Within the collection there are `r nrow(issue_AccYear_df)` existing individuals that have potential issues with their accession year. 
+`r if( nrow(issue_AccYear_df) > 0){"The issues are summarised in the table below."}`
 
-`r AccYear_details_table`
+`r if( nrow(issue_AccYear_df) > 0 & report_kind == 'interactive'){AccYear_details_table}`
 
-Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below.
+`r if( nrow(issue_AccYear_df) > 0){"Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below."}`
 
-`r AccYear_download`
+`r if( nrow(issue_AccYear_df) > 0 & report_kind == 'interactive'){AccYear_download}`
 
 ***
 
@@ -1421,29 +1542,35 @@ In this section we explore how recently individuals and accessions have been upd
 
 **Number each year**
 
-`r figs$items$date`
+`r if(report_kind == 'interactive'){figs$items$date}`
 
 **Number with status date year equal to or before**
 
-`r figs$items$cum`
+`r if(report_kind == 'interactive'){figs$items$cum}`
 
 
 `r if(report_kind == 'interactive'){"###### Accessions"}`
 
 **Number each year**
 
-`r figs$acc$date`
+`r if(report_kind == 'interactive'){figs$acc$date}`
 
 **Number with status date year equal to or before**
 
-`r figs$acc$cum`
+`r if(report_kind == 'interactive'){figs$acc$cum}`
+
+`r if(report_kind == 'interactive'){"###### Table"}`
+
+**Table of most recent accession year (including cumulative)**
+
+`r if(report_kind == 'interactive'){table_data_form}`
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
 
 Use the button below to download individuals in the collection that haven't been updated since `r year_cur - 5`. 
 
-`r old5yr_download`
+`r if(report_kind == 'interactive'){old5yr_download}`
 
 
 ***

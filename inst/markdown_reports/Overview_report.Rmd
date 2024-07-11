@@ -22,7 +22,7 @@ library(ggrepel)
 library(downloadthis)
 
 interactive_colour <- function(n){
-  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
   if(n==2){
     return(color[c(1,4)])
   }
@@ -488,7 +488,7 @@ no_taxa = length(unique(interest$taxa_use)[!is.na(unique(interest$taxa_use))])
 
 
 basics = data.frame(count = c(no_items,no_accessions, no_taxa, no_species), objects = factor(x = c("Items", "Accessions", "Taxa", "Species"), levels = c("Items", "Accessions", "Taxa","Species")) )
-basics$colors = rep(bar_col_alpha, nrow(basics))
+basics$colors = rep(interactive_colour(1), nrow(basics))
 basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
 
 if(report_kind == 'interactive'){
@@ -497,7 +497,6 @@ if(report_kind == 'interactive'){
          xaxis = list(title = ""),
          yaxis = list (title = "Number")) 
 
-fig = fig |> htmlwidgets::onRender(render_barplot)
 
 if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar_how_many_elements.html'))
@@ -518,8 +517,8 @@ species = unique(interest$genus_species_use[!grepl('5|6|0',interest$taxon_type)]
 no_species = species[!is.na(species)] |> length()
 no_taxa = length(unique(interest$taxa_use)[!is.na(unique(interest$taxa_use))])
 
-basics = data.frame(count = c(no_family,no_genera, no_species, no_taxa), objects = factor(x = c("Families", "Genera", "Species", "Taxa"), levels = c("Families", "Genera", "Species", "Taxa")) )
-basics$colors = rep(bar_col_alpha, nrow(basics))
+basics = data.frame(count = c(no_family,no_genera, no_species, no_taxa), objects = factor(x = c("Families", "Genera", "Species", "Taxa"), levels = rev(c("Families", "Genera", "Species", "Taxa")) ))
+basics$colors = rep(interactive_colour(1), nrow(basics))
 basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
 
 
@@ -527,7 +526,6 @@ basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
          xaxis = list(title = ""),
          yaxis = list (title = "Number")) 
 
-fig = fig |> htmlwidgets::onRender(render_barplot)
 
 if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Bar_how_many_each_taxonomic_unit.html'))
@@ -537,15 +535,6 @@ fig
 
 ```
 
-Where in the above figures 
-
-- Families: The number of families found in the report (using matched POWO record where possible).
-- Genera: The number of genera found in the report using matched POWO record where possible).
-- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example Tephrosia longipes var. drummondii would be condensed to the species Tephrosia longipes using matched POWO record where possible).
-- Genera: The number of unique taxonomic name and authorities found in the report  (including hybrids, cultivars, indeterminate)(using matched POWO record where possible).
-- Taxa: The number of taxa in the report. 
-- Accessions: The number of accessions in the report.
-- Items: The number of records in the report.
 
 
 
@@ -640,8 +629,7 @@ info = pbapply::pblapply(quant, function(q){
   comb = rbind(table_counts, table_counts_POWO)
   names(comb) = c('category', 'n', 'percent', 'type', 'color')
   comb$collect_part = q
-  comb
-  
+  return(comb)
 })
 names(info) =  c('Type of Plant', 'Provenance', 'Taxonomic <br> Composition', 'Tree', 'Rarity', 'Duplication', 'Native', 'Endemic', 'Threatened')
 # info$family_use = info$family_use[order(info$family_use$n, decreasing = T),]
@@ -661,17 +649,19 @@ comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', com
         
 
 # Manual fix colours
-comb$color[which(comb$category == 'Unique')]   = '#f46d43'  
-comb$color[which(comb$category == 'Very Rare')]   = '#41ab5d'  
-comb$color[which(comb$category == 'Rare')]   = '#78c679'  
-comb$color[which(comb$category == 'Common')]   = '#addd8e' 
-comb$color[which(comb$category == 'Very Common')]   = '#d9f0a3' 
+colo = scales::brewer_pal(palette = palette, direction = 1)(5) |> rev()
+comb$color[which(comb$category == 'Unique')]   =colo[1]
+comb$color[which(comb$category == 'Very Rare')]   =colo[2]
+comb$color[which(comb$category == 'Rare')]   = colo[3]  
+comb$color[which(comb$category == 'Common')]   = colo[4]
+comb$color[which(comb$category == 'Very Common')]   =colo[5]
 comb$color[which(comb$category == 'Unknown')]   = '#848484'
   
-comb$color[which(comb$category == 'Wild')]   = '#f46d43'
-comb$color[which(comb$category == 'Wild-derived')]   = '#50c1dc'
-comb$color[which(comb$category == 'Garden')]   = '#848484'
-comb$color[which(comb$category == 'Unknown')]   = '#e6e6e6'
+colo = interactive_colour(4)
+comb$color[which(comb$category == 'Wild')]   = colo[1]
+comb$color[which(comb$category == 'Wild-derived')]   = colo[2]
+comb$color[which(comb$category == 'Garden')]   = colo[3]
+comb$color[which(comb$category == 'Unknown')]   = colo[4]
   
 comb$color[which(comb$category == 'Tree')]   = '#f46d43'  
 comb$color[which(comb$category == 'Not tree')]   = '#848484'    
@@ -713,22 +703,15 @@ hor_stack_bar_plot_POWO_only = plot_ly(comb_cur,
   )
 
 
+### Create individual donut charts for each row in the combined plot.
+# quant = c('type_plant', 'ProvenanceCode', 'taxo_group', 'rarity', 'items',  'tree', 'native', 'endemic', 'threatened')
+# lapply(quant, function(x){
+#   data_cur = comb[comb$type == "Whole collection" & comb$collect_part == x,]
+#   
+# })
 
 ```
 
-Next we look at various sub-collections within the collection and their size relative to the whole collection and relative only plants we have successfully matched to POWO (i.e. only the plants where we know the geographic distribution of the plants).
-
-The metrics include:
-
-* *Type of Plant*: classifies taxa into species, infraspecific, hybrids, indeterminates, cultivars and non-classified (NA).
-* *Provenance*: groups accessions into those of wild origin, wild-derived origin, garden origin or unknown origin.
-* *Taxonomic Composition*: groups taxa into Eudicots, Monocots, Ferns, Gymnosperms, Lycophytes, Bryophytes, Hornworts, Liverworts and Mosses (where they exist in the collection).
-* *Tree*: Uses BGCI's GlobalTreeSearch database to split the collection into trees and non-trees.
-* *Rarity*: Uses BGCI's PlantSearch to ascertain how many collections a plant if found in, these are then grouped into unique (a single collection), very rare (between 2 and 10 collections), rare (between 11 and 50 collections), common  (between 51 and 100 collections) and very common  (over 100 collections). PLants not found in BGCI's PlantSearch are classed as unknown.
-* *Duplication*: groups accessions by the number of individuals each accession is made of (where those with more than 5 individuals are grouped together)
-* *Native*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of plants native to the collection (belonging to `r location_name`).
-* *Endemic*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of endemic plants (those that belong to a single BRU level 3 region).
-* *Threatened*: Uses IUCN's RedList to determine which plants in the collection are classed as threatened (red list category of either vulnerable, endangered, critically endangered, extinct in the wild and extinct).
 
 
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
@@ -738,10 +721,7 @@ The metrics include:
 hor_stack_bar_plot
 ```
 
-`r if(report_kind == 'interactive'){"###### Only those that match WCVP"}`
-```{r  composition only those in WCVP, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
-hor_stack_bar_plot_POWO_only
-```
+
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
@@ -750,7 +730,7 @@ hor_stack_bar_plot_POWO_only
 
 ### Geographic distribution of the collection
 
-```{r, Map represented areas by number of species (entire collection; Geography module),  fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+```{r, Map represented areas by number of species (entire collection; Geography module),  fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
 interest = report[report$ItemStatusType == 'Existing',]
 
 # Restrict to only those matched to WCVP.
@@ -973,7 +953,7 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
       zoom =0.46,
       lataxis = list(range = c(-59, 90)))
   ) |>
-    colorbar(title = "")
+    colorbar(title = "Number of <br> species")
 
 
   fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
@@ -987,7 +967,7 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
 ```
 ***
 
-### How the collection has changed over time
+### Trend analysis
 
 ```{r extract change over time}
 interest = report
@@ -1022,7 +1002,7 @@ group_trend_plots <- function(years, data, name, report_kind, separate_figure_fo
         guides(color=guide_legend(title=paste0(name))) + 
         labs(title="",
             x ="Year",
-            y = stringr::str_wrap(paste0("Number of ", data_type),width = 18)) +
+            y = stringr::str_wrap(paste0("Number of ", data_type |> tolower()),width = 18)) +
              scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0, 0)) +
         theme(legend.position="bottom")
@@ -1055,7 +1035,7 @@ group_trend_plots <- function(years, data, name, report_kind, separate_figure_fo
     # fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', line = list(color = interactive_colour(length(unique(dd$group)))))
     fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', colors = interactive_colour(length(unique(dd$group))))
 
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                        xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
@@ -1223,7 +1203,7 @@ for(i in 1:length(to_plot)){
 
 fig <- fig |> layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "")) 
+         yaxis = list (title = "% of maximum")) 
 fig <- fig |> layout(hovermode = 'x unified',
          yaxis = list(showline= F,
                       showticklabels = F
@@ -1346,7 +1326,7 @@ for(i in 1:length(to_plot)){
 
 fig <- fig |> layout(title = "",
          xaxis = list(title = "Year"),
-         yaxis = list (title = "")) 
+         yaxis = list (title = "% of maximum")) 
 fig <- fig |> layout(hovermode = 'x unified',
          yaxis = list(showline= F, showticklabels = F),
          margin = list(l=0, r=0, t=20, b=0, pad = 4),
@@ -1364,7 +1344,7 @@ fig
 
 ***
 
-####  By provenance 
+#### For provenance 
 
 ```{r, Change over time proportion by provenance (entire collection; Trends module)}
 
@@ -1376,7 +1356,9 @@ no_prov = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   return(no_prov)
   }))))
 names(no_prov) = Provenance_categories
-no_prov = no_prov[,match(c('Wild', 'Wild-derived', 'Garden', 'Unknown'), names(no_prov))] # Choose the ordering we want
+cats = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+index = match(cats, names(no_prov)) ; index = index[!is.na(match(cats, names(no_prov)))]
+no_prov = no_prov[,index ] 
 
 int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
 
@@ -1401,7 +1383,7 @@ int_plots$proportion
 
 ***
 
-### Turnover
+### Turnover analysis
 
 ```{r, Get Trends, echo = F}
 interest = report
@@ -1462,6 +1444,8 @@ names(trends) = names(plant_existing)
 ```
 
 ```{r, functions for turnover}
+color_binary <- c('#f46d43', '#e6e6e6')
+
 turnover_items <- function(report){
   report = report[(report$LossYear >= min_year & report$LossYear <= max_year) | is.na(report$LossYear),]
   combined = data.frame(Year = years)
@@ -1555,9 +1539,9 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
   if(report_kind == 'interactive'){
     # gain_loss plot
-    colors = c("lightblue", "pink")
+    colors = color_binary |> rev()
     fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
@@ -1567,14 +1551,14 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     fig1 = fig
     
     # net plot
-    colors = c("pink", "lightblue")
-    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    colors = color_binary |> rev()
+    color <- ifelse(turnover$net_items < 0, colors[1], colors[2])
     texto = paste0('Net: ', turnover$net_items, '<br>',
                    'Gain: ', turnover$gain_items, '<br>',
                    'Loss: ', turnover$loss_items, '<br>'
     )
     fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
-    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     
@@ -1586,7 +1570,7 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     # Trend plot.
     trend_data = data.frame(year = turnover$Year, trend = trend)
     fig = plot_ly(trend_data, x = ~year, y = ~trend, type = 'scatter', mode = 'line', hoverinfo = "x+text", hovertext = trend)
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
+    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
     fig3= fig
@@ -1640,8 +1624,14 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
 }
 
-proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
-                                        report_kind, text = '', data_type = 'items'){
+proportional_plots_turnover <- function(turnover,
+                                        overall_turnover,
+                                        collection_proportion,
+                                        separate_figure_folder, 
+                                        report_kind,
+                                        text = '',
+                                        data_type = 'items',
+                                        quantity = ''){
   if(report_kind == 'static'){
     # Gain
     plot_data = data.frame(year = turnover[,1],
@@ -1697,12 +1687,24 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_gain = plot_data
-    
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar',
+                  name = paste0('New accessions'),
+                  marker = list(color = color_binary[2]),
+                  hovertemplate = paste("%{y:.2f}% of new accessions <extra></extra>")
+                  )
+                  
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                             hovertemplate = paste("%{y:.2f}% of the collection <extra></extra>")
+                            )
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         xaxis = list(hoverformat = paste0('fvf')),
+                         legend=list(title=list(text=paste0('<b>',text |> stringr::str_to_sentence(), '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -1719,11 +1721,25 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_loss = plot_data
     
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig = plot_ly(plot_data, x = ~year,
+                  y = ~prop_specific,
+                  type = 'bar',
+                  name = paste0('Lost accessions'),
+                  marker = list(color = color_binary[1]),
+                  hovertemplate = paste("%{y:.2f}% of lost accessions <extra></extra>"))
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year,
+                            y = ~prop_specific_collection,
+                            type = 'scatter',
+                            mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                            hovertemplate = paste("%{y:.2f}% of the collection<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         legend=list(title=list(text=paste0('<b>',text |> stringr::str_to_sentence(), '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -1763,7 +1779,7 @@ plots$gain_loss
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-#### Gain Percentage over time by provenance (Turnover module)
+#### Gained accessions split by provenance over time
 
 ```{r, turnover of provenance}
 exporting_data_store = list()
@@ -1897,74 +1913,90 @@ exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proporti
 ```
 
 ```{r, provenance together}
+data_type = 'Accessions'
 ordered_provenance = c('Wild','Wild-derived', 'Garden', 'Unknown')
-gain_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
-                      unknown = exporting_data_store$turnover_provenance_unknown$gain_items,
-                      garden = exporting_data_store$turnover_provenance_garden$gain_items,
-                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$gain_items,
-                      wild = exporting_data_store$turnover_provenance_wild$gain_items)
+unk = if(do_unknown) exporting_data_store$turnover_provenance_unknown$gain_items else NA
+gar = if(do_garden) exporting_data_store$turnover_provenance_garden$gain_items else NA
+wil = if(do_wild) exporting_data_store$turnover_provenance_wild$gain_items else NA
+wil_d = if(do_wild_derived) exporting_data_store$turnover_provenance_wild_derived$gain_items else NA
 
-loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
-                      unknown = exporting_data_store$turnover_provenance_unknown$loss_items,
-                      garden = exporting_data_store$turnover_provenance_garden$loss_items,
-                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$loss_items,
-                      wild = exporting_data_store$turnover_provenance_wild$loss_items)
+gain_all = data.frame(year = years,
+                      unknown =unk,
+                      garden =gar,
+                      wild_derived =wil_d,
+                      wild =wil
+                      )
+
+unk = if(do_unknown) exporting_data_store$turnover_provenance_unknown$loss_items else NA
+gar = if(do_garden) exporting_data_store$turnover_provenance_garden$loss_items else NA
+wil = if(do_wild) exporting_data_store$turnover_provenance_wild$loss_items else NA
+wil_d = if(do_wild_derived) exporting_data_store$turnover_provenance_wild_derived$loss_items else NA
+
+loss_all = data.frame(year = years,
+                      unknown =unk,
+                      garden =gar,
+                      wild_derived =wil_d,
+                      wild =wil
+                      )
 
  dd = reshape(gain_all, idvar = "year", varying = list(2:ncol(gain_all)),
       v.names = "count", timevar = "group", times = names(gain_all)[-1], direction = "long")
  dd$group = stringr::str_to_title(dd$group)
  dd$group[dd$group == 'Wild_derived'] = 'Wild-derived'
  dd$group = factor(dd$group, levels = ordered_provenance)
+ dd = dd[!is.na(dd$count),]
  
  gain_all_prop = gain_all[,-1]
- gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop)*100
+ gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop,na.rm = T)*100
  gain_all_prop = data.frame(year = gain_all$year, gain_all_prop)
- gain_all_prop = gain_all_prop[which(rowSums(gain_all[,-1])!= 0),]
+ gain_all_prop = gain_all_prop[which(rowSums(gain_all[,-1], na.rm = T)!= 0),]
 
  dd_prop = reshape(gain_all_prop, idvar = "year", varying = list(2:ncol(gain_all_prop)),
       v.names = "count", timevar = "group", times = names(gain_all_prop)[-1], direction = "long")
  dd_prop$group = stringr::str_to_title(dd_prop$group)
  dd_prop$group[dd_prop$group == 'Wild_derived'] = 'Wild-derived'
  dd_prop$group = factor(dd_prop$group, levels =ordered_provenance)
- 
+ dd_prop = dd_prop[!is.na(dd_prop$count),]
  #loss
   ff = reshape(loss_all, idvar = "year", varying = list(2:ncol(loss_all)),
       v.names = "count", timevar = "group", times = names(loss_all)[-1], direction = "long")
  ff$group = stringr::str_to_title(ff$group)
  ff$group[ff$group == 'Wild_derived'] = 'Wild-derived'
  ff$group = factor(ff$group, levels = ordered_provenance)
+ ff = ff[!is.na(ff$count),]
  
  loss_all_prop = loss_all[,-1]
- loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop)*100
+ loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop,na.rm = T)*100
  loss_all_prop = data.frame(year = gain_all$year, loss_all_prop)
- loss_all_prop = loss_all_prop[which(rowSums(loss_all[,-1])!= 0),]
+ loss_all_prop = loss_all_prop[which(rowSums(loss_all[,-1],na.rm = T)!= 0),]
 
  ff_prop = reshape(loss_all_prop, idvar = "year", varying = list(2:ncol(loss_all_prop)),
       v.names = "count", timevar = "group", times = names(loss_all_prop)[-1], direction = "long")
  ff_prop$group = stringr::str_to_title(ff_prop$group)
  ff_prop$group[ff_prop$group == 'Wild_derived'] = 'Wild-derived'
  ff_prop$group = factor(ff_prop$group, levels = ordered_provenance)
- 
+ ff_prop = ff_prop[!is.na(ff_prop$count),]
+
 if(report_kind == 'interactive'){
   ## gain
    colour_scale = rev(interactive_colour(4))
-  dd$colors = colour_scale[dd$group]
-  dd$group
- fig = plot_ly(data = dd, x = ~year, y = ~count, color = ~group, colors = colour_scale, type = 'bar',
-         marker = list(color = ~colors,
+  colors = colour_scale[dd$group]
+ fig = plot_ly(data = dd, x = ~year, y = ~count, color = ~group, type = 'bar',
+         marker = list(color = colors,
                        line = list(color = 'black', width = 0))
          )
  fig <- fig |> layout(hovermode = 'x unified',
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = stringr::str_to_title('accessions')),
+                         yaxis = list (title = stringr::str_to_title(data_type)),
                          barmode = 'stack',
-                         legend = list(traceorder = 'normal'))
+                         legend = list(traceorder = 'normal')
+ )
  fig1 = fig
 
  
-  colour_scale = rev(interactive_colour(4))
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[dd_prop$group]
   dd_prop$colors  = colors
  fig = plot_ly(data = dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
@@ -1977,13 +2009,13 @@ if(report_kind == 'interactive'){
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = "Gain Percentage"),
+                         yaxis = list (title = "Gain percentage", ticksuffix = '%'),
                          barmode = 'stack',
                       legend = list(traceorder = 'normal'))
  fig2 = fig
 
  
-  colour_scale = interactive_colour(4)
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[ff$group]
  fig = plot_ly(data = ff, x = ~year, y = ~count, color = ~group, type = 'bar',
          marker = list(color = colors,
@@ -1993,12 +2025,12 @@ if(report_kind == 'interactive'){
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = stringr::str_to_title('accessions')),
+                         yaxis = list (title = stringr::str_to_title(data_type)),
                          barmode = 'stack', legend = list(traceorder = 'normal'))
  fig3 = fig
 
  
-  colour_scale = interactive_colour(4)
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[ff_prop$group]
   ff_prop$colors  = colors
  fig = plot_ly(data = ff_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
@@ -2011,7 +2043,7 @@ if(report_kind == 'interactive'){
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = "Loss Percentage"),
+                         yaxis = list (title = "Loss percentage", ticksuffix = '%'),
                          barmode = 'stack',legend = list(traceorder = 'normal'))
  fig4 = fig
  fig4
@@ -2021,14 +2053,14 @@ if(report_kind == 'interactive'){
 ```
 
 
-`r if(report_kind == 'interactive'){"#####  Gain by provenance {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
-`r if(report_kind == 'interactive'){"###### Gain (Number)"}`
+`r if(report_kind == 'interactive'){"###### Number of accessions"}`
 ```{r  Gain (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
 plots_prov_all$gain
 ```
 
-`r if(report_kind == 'interactive'){"###### Gain (Percentage)"}`
+`r if(report_kind == 'interactive'){"###### Percentage of accessions"}`
 ```{r  Gain (Percentage) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
 plots_prov_all$gain_prop
 ```
@@ -2623,6 +2655,21 @@ for(i in 1:length(tribes_with_subtribes)){
 }
 
 
+colours = rep('white', nrow(data_formatted))
+  first_level_index = grep('--Collection$',data_formatted$ID)
+  colo = scales::brewer_pal(palette = palette, direction = 1)(length(first_level_index)) |> rev()
+  colours[first_level_index] = colo 
+  for(i in 1:length(colo)){
+    col = colo[i]
+    parents = data_formatted$ID[first_level_index[i]]
+    while(length(parents) > 0){
+      child_index = which(data_formatted$parents %in% parents)
+      colours[child_index] =  col
+      parents = data_formatted$ID[child_index]
+    }
+  }
+  
+
  data_formatted$values = as.numeric(data_formatted$values)
  fig <- plotly::plot_ly(data_formatted,
                              ids = ~ID,
@@ -2632,6 +2679,7 @@ for(i in 1:length(tribes_with_subtribes)){
                              type = 'sunburst',
                              insidetextorientation='radial',
                              branchvalues = 'total',
+                        marker=list(colors=colours, line = list(color = 'white')),
                              maxdepth = 4)
  
  fig
@@ -2639,18 +2687,20 @@ for(i in 1:length(tribes_with_subtribes)){
 
 ***
 
-### Survival in the collection
+### Survival analysis
 
 In this section we apply survival analysis to all records in the collection (including historical records) to determine the survival probability within the collection and key categories. 
 
 
 ```{r Overall Survival probability,  fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 interest = report
+
 if(!is.null(old_accession_year_codes)){
   has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
   no_old_accessions = length(has_old_accessions_code)
   interest$AccYear[has_old_accessions_code] = earliest_allowable_record
 }
+
 to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
 still_issue = nrow(interest) - length(to_keep)
 interest = interest[to_keep,]
@@ -2704,8 +2754,16 @@ wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
 
 # We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
 missing_itemstatusdate_index = which(wanted_data$time > 0)
-wanted_data = wanted_data[missing_itemstatusdate_index,]
-enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
+status_year = wanted_data$ItemStatusDate |> stringr::str_extract('^[0-9]{4}') |> unlist() |> as.numeric()
+status_before_current_year = which(status_year <= format(Sys.Date(),'%Y') |> as.numeric() )
+to_keep = intersect(missing_itemstatusdate_index,status_before_current_year)
+wanted_data = wanted_data[to_keep,]
+
+enriched_report_wanted = enriched_report_wanted[to_keep,]
+
+# missing_itemstatusdate_index = which(wanted_data$time > 0)
+# wanted_data = wanted_data[missing_itemstatusdate_index,]
+# enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
 
 
 data_to_analyse = wanted_data
@@ -2752,11 +2810,42 @@ fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_tree$time, y = fit_tree$surv, name = 'Tree', hoverinfo = "text",  hovertext = fit_tree$hover, line = list(color = colors[5]))
 
 fig <- fig |> layout(title = "",
-                     # hovermode = 'x unified',
-         xaxis = list(title = "Years"),
-         yaxis = list (title = "Survival Probability")
+                     hovermode = 'xt unified',
+         xaxis = list(title = "Years", showspikes=T, spikemode="across"),
+         yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
          )
 fig
 
 ```
 ***
+
+
+```{r,eval = F}
+### Appendix (definitions)
+
+- Families: The number of families found in the report (using matched POWO record where possible).
+- Genera: The number of genera found in the report using matched POWO record where possible).
+- Species: The number of taxa at the species level, excluding hybrids, cultivars, and indeterminate items. Note that here we condense subspecies, varieties and forma into their corresponding species. For example Tephrosia longipes var. drummondii would be condensed to the species Tephrosia longipes using matched POWO record where possible).
+- Genera: The number of unique taxonomic name and authorities found in the report  (including hybrids, cultivars, indeterminate)(using matched POWO record where possible).
+- Taxa: The number of taxa in the report. 
+- Accessions: The number of accessions in the report.
+- Items: The number of records in the report.
+
+
+Next we look at various sub-collections within the collection and their size relative to the whole collection and relative only plants we have successfully matched to POWO (i.e. only the plants where we know the geographic distribution of the plants).
+
+The metrics include:
+
+* *Type of Plant*: classifies taxa into species, infraspecific, hybrids, indeterminates, cultivars and non-classified (NA).
+* *Provenance*: groups accessions into those of wild origin, wild-derived origin, garden origin or unknown origin.
+* *Taxonomic Composition*: groups taxa into Eudicots, Monocots, Ferns, Gymnosperms, Lycophytes, Bryophytes, Hornworts, Liverworts and Mosses (where they exist in the collection).
+* *Tree*: Uses BGCI's GlobalTreeSearch database to split the collection into trees and non-trees.
+* *Rarity*: Uses BGCI's PlantSearch to ascertain how many collections a plant if found in, these are then grouped into unique (a single collection), very rare (between 2 and 10 collections), rare (between 11 and 50 collections), common  (between 51 and 100 collections) and very common  (over 100 collections). PLants not found in BGCI's PlantSearch are classed as unknown.
+* *Duplication*: groups accessions by the number of individuals each accession is made of (where those with more than 5 individuals are grouped together)
+* *Native*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of plants native to the collection (belonging to `r location_name`).
+* *Endemic*: Uses World Checklist of Vascular Plants to determine which accessions in the collection are comprised of endemic plants (those that belong to a single BRU level 3 region).
+* *Threatened*: Uses IUCN's RedList to determine which plants in the collection are classed as threatened (red list category of either vulnerable, endangered, critically endangered, extinct in the wild and extinct).
+
+***
+
+```

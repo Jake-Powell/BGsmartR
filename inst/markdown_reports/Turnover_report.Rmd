@@ -1,5 +1,5 @@
 ---
-title: "Turnover of plants and groups of plants <br>in the LC"
+title: "Turnover in the living collection"
 output: html_document
 ---
 
@@ -12,6 +12,17 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+
+interactive_colour <- function(n){
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
+  if(n==2){
+    return(color[c(1,4)])
+  }
+  color[1:n]
+}
+
+color_binary <- c('#f46d43', '#e6e6e6')
+palette = 'Oranges'
 ```
 
 ```{r, imported parameters}
@@ -275,6 +286,8 @@ to_keep = which(as.numeric(report$AccYear) >= earliest_allowable_record  & as.nu
 still_issue = nrow(report) - length(to_keep)
 report = report[to_keep,]
 
+report = report[!is.na(report$ItemStatusDate),] # remove those with NA ItemStatusDate
+
 # Swap to accessions only for breakdown of endemic, native, etc if data_type == 'Accessions'
 if(data_type == 'Accessions'){
   unique_accessions = unique(report$AccNoFull)
@@ -302,6 +315,14 @@ existing_each_year_LC = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0
                         ItemStatusDate = as.character(report$ItemStatusDate),
                         ItemStatusType = as.character(report$ItemStatusType),
                         post_date = '3000-01-01')))
+
+### Find the number of items/accessions where we have to do some fixing to the most recent status update.
+post_date = report$ItemStatusDate
+index_string_length_4 = which(stringr::str_length(post_date) == 4)
+index_string_length_7 = which(stringr::str_length(post_date) == 7)
+missing_date = length(c(index_string_length_4, index_string_length_7))
+
+### (END) Find the number of items/accessions where we have to do some fixing to the most recent status update.
 ```
 
 ```{r, Get Trends, echo = F}
@@ -437,7 +458,7 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
   if(report_kind == 'interactive'){
     # gain_loss plot
-    colors = c("lightblue", "pink")
+    colors = color_binary |> rev()
     fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
     fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
                          xaxis = list(title = "Year"))
@@ -449,8 +470,8 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     fig1 = fig
     
     # net plot
-    colors = c("pink", "lightblue")
-    color <- ifelse(turnover$net_items < 0, "pink", "lightblue")
+    colors = color_binary |> rev()
+    color <- ifelse(turnover$net_items < 0, colors[1], colors[2])
     texto = paste0('Net: ', turnover$net_items, '<br>',
                    'Gain: ', turnover$gain_items, '<br>',
                    'Loss: ', turnover$loss_items, '<br>'
@@ -522,8 +543,14 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
 }
 
-proportional_plots_turnover <- function(turnover, overall_turnover, collection_proportion, separate_figure_folder, 
-                                        report_kind, text = '', data_type = 'items'){
+proportional_plots_turnover <- function(turnover,
+                                        overall_turnover,
+                                        collection_proportion,
+                                        separate_figure_folder, 
+                                        report_kind,
+                                        text = '',
+                                        data_type = 'items',
+                                        quantity = ''){
   if(report_kind == 'static'){
     # Gain
     plot_data = data.frame(year = turnover[,1],
@@ -579,12 +606,24 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific = round(plot_data$specific / plot_data$all *100,digits=2)
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_gain = plot_data
-    
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'lightblue'), hovertemplate = paste("Turnover: %{y:.2f}%<extra></extra>") )
+    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar',
+                  name = paste0('New Accessions'),
+                  marker = list(color = color_binary[2]),
+                  hovertemplate = paste("%{y:.2f}% of new accessions <extra></extra>")
+                  )
+                  
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'), hovertemplate = paste("Collection: %{y:.2f}%<extra></extra>"))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                             hovertemplate = paste("%{y:.2f}% of the collection <extra></extra>")
+                            )
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         xaxis = list(hoverformat = paste0('fvf')),
+                         legend=list(title=list(text=paste0('<b>',text, '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_gained_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -601,11 +640,25 @@ proportional_plots_turnover <- function(turnover, overall_turnover, collection_p
     plot_data$prop_specific_collection = collection_proportion*100
     plot_data_loss = plot_data
     
-    fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar', name = paste0('Turnover'), marker = list(color = 'pink'))
+    fig = plot_ly(plot_data, x = ~year,
+                  y = ~prop_specific,
+                  type = 'bar',
+                  name = paste0('Lost Accessions'),
+                  marker = list(color = color_binary[1]),
+                  hovertemplate = paste("%{y:.2f}% of lost accessions <extra></extra>"))
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
-    fig <- fig |> add_trace(x = ~year, y = ~prop_specific_collection, type = 'scatter', mode = 'markers', name = paste0('Total'), marker = list(color = 'black'))
-    fig <- fig |> layout(hovermode = 'x unified', yaxis = list(ticksuffix = '%'))
+    fig <- fig |> add_trace(x = ~year,
+                            y = ~prop_specific_collection,
+                            type = 'scatter',
+                            mode = 'lines+markers',
+                            name = paste0('Collection'),
+                            marker = list(color = 'black'),
+                            line = list(color = 'black'),
+                            hovertemplate = paste("%{y:.2f}% of the collection<extra></extra>"))
+    fig <- fig |> layout(hovermode = 'x unified',
+                         yaxis = list(ticksuffix = '%'),
+                         legend=list(title=list(text=paste0('<b>',text, '</b>'))))
     
     if(separate_figure_folder){
       htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Line_Bar-Proportion_of_lost_',stringr::str_replace_all(text, ' ', '_'),'_',data_type,'.html'))
@@ -623,6 +676,9 @@ This report uses data from **`r collection`** and analyses turnover in the colle
 
 `r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis.
 
+To determine how long a plant survives in the collection we use the date of the plants most recent update and whether the plant was noted to be alive or dead. All plants that were alive at their most recent check are assumed to be alive to the present day. For plants that are dead we take the most recent update date to be their date of death. 
+`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
+
 Turnover can be split into two parts; when a plant arrives into the collection and when the item is removed. We refer to these two parts as *Gain* and *Loss*. From these values we can calculate the *Net* number of plants gained/lost each year. 
 
 For *Gain* we require items to have an accession year associated with their record. 
@@ -631,8 +687,7 @@ For *Loss* we require items to have an item status date together with item statu
 
 In the analysis presented within we refer to turnover in terms of `r tolower(data_type)`. 
 
-In the Net graphs in this report we also overlap the graphs with the overall trend to be able to visualise how the turnover affects the total number of `r tolower(data_type)` over time. The trends are calculated by looking at the `r tolower(data_type)` that are existing on the 31st of December each year. 
-
+In the net graphs we overlap the graphs with the relevant overall trend to be able to visualise how the turnover affects the total number of `r tolower(data_type)` over time. The trends are calculated by looking at the `r tolower(data_type)` that are existing on the 31st of December each year. 
 
 
 ### Overall Turnover
@@ -722,7 +777,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover_indetermint
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'indeterminate',
+                                                 text = 'Indeterminate Taxa',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_indeterminate_taxa_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_indeterminate_taxa_loss = plots_proportional$data_loss
@@ -806,7 +861,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'horticultural',
+                                                 text = 'Horticultral Taxa',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_horticultural_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_horticultural_loss = plots_proportional$data_loss
@@ -890,7 +945,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'biological',
+                                                 text = 'Biological Taxa',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_biological_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_biological_loss = plots_proportional$data_loss
@@ -983,7 +1038,7 @@ plots_proportional_unknown = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'unknown provenance',
+                                                 text = 'Unknown Origin',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_unknown_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_unknown_provenance_loss = plots_proportional$data_loss
@@ -1015,7 +1070,7 @@ plots_proportional_garden = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'garden provenance',
+                                                 text = 'Garden Origin',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_garden_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_garden_provenance_loss = plots_proportional$data_loss
@@ -1047,7 +1102,7 @@ plots_proportional_wild_derived = proportional_plots_turnover(turnover = turnove
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'wild-derived provenance',
+                                                 text = 'Wild-derived Origin',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_wild_derived_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_wild_derived_provenance_loss = plots_proportional$data_loss
@@ -1079,7 +1134,7 @@ plots_proportional_wild = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'wild provenance',
+                                                 text = 'Wild Origin',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_wild_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proportional$data_loss
@@ -1088,56 +1143,71 @@ exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proporti
 
 ```{r, provenance together}
 ordered_provenance = c('Wild','Wild-derived', 'Garden', 'Unknown')
-gain_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
-                      unknown = exporting_data_store$turnover_provenance_unknown$gain_items,
-                      garden = exporting_data_store$turnover_provenance_garden$gain_items,
-                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$gain_items,
-                      wild = exporting_data_store$turnover_provenance_wild$gain_items)
+unk = if(do_unknown) exporting_data_store$turnover_provenance_unknown$gain_items else NA
+gar = if(do_garden) exporting_data_store$turnover_provenance_garden$gain_items else NA
+wil = if(do_wild) exporting_data_store$turnover_provenance_wild$gain_items else NA
+wil_d = if(do_wild_derived) exporting_data_store$turnover_provenance_wild_derived$gain_items else NA
 
-loss_all = data.frame(year = exporting_data_store$turnover_provenance_unknown$Year,
-                      unknown = exporting_data_store$turnover_provenance_unknown$loss_items,
-                      garden = exporting_data_store$turnover_provenance_garden$loss_items,
-                      wild_derived = exporting_data_store$turnover_provenance_wild_derived$loss_items,
-                      wild = exporting_data_store$turnover_provenance_wild$loss_items)
+gain_all = data.frame(year = exporting_data_store$overall_turnover$Year,
+                      unknown =unk,
+                      garden =gar,
+                      wild_derived =wil_d,
+                      wild =wil
+                      )
+
+unk = if(do_unknown) exporting_data_store$turnover_provenance_unknown$loss_items else NA
+gar = if(do_garden) exporting_data_store$turnover_provenance_garden$loss_items else NA
+wil = if(do_wild) exporting_data_store$turnover_provenance_wild$loss_items else NA
+wil_d = if(do_wild_derived) exporting_data_store$turnover_provenance_wild_derived$loss_items else NA
+
+loss_all = data.frame(year = exporting_data_store$overall_turnover$Year,
+                      unknown =unk,
+                      garden =gar,
+                      wild_derived =wil_d,
+                      wild =wil
+                      )
 
  dd = reshape(gain_all, idvar = "year", varying = list(2:ncol(gain_all)),
       v.names = "count", timevar = "group", times = names(gain_all)[-1], direction = "long")
  dd$group = stringr::str_to_title(dd$group)
  dd$group[dd$group == 'Wild_derived'] = 'Wild-derived'
  dd$group = factor(dd$group, levels = ordered_provenance)
+ dd = dd[!is.na(dd$count),]
  
  gain_all_prop = gain_all[,-1]
- gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop)*100
+ gain_all_prop = (gain_all_prop) / rowSums(gain_all_prop,na.rm = T)*100
  gain_all_prop = data.frame(year = gain_all$year, gain_all_prop)
- gain_all_prop = gain_all_prop[which(rowSums(gain_all[,-1])!= 0),]
+ gain_all_prop = gain_all_prop[which(rowSums(gain_all[,-1], na.rm = T)!= 0),]
 
  dd_prop = reshape(gain_all_prop, idvar = "year", varying = list(2:ncol(gain_all_prop)),
       v.names = "count", timevar = "group", times = names(gain_all_prop)[-1], direction = "long")
  dd_prop$group = stringr::str_to_title(dd_prop$group)
  dd_prop$group[dd_prop$group == 'Wild_derived'] = 'Wild-derived'
  dd_prop$group = factor(dd_prop$group, levels =ordered_provenance)
- 
+ dd_prop = dd_prop[!is.na(dd_prop$count),]
  #loss
   ff = reshape(loss_all, idvar = "year", varying = list(2:ncol(loss_all)),
       v.names = "count", timevar = "group", times = names(loss_all)[-1], direction = "long")
  ff$group = stringr::str_to_title(ff$group)
  ff$group[ff$group == 'Wild_derived'] = 'Wild-derived'
  ff$group = factor(ff$group, levels = ordered_provenance)
+ ff = ff[!is.na(ff$count),]
  
  loss_all_prop = loss_all[,-1]
- loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop)*100
+ loss_all_prop = (loss_all_prop) / rowSums(loss_all_prop,na.rm = T)*100
  loss_all_prop = data.frame(year = gain_all$year, loss_all_prop)
- loss_all_prop = loss_all_prop[which(rowSums(loss_all[,-1])!= 0),]
+ loss_all_prop = loss_all_prop[which(rowSums(loss_all[,-1],na.rm = T)!= 0),]
 
  ff_prop = reshape(loss_all_prop, idvar = "year", varying = list(2:ncol(loss_all_prop)),
       v.names = "count", timevar = "group", times = names(loss_all_prop)[-1], direction = "long")
  ff_prop$group = stringr::str_to_title(ff_prop$group)
  ff_prop$group[ff_prop$group == 'Wild_derived'] = 'Wild-derived'
  ff_prop$group = factor(ff_prop$group, levels = ordered_provenance)
- 
+ ff_prop = ff_prop[!is.na(ff_prop$count),]
+
 if(report_kind == 'interactive'){
   ## gain
-   colour_scale = interactive_colour(4)
+   colour_scale = rev(interactive_colour(4))
   colors = colour_scale[dd$group]
  fig = plot_ly(data = dd, x = ~year, y = ~count, color = ~group, type = 'bar',
          marker = list(color = colors,
@@ -1149,11 +1219,12 @@ if(report_kind == 'interactive'){
                          xaxis = list(title = "Year"),
                          yaxis = list (title = stringr::str_to_title(data_type)),
                          barmode = 'stack',
-                         legend = list(traceorder = 'normal'))
+                         legend = list(traceorder = 'normal')
+ )
  fig1 = fig
 
  
-  colour_scale = interactive_colour(4)
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[dd_prop$group]
   dd_prop$colors  = colors
  fig = plot_ly(data = dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
@@ -1166,13 +1237,13 @@ if(report_kind == 'interactive'){
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = "Gain Percentage"),
+                         yaxis = list (title = "Gain percentage", ticksuffix = '%'),
                          barmode = 'stack',
                       legend = list(traceorder = 'normal'))
  fig2 = fig
 
  
-  colour_scale = interactive_colour(4)
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[ff$group]
  fig = plot_ly(data = ff, x = ~year, y = ~count, color = ~group, type = 'bar',
          marker = list(color = colors,
@@ -1187,7 +1258,7 @@ if(report_kind == 'interactive'){
  fig3 = fig
 
  
-  colour_scale = interactive_colour(4)
+  # colour_scale = interactive_colour(4)
   colors = colour_scale[ff_prop$group]
   ff_prop$colors  = colors
  fig = plot_ly(data = ff_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
@@ -1200,7 +1271,7 @@ if(report_kind == 'interactive'){
                          bargap =0,
                          title = "",
                          xaxis = list(title = "Year"),
-                         yaxis = list (title = "Loss Percentage"),
+                         yaxis = list (title = "Loss percentage", ticksuffix = '%'),
                          barmode = 'stack',legend = list(traceorder = 'normal'))
  fig4 = fig
  fig4
@@ -1218,14 +1289,14 @@ We begin by considering breaking down gained `r tolower(data_type)` and lost `r 
 plots_prov_all$gain
 ```
 
-`r if(report_kind == 'interactive'){"###### Loss (Number)"}`
-```{r  Loss (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
-plots_prov_all$loss
-```
-
 `r if(report_kind == 'interactive'){"###### Gain (Percentage)"}`
 ```{r  Gain (Percentage) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
 plots_prov_all$gain_prop
+```
+
+`r if(report_kind == 'interactive'){"###### Loss (Number)"}`
+```{r  Loss (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+plots_prov_all$loss
 ```
 
 `r if(report_kind == 'interactive'){"###### Loss (Percentage)"}`
@@ -1481,7 +1552,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'threatened',
+                                                 text = 'Threatened',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_threatened_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_threatened_loss = plots_proportional$data_loss
@@ -1565,7 +1636,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'endemic',
+                                                 text = 'Endemic',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_endemic_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_endemic_loss = plots_proportional$data_loss
@@ -1651,7 +1722,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'native',
+                                                 text = 'Native',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_native_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_native_loss = plots_proportional$data_loss
@@ -1737,7 +1808,7 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  collection_proportion = collection_proportion,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
-                                                 text = 'tree',
+                                                 text = 'Tree',
                                                  data_type = data_type)
 exporting_data_store$proportional_turnover_tree_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_tree_loss = plots_proportional$data_loss

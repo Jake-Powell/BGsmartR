@@ -479,7 +479,164 @@ This report provides an overview of analyses of the collection further detail ca
 interest = report[report$ItemStatusType == 'Existing',]
 interest = interest[match(unique(interest$AccNoFull), interest$AccNoFull),]
 
+# Update codes linked to older records to earliest allowable record.
+if(!is.null(old_accession_year_codes)){
+  old_acc_codes_index = which(interest$AccYear %in% old_accession_year_codes)
+  no_old_acc_codes = length(old_acc_codes_index)
+  interest$AccYear[old_acc_codes_index] = earliest_allowable_record
+}
 
+year_cur = format(Sys.Date(),'%Y') |> as.numeric()
+# How many issue accession years are there. 
+Acc_year = interest$AccYear |> as.numeric()
+issue_acc_year =which(Acc_year < earliest_allowable_record | Acc_year > year_cur | is.na(Acc_year))
+
+issue_values = interest$AccYear[issue_acc_year] |> unique()
+if(length(issue_acc_year) > 0){
+  interest = interest[-issue_acc_year,]
+}
+
+
+age = rep('>75 years ago', nrow(interest))
+age[which((year_cur - as.numeric(interest$AccYear)) <= 75)] = '50-75 years ago'
+age[which((year_cur - as.numeric(interest$AccYear)) <= 50)] = '25-50 years ago'
+age[which((year_cur - as.numeric(interest$AccYear)) < 25)] = '< 25 years ago'
+interest$age = age
+
+
+# Create indices for each subset.
+columns_of_interest = c('tree', 'native', 'endemic', 'threatened','ProvenanceCode')
+
+info = lapply(columns_of_interest, function(x){
+  data_cur = interest[c(x, 'age')] |>
+    dplyr::group_by_all() |>
+    dplyr::count() 
+  data_cur = data_cur |>
+    dplyr::group_by(across(x)) |>
+    dplyr::mutate(per =  100 *n/sum(n)) |> 
+    dplyr::ungroup()
+  data_cur$column = x
+  
+  data_cur
+})
+names(info) = columns_of_interest
+
+## All
+age_all = interest |>
+  dplyr::group_by(age) |>
+  dplyr::count()
+age_all$per = age_all$n / sum(age_all$n) *100
+info$all = age_all
+
+```
+
+`r if(!is.na(old_accession_year_codes)){paste0("Within the collection there are coded accessions years linked to older records, these include: ", paste0(old_accession_year_codes, collapse = ', '), ". For the following analysis we assume the ", no_old_acc_codes ," accessions with such codes were accessioned in the ", earliest_allowable_record, '.')}`
+
+`r if(length(issue_acc_year) > 0){"paste0('Within the collection there are ', length(issue_acc_year), ' assessions that have an issue with their accession year (too old, too new, not numeric). Their values include: ', paste0(issue_values,collapse = ', '), '. These records are removed from the following analysis.')"}`
+
+Next we group accessions by their age into the following brackets: < 25 years old, 25-50 years old, 51-75 years old and over 75 years old. 
+
+This gives
+
+```{r, all plot}
+cur = info$all |> as.data.frame()
+cur$type = 'all'
+cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
+cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of accessions were accessioned ', cur$age)
+cur <- cur[order(cur$age,decreasing = TRUE),]
+cur$color = interactive_colour(4)
+
+hor_stack_bar_plot = plot_ly(cur,
+                             type = 'bar',
+                             y = ~age,
+                             x = ~per,
+                             group = ~type,
+                             # colors = ~color,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = FALSE,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of accessions"),
+                 yaxis = list(title = ''), barmode = 'stack' )
+
+hor_stack_bar_plot
+```
+
+***
+
+### Sustainability by key collections
+
+```{r sustain key collections}
+info1 = info
+info1 = lapply(info1, function(x){
+  names(x)[1] = 'type'
+  x
+  })
+
+cur = rbind(info1$tree, info1$native, info1$threatened, info1$endemic)
+cur$type = factor(cur$type, levels = unique(cur$type))
+cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
+col = rep(NA, nrow(cur))
+colours = interactive_colour(4)
+prov = c( "< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")
+for(i in 1:length(prov)){
+  col[cur$age == prov[i]] = colours[i]
+}
+
+cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of ',cur[[1]],' accessions were accessioned ', cur$age)
+cur$color =col 
+cur <- cur[order(cur$age,decreasing = TRUE),]
+hor_stack_bar_plot = plot_ly(cur,
+                             type = 'bar',
+                             y = ~cur[[1]],
+                             x = ~per,
+                             group = ~age,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = T,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of accessions", categoryorder = "array",
+              categoryarray = prov),
+                 yaxis = list(title = ''),
+                 barmode = 'stack'
+                  )
+
+hor_stack_bar_plot
+```
+
+***
+
+### Sustainability by provenance
+
+```{r sustain provenance}
+cur = info$ProvenanceCode |> as.data.frame()
+cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
+col = rep(NA, nrow(cur))
+colours = interactive_colour(4)
+prov = c( "< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")
+for(i in 1:length(prov)){
+  col[cur$age == prov[i]] = colours[i]
+}
+
+cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of ',cur[[1]],' accessions were accessioned ', cur$age)
+cur$color =col 
+cur <- cur[order(cur$age,decreasing = TRUE),]
+hor_stack_bar_plot = plot_ly(cur,
+                             type = 'bar',
+                             y = ~cur[[1]],
+                             x = ~per,
+                             group = ~age,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = T,
+                             marker = list(color = ~color)) |>
+  plotly::layout(xaxis = list(title = "Percentage of accessions", categoryorder = "array",
+              categoryarray = prov),
+                 yaxis = list(title = ''),
+                 barmode = 'stack'
+                  )
+
+hor_stack_bar_plot
 ```
 
 ***

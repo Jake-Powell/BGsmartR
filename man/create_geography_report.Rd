@@ -22,6 +22,7 @@ create_geography_report(
   value_on_fig = FALSE,
   endemic_species_per_region = NULL,
   accepted_species_per_region = NULL,
+  tree_species_per_region = NULL,
   color_binary = c("darkgray", "darkgreen"),
   palette = "Greens",
   scale_colour_distiller = function(...) ggplot2::scale_colour_distiller(palette =
@@ -65,6 +66,8 @@ create_geography_report(
 \item{endemic_species_per_region}{A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
 
 \item{accepted_species_per_region}{A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
+
+\item{tree_species_per_region}{A data frame detailing the number of accepted trees (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
 
 \item{color_binary}{colours for the representation of species.}
 
