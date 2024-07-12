@@ -33,5 +33,5 @@ Imports:
     grDevices
 VignetteBuilder: knitr
 URL: https://jakepowellcubg.github.io/BGR/
-Remotes:  
+Remotes: 
     github::matildabrown/rWCVPdata
