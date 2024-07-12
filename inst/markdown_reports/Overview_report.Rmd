@@ -5,12 +5,6 @@ output: html_document
 
 ###### {-} 
 
-```{r, add logo, eval = report_kind == 'interactive'}
-htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
-               alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
-```
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(plotly)
@@ -31,6 +25,12 @@ interactive_colour <- function(n){
 
 color_binary <- rev(c('#f46d43', '#848484'))
 palette = 'Oranges'
+```
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
 ```
 
 ```{r, imported parameters}
@@ -318,6 +318,8 @@ if(length(location_name) == 0){
  collection_geog_details_og = collection_geog_details
 ```
 
+###### {-} 
+
 ```{r, Extracting information from enriched report}
 # Add required columns if missing.
 needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
@@ -466,7 +468,9 @@ if(separate_figure_folder){
 ```
 
 
-This report provides an overview of analyses of the collection further detail can be found by running other reports (such as Geography, Endemic, trends, etc... reports).
+This report combines key figures from modules across BGSmartR into a single document.
+
+Further detail can be found by running other modules.  
 
 
 
@@ -543,6 +547,8 @@ fig
 ```{r, Composition of the collection (Current)}
 # Select wanted data and add needed columns
 interest = report[report$ItemStatusType == 'Existing',]
+
+interest = interest[!interest$taxon_type |> is.na(),]
 tree = rep('Not tree',nrow(interest))
 tree[which(interest$Enrich_is_tree)] = 'Tree'
 interest$tree = tree
@@ -703,13 +709,26 @@ hor_stack_bar_plot_POWO_only = plot_ly(comb_cur,
   )
 
 
-### Create individual donut charts for each row in the combined plot.
-# quant = c('type_plant', 'ProvenanceCode', 'taxo_group', 'rarity', 'items',  'tree', 'native', 'endemic', 'threatened')
-# lapply(quant, function(x){
-#   data_cur = comb[comb$type == "Whole collection" & comb$collect_part == x,]
-#   
-# })
-
+## Create individual donut charts for each row in the combined plot.
+quant = c('Type of Plant', 'Provenance', 'Taxonomic <br> Composition', 'Rarity', 'Duplication',  'Tree', 'Native', 'Endemic', 'Threatened')
+doughnut_figs = lapply(quant, function(x){
+  data_cur = comb[comb$type == "Whole collection" & comb$collect_part == x,]
+  
+  
+  fig <- plot_ly(data_cur, labels = ~category, values = ~n, hoverinfo = "text",  hovertext = ~hover, marker = list(colors = ~color),  sort = FALSE, title = data_cur$collect_part[1] |> as.character())
+  fig <- fig |> add_pie(hole = 0.6)
+  fig <- fig |> layout(title = "",  showlegend = T,
+                        xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                        yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+  
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Pie-grouped_global_rarity.html'))
+  }
+  
+  fig
+  
+})
+names(doughnut_figs) = quant
 ```
 
 
@@ -721,6 +740,50 @@ hor_stack_bar_plot_POWO_only = plot_ly(comb_cur,
 hor_stack_bar_plot
 ```
 
+`r if(report_kind == 'interactive'){"###### Type of plant"}`
+```{r  type of plant pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$`Type of Plant`
+```
+
+`r if(report_kind == 'interactive'){"###### Provenance"}`
+```{r  Provenance pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Provenance
+```
+
+`r if(report_kind == 'interactive'){"###### Taxonomic composition"}`
+```{r  Taxonomic <br> Composition pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$`Taxonomic <br> Composition`
+```
+
+`r if(report_kind == 'interactive'){"###### Rarity"}`
+```{r  Rarity pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Rarity
+```
+
+`r if(report_kind == 'interactive'){"###### Duplication"}`
+```{r  Duplication pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Duplication
+```
+
+`r if(report_kind == 'interactive'){"###### Tree"}`
+```{r  Tree pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Tree
+```
+
+`r if(report_kind == 'interactive'){"###### Native"}`
+```{r  Native pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Native
+```
+
+`r if(report_kind == 'interactive'){"###### Endemic"}`
+```{r  Endemic pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Endemic
+```
+
+`r if(report_kind == 'interactive'){"###### Threatened"}`
+```{r  Threatened pie, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+doughnut_figs$Threatened
+```
 
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
@@ -2693,7 +2756,7 @@ In this section we apply survival analysis to all records in the collection (inc
 
 
 ```{r Overall Survival probability,  fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
-interest = report
+interest = report_original
 
 if(!is.null(old_accession_year_codes)){
   has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
@@ -2772,27 +2835,27 @@ data_to_analyse = wanted_data
 
 fit_all = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_to_analyse)
 fit_all$surv = fit_all$surv*100
-fit_all$hover = paste0('Collection survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
+fit_all$hover = paste0('Time: ',fit_all$time |> round(2),'<br>Collection survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
 
 fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
                                 data = data_to_analyse[which(data_to_analyse$native == 'Native'),])
 fit_native$surv = fit_native$surv*100
-fit_native$hover = paste0('Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
+fit_native$hover = paste0('Time: ',fit_native$time|> round(2),'<br>Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
 
 fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
                                  data = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),])
 fit_endemic$surv = fit_endemic$surv*100
-fit_endemic$hover = paste0('Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
+fit_endemic$hover = paste0('Time: ',fit_endemic$time|> round(2),'<br>Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
 
 fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
                                     data = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),])
 fit_threatened$surv = fit_threatened$surv*100
-fit_threatened$hover = paste0('Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
+fit_threatened$hover = paste0('Time: ',fit_threatened$time|> round(2),'<br>Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
 
 fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
                               data = data_to_analyse[which(data_to_analyse$tree == 'Tree'),])
 fit_tree$surv = fit_tree$surv*100
-fit_tree$hover = paste0('Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
+fit_tree$hover = paste0('Time: ',fit_tree$time|> round(2),'<br>Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
 
 colors = scales::brewer_pal(palette = palette, direction = 1)(5)
 
@@ -2814,6 +2877,21 @@ fig <- fig |> layout(title = "",
          xaxis = list(title = "Years", showspikes=T, spikemode="across"),
          yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
          )
+
+hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color, dash="dot")
+  )
+}
+fig = fig |>
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+           text = c("median survival"))
 fig
 
 ```
@@ -2849,3 +2927,124 @@ The metrics include:
 ***
 
 ```
+
+### Provenance
+
+We look at the provenance of the whole collection and across key collections.
+
+```{r, Provenance of all + key collections,  fig.fullwidth=TRUE, fig.dim = c(10, 5)}
+# Select wanted data and add needed columns
+interest = report[report$ItemStatusType == 'Existing',]
+interest = interest[!interest$taxon_type |> is.na(),]
+
+interest = interest |>
+  group_by(AccNoFull) |>
+  summarise(ProvenanceCode = ProvenanceCode[1],
+            tree = tree[1],
+            native = native[1],
+            endemic = endemic[1],
+            threatened = threatened[1])
+
+
+# factoring groups for order in plot.
+interest$ProvenanceCode = factor(interest$ProvenanceCode, levels = c("Wild" , "Wild-derived", "Garden", "Unknown" ))
+
+
+
+# Extract the wanted information for the composition.
+quant = c('all','tree', 'native', 'endemic', 'threatened')
+info = pbapply::pblapply(quant, function(q){
+  cur = interest
+  if(q %in% names(interest)){
+    cur = cur[cur[[q]] == q |> stringr::str_to_title(), ]
+  }
+  table_counts = cur |> dplyr::count(across(ProvenanceCode))
+  table_counts$percent = round(table_counts$n/ sum(table_counts$n) *100, digits = 2)
+  table_counts
+  table_counts$collect_part = q
+  return(table_counts)
+})
+names(info) =  c('All', 'Tree', 'Native', 'Endemic', 'Threatened')
+
+# info$family_use = info$family_use[order(info$family_use$n, decreasing = T),]
+comb = do.call('rbind',info)
+# comb$category = factor(comb$category, levels = unique(comb$category))
+comb$collect_part  = comb$collect_part |> dplyr::case_match("type_plant" ~ 'Type of Plant',
+                                       "ProvenanceCode" ~ 'Provenance',
+                                       "taxo_group" ~ 'Taxonomic <br> Composition',
+                                        "tree" ~ 'Tree',
+                                        "all" ~'All',
+                                       'items' ~ 'Duplication',
+                                        "native" ~ 'Native',
+                                        "endemic" ~ 'Endemic',
+                                        "threatened" ~ 'Threatened')
+comb$collect_part = factor(comb$collect_part, levels = rev(unique(comb$collect_part)))
+comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', comb$ProvenanceCode)
+        
+
+# Manual fix colours
+colo = interactive_colour(4)
+colo = c('Wild' = colo[1],
+         "Wild-derived"= colo[2],
+         "Garden"= colo[3],
+         "Unknown" = colo[4])
+
+# comb$color = NA
+# comb$color[which(comb$ProvenanceCode == 'Wild')]   = colo[1]
+# comb$color[which(comb$ProvenanceCode == 'Wild-derived')]   = colo[2]
+# comb$color[which(comb$ProvenanceCode == 'Garden')]   = colo[3]
+# comb$color[which(comb$ProvenanceCode == 'Unknown')]   = colo[4]
+  
+
+### Create the horizontal bar plots.
+comb_cur = comb
+hor_stack_bar_plot = plot_ly(comb_cur,
+                             type = 'bar',
+                             y = ~collect_part,
+                             x = ~percent,
+                             group = ~ProvenanceCode,
+                             color = ~ProvenanceCode,
+                             colors = colo,
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text'
+                             # showlegend = TRUE,
+                             # marker = list(color = ~color)
+                             ) |>
+  plotly::layout(xaxis = list(title = "Percentage of collection (accessions)"),
+                 yaxis = list(title = ''), barmode = 'stack'
+                 # hovermode = 'y unified'
+  ) |>  layout(showlegend = TRUE, legend = list(orientation = "h",
+                                          xanchor = "center",
+                                          traceorder= 'normal',
+                                          x = 0.5, y = 7))
+hor_stack_bar_plot
+```
+
+
+### Important accessions
+
+We look at the overlap of threatened, wild-origin and endemic accessions.
+
+```{r, overlap important,results='hide',fig.keep='all', message=FALSE, fig.dim=c(6,6), fig.align = 'center', eval = report_kind == 'interactive'}
+# Select wanted data and add needed columns
+interest = report[report$ItemStatusType == 'Existing',]
+interest = interest[!interest$taxon_type |> is.na(),]
+
+wanted = list(wild = interest$AccNoFull[which(interest$ProvenanceCode == 'Wild')],
+              threatened = interest$AccNoFull[which(interest$threatened == 'Threatened')],
+              endemic = interest$AccNoFull[which(interest$endemic == 'Endemic')])
+
+library(VennDiagram)
+venn_diag = venn.diagram(wanted, filename = NULL,
+                         category.names = c('Wild', 'Threatened', 'Endemic'),
+                         fill =scales::brewer_pal(palette = palette, direction = 1)(3),
+                         disable.logging = TRUE,
+                         main.fontfamily = "arial",
+                         main.fontface = "sans",
+                         cat.dist = c(0.08, 0.08, 0.08),
+                         margin = 0.12)
+
+grid.newpage()
+grid.draw(venn_diag)
+```
+

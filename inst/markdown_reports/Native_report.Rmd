@@ -25,7 +25,6 @@ color_binary <- c('#f46d43', '#e6e6e6')
 palette = 'Oranges'
 ```
 
-
 ```{css, echo = FALSE}
 /* from https://ianlunn.github.io/Hover/ */
 .hvr-sweep-to-left {
@@ -691,7 +690,7 @@ lims <- st_bbox(collection_geog_details)
 p <- rWCVP::wcvp_distribution_map(collection_geog_details, crop_map=T) + 
   theme(legend.position="none") +
   geom_sf(data=pnts_sf, fill="black",col="black", shape=20, size = 5) +
-  # coord_sf(xlim=lims[c(1,3)], ylim=lims[c(2,4)]) +
+  coord_sf(xlim=lims[c(1,3)], ylim=lims[c(2,4)]) +
   theme(legend.position = "none",
         axis.line=element_blank(),
         axis.text.x=element_blank(),
@@ -2421,6 +2420,13 @@ do_survival = TRUE
 if(!do_over_time){
   do_survival = FALSE
 }
+
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(enriched_report$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  enriched_report$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+
 enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYearOrig) > 1650 & as.numeric(enriched_report$AccYearOrig) < as.numeric(format(Sys.Date(),'%Y')),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]

@@ -2779,7 +2779,7 @@ enriched_report_wanted = enriched_report_wanted[to_keep,]
                                wanted_data$Alive_dead,
                                native_non_native)
   names(data_to_analyse) = c("TaxonNameFull", "time", "Alive_dead", "tree_status")
-  
+  data_to_analyse <<- data_to_analyse
   if(export_data){
     exporting_data_store$Data_for_survival = data_to_analyse
   }

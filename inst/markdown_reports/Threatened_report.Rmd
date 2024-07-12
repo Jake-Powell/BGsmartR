@@ -1,6 +1,7 @@
 ---
 title: "Threatened species in the living collection"
 output: html_document
+always_allow_html: true
 ---
   
 ###### {-} 
@@ -2736,14 +2737,15 @@ if(nrow(report_cur) == 0){
 
 `r if(!do_type){"There are no records that are threatened."}`
 
-```{r, Turnover of threatened items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots$gain_loss
+```{r, Turnover of threatened items - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
 
-plots$net
-
-plots_accessions$gain_loss
-
-plots_accessions$net
+# plots$gain_loss
+# 
+# plots$net
+# 
+# plots_accessions$gain_loss
+# 
+# plots_accessions$net
 
 
 ```
@@ -2764,14 +2766,14 @@ plots$gain_loss
 
 `r if(!do_type){"We now explore how the gain and loss of threatened species compare proportionally to the total number of gained and lost items/accessions and the overall proportion of threatened species each year. To calculate the proportion of the collection that are threatened each year we only consider records that have an accession year and item status date and extract which items/accessions were existing on the first of January each year."}`
 
-```{r, Proportional Turnover of threatened - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6),}
-plots_proportional$gain
-
-plots_proportional$loss
-
-plots_proportional_accessions$gain
-
-plots_proportional_accessions$loss
+```{r, Proportional Turnover of threatened - static, eval = report_kind == 'static'& do_type, fig.fullwidth=TRUE, fig.dim = c(10, 6)}
+# plots_proportional$gain
+# 
+# plots_proportional$loss
+# 
+# plots_proportional_accessions$gain
+# 
+# plots_proportional_accessions$loss
 
 ```
 
@@ -3007,7 +3009,8 @@ table_data2 = table_data2[,-c(1:4)]
 table_data2 = table_data2[-1,]
 names(table_data2) = c('Characteristic', 'Median survival + 95% CI (Years)')
 
-table_data2 |>  DT::datatable(extensions = 'Buttons',
+if(report_kind == 'interactive'){
+  table_data2 |>  DT::datatable(extensions = 'Buttons',
                              rownames = FALSE,
                              options = list(scrollX = TRUE,
                                             pageLength = nrow(table_data2),
@@ -3015,6 +3018,8 @@ table_data2 |>  DT::datatable(extensions = 'Buttons',
                                             buttons = c('copy', 'csv', 'excel', 'pdf'),
                                             paging=FALSE,
                                             ordering=F))
+}
+
 
 
 ```
@@ -3223,6 +3228,8 @@ if(report_kind == 'interactive'){
 
 }
 
+```
+```{r  duel pie charts, eval = report_kind == 'interactive' & do_over_time}
 ### Create duel pie chart
    endangered_cat =  c('Vulnerable', 'Endangered', 'Critically Endangered', 'Extinct in the Wild', 'Extinct')
   endangered_cat_order = endangered_cat[which(!is.na(match(endangered_cat, redlistcat_accessions$RedListCategory)))]
@@ -3300,12 +3307,12 @@ In this section we are exploring the red list category of threatened species in 
 `r if(report_kind == 'interactive' & have_redlist){"###### Chart"}`
 
 ```{r,  Threatened existing plants in the LC - static pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive' & have_redlist}
-duel_pie_chart
+# duel_pie_chart
 ```
 
 `r if(report_kind == 'interactive' & have_redlist){"###### Table"}`
 
-`r flex_data_table`
+`r if(report_kind == 'interactive'){flex_data_table}`
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 

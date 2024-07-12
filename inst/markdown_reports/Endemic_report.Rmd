@@ -79,6 +79,7 @@ palette = 'Oranges'
   text-align: center;
 }
 ```
+
 ```{r, imported parameters}
 # 
 # collection = 'CUBG'
@@ -1935,7 +1936,7 @@ v_common = sum(rarity_plot_info$count[rarity_plot_info$global %in% 100:1500])
 
 doughnut_data = data.frame(rarity = c('Unique','Very Rare', 'Rare', 'Common', 'Very Common'),
                         no_items = c(unique_,v_rare, rare, common, v_common),
-                        color = scales::brewer_pal(palette = palette, direction = 1)(5))
+                        color = scales::brewer_pal(palette = palette, direction = 1)(5) |> rev())
 doughnut_data$percent = paste0(round(doughnut_data$no_items / sum(doughnut_data$no_items)*100,digits = 1),'%')
 
 
@@ -1960,7 +1961,6 @@ We group taxa by the number of collections they are found in globally. These are
 ```{r, grouped rarity - interactive figure, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 text = paste0(doughnut_data$no_items, ' records classed as ', doughnut_data$rarity )
 doughnut_data$rarity = factor(doughnut_data$rarity, levels = doughnut_data$rarity)
-doughnut_data <<- doughnut_data
 
 fig <- plot_ly(doughnut_data, labels = ~rarity, values = ~no_items, hoverinfo = "text",  hovertext = text, marker = list(colors = ~color),  sort = FALSE )
 fig <- fig %>% add_pie(hole = 0.6)
@@ -3665,7 +3665,7 @@ if(report_kind == 'interactive'){
                              branchvalues = 'total',
                              maxdepth = 4,
                              marker=list(colors=data_formatted$Col, line = list(color = 'white')),
-                             hoverinfo = "text",  hovertext = data_formatted$hover
+                             hoverinfo = "text",  hovertext = data_formatted$hoverac
                              )
 
  fig2 <- plotly::plot_ly(data_formatted,

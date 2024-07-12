@@ -1,6 +1,7 @@
 ---
 title: "Taxonomic diversity in the living collection"
 output: html_document
+always_allow_html: true
 ---
 
 ###### {-}

@@ -1,6 +1,7 @@
 ---
 title: "Data health and enhancement"
 output: html_document
+always_allow_html: true
 ---
 
 ###### {-} 
@@ -16,7 +17,7 @@ library(ggrepel)
 library(downloadthis)
 
 interactive_colour <- function(n){
-  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
   if(n==2){
     return(color[c(1,4)])
   }
@@ -348,7 +349,7 @@ if(!'ItemStatusType' %in% names(enriched_report)){
 
 do_coord = !is.na(coordinates[1])
 # Set report to only the existing items.
-report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
+report = enriched_report
 
 #Extract endemic information from report
 endemic = rep('Not Endemic', nrow(report))
@@ -358,11 +359,11 @@ report$endemic = endemic
 rm(endemic)
 
 # Add native column.
-native = rep('Non-native', nrow(report))
+nativeo = rep('Widespread', nrow(report))
 native_index = which(grepl(location_code, report$geography_codes))
-native[native_index] = 'Native'
-report$native = native
-rm(native)
+nativeo[native_index] = 'Native'
+report$native = nativeo
+rm(nativeo)
 
 # Extract threatened. 
 threat_cat = c('VU','EN','CR','EW','EX')
@@ -396,6 +397,8 @@ report$best_name = best_name
 report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
 
 report_original = report
+
+report = report[report$ItemStatusType == 'Existing',]
 
 if(separate_figure_folder){
   figures_dir = paste0(output_dir,'/',collection,'_Figures')
@@ -552,10 +555,25 @@ matching_details_table <- matching_breakdown |>
 
 ### Exportable data frame of the of used name within BGSmartR and the matching process.
 
-export_df = report[c('AccNoFull','TaxonNameFull', 'best_name', 'POWO_match_detail_short', 'POWO_author_check')]
+export_df = report[c('AccNoFull','TaxonNameFull', 'POWO_match_taxon_name', 'POWO_match_authors', 'POWO_taxon_name', 'POWO_taxon_authors', 'POWO_match_detail_short', 'POWO_author_check')]
+
+export_df$POWO_match_taxon_name = paste0(export_df$POWO_match_taxon_name, ' ', 
+                                         export_df$POWO_match_authors)
+export_df$POWO_match_authors = NULL
+export_df$POWO_match_taxon_name[which(export_df$POWO_match_taxon_name =='NA NA')] = NA 
+
+
+export_df$POWO_taxon_name = paste0(export_df$POWO_taxon_name, ' ', 
+                                         export_df$POWO_taxon_authors)
+export_df$POWO_taxon_name[which(export_df$POWO_taxon_name == export_df$POWO_match_taxon_name)] = NA
+export_df$POWO_taxon_name[which(export_df$POWO_taxon_name == 'NA NA')] = NA 
+export_df$POWO_taxon_authors = NULL
+
+
 names(export_df) = c('Accession Number',
                      'Original taxonomic name and author',
-                     'BGSmartR taxonomic name and author',
+                     'Matched WCVP taxonomic name and author',
+                     'Accepted WCVP taxonomic name and author (if update required)',
                      'Matching tags',
                      'Author Match'
                      )
@@ -587,6 +605,7 @@ matching_details_table
 
 <!-- `r if(report_kind == 'interactive'){"##### {-}"}` -->
 
+:::: {.blackbox data-latex=""}
 
 Accession level information of taxonomic matching to WCVP can be downloaded using the button below.
 
@@ -604,6 +623,47 @@ export_df |>
   )
 ```
 
+::::
+
+```{r, taxon_status}
+interest = report[c('TaxonNameFull',
+                    'POWO_taxon_name',
+                    'POWO_taxon_authors',
+                    'POWO_match_detail_short',
+                    'POWO_taxon_status')] 
+interest = interest[which(!is.na(report$POWO_plant_name_id)),]
+interest$POWO_taxon_name = paste0(interest$POWO_taxon_name, ' ', interest$POWO_taxon_authors)
+interest$POWO_taxon_authors = NULL
+interest = interest |> 
+  group_by(TaxonNameFull) |> 
+  summarise(POWO_taxon_status = POWO_taxon_status[1],
+            POWO_match_detail_short = POWO_match_detail_short[1])
+
+interest$POWO_taxon_status[grep('ACCEPTED',interest$POWO_match_detail_short)] = paste0(interest$POWO_taxon_status[grep('ACCEPTED',interest$POWO_match_detail_short)], '-via_matching')
+interest$POWO_taxon_status[!grepl('Accepted',interest$POWO_taxon_status)] = interest$POWO_taxon_status[!grepl('Accepted',interest$POWO_taxon_status)] |> stringr::str_remove(pattern = '-via_matching')
+interest$POWO_taxon_status[which(interest$POWO_taxon_status == 'Accepted-via_matching')] = 'Updated to accepted'
+d = table(interest$POWO_taxon_status) |> data.frame()
+names(d) = c('name', 'value')
+d = d[order(d$value),]
+
+
+colours = scales::brewer_pal(palette = palette, direction = 1)(nrow(d))
+fig <- plot_ly(d, labels = ~name, values = ~value, title = "Matched taxa",
+                # hoverinfo = "text",  hovertext = text,
+                sort = FALSE, marker = list(colors = colours)) |>
+  add_pie(hole = 0.6) |>
+  layout(title = "",
+                      xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+                      yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+
+```
+
+<br>
+
+### Nomenclature of matched taxa
+
+`r fig`
 
 ***
 
@@ -655,6 +715,8 @@ enrich_download = interest |>
   )
 ```
 
+:::: {.blackbox data-latex=""}
+
 You can download a selection of enrichment data for the collection (BRU codes, Distribution description from interpretation of BRU codes,
 Distribution description from WCVP,
 Taxa labelled as endemic to 1 BRU level 3 area (or not endemic),
@@ -666,7 +728,9 @@ IUCN red-list category,
 Rarity in cultivation
 ) using the download button below. 
 
-`r if(report_kind == 'interactive'){enrich_download}`
+`r enrich_download`
+
+::::
 
 ### Geographic regions of plants in the collection
 
@@ -876,6 +940,7 @@ map_items
 ```
 
 Within the collection there are `r regions_missing |> length()` regions that are not represented in the collection. Namely, `r paste0(regions_missing, collapse = ', ')`.
+
 ***
 
 ### Geographic regions of endemic plants in the collection
@@ -1045,6 +1110,8 @@ if(!has_redlist_cat){
   for_plot = for_plot[for_plot$Category != 'NA',]
   table_item  = for_plot
   
+for_plot$Category = for_plot$Category |> as.character() |> factor(levels = c('VU', 'EN','CR', 'EW','EX'))
+
 # Create bar plot.
 figs$individuals = plot_ly(for_plot,
         x = ~Category,
@@ -1061,18 +1128,25 @@ interest_taxa = interest |>
   group_by(best_name) |>
   summarise(new = toString(unique(threatened_category))
   )
-no_extinct = sum(interest_taxa$new == 'EX')
+
+no_extinct = sum(grepl('EX',interest_taxa$new))
 if(no_extinct > 0){
   acc_extinct = unique(interest[which(interest$threatened_category == 'EX'), c('AccNoFull', 'best_name')]) |> group_by(best_name) |> summarise(acc = toString(AccNoFull))
   acc_extinct = paste0(acc_extinct$best_name, ' (',acc_extinct$acc,')')
 }
 
-new = table(interest_taxa$new) |> data.frame()
+cat = c('VU', 'EN','CR', 'EW','EX')
+taxa_count = rep(NA, length(cat))
+for(i in 1:length(cat)){
+  taxa_count[i] = sum(grepl(cat[i], interest_taxa$new))
+}
+new = data.frame(cat = cat, count = taxa_count)
+new = new[new$count >0,]
 for_plot =  new
 names(for_plot) = c('Category', 'Individuals')
-for_plot = for_plot[for_plot$Category != 'NA',]
 
 table_taxa= for_plot
+for_plot$Category = for_plot$Category |> as.character() |> factor(levels = c('VU', 'EN','CR', 'EW','EX'))
 
 # Create bar plot.
 figs$taxa = plot_ly(for_plot,
@@ -1112,6 +1186,7 @@ table_item$percent = ((table_item$Enriched - table_item$Original) / table_item$O
 table_item$percent = paste0(table_item$percent, '%')
 names(table_item) = c("Category", "Enriched", "Original", "Percent change")
 
+for_plot$Category = for_plot$Category |> as.character() |> factor(levels = c('VU', 'EN','CR', 'EW','EX'))
 # Create bar plot.
 figs$individuals = plot_ly(for_plot,
         x = ~Category,
@@ -1144,7 +1219,7 @@ table_taxa= reshape2::dcast(for_plot, Category ~ Source, value.var = "Individual
 table_taxa$percent = ((table_taxa$Enriched - table_taxa$Original) / table_taxa$Original *100 ) |> round(2)
 table_taxa$percent = paste0(table_taxa$percent, '%')
 names(table_taxa) = c("Category", "Enriched", "Original", "Percent change")
-
+for_plot$Category = for_plot$Category |> as.character() |> factor(levels = c('VU', 'EN','CR', 'EW','EX'))
 # Create bar plot.
 figs$taxa = plot_ly(for_plot,
         x = ~Category,
@@ -1422,6 +1497,34 @@ if(separate_figure_folder){
   htmlwidgets::saveWidget(figs$acc$date, file = paste0(figures_dir, '/','Bar-date_of_last_update_acc.html'))
 }
 
+
+# Create the smaller pie charts.
+five_year_ago = max_year - 5
+not_seen = sum(last_update_items$no_items[last_update_items$year < five_year_ago])
+seen = sum(last_update_items$no_items[last_update_items$year >= five_year_ago])
+simp_last_update_items = data.frame(c('Yes', 'No'), c(seen, not_seen) )
+names(simp_last_update_items) = c(paste0('Seen since ', five_year_ago, '?'), 'Items')
+
+not_seen = sum(last_update_acc$no_acc[last_update_acc$year < five_year_ago])
+seen = sum(last_update_acc$no_acc[last_update_acc$year >= five_year_ago])
+simp_last_update_acc = data.frame(c('Yes', 'No'), c(seen, not_seen) )
+names(simp_last_update_acc) = c(paste0('Seen since ', five_year_ago, '?'), 'Accessions')
+
+colours = interactive_colour(2) |> rev()
+seen_5_year_pie <- plot_ly() |>
+  add_pie(data = simp_last_update_items, labels = simp_last_update_items[,1], values = ~Items, hole = 0.6,
+          title = "Items", name ='', sort = FALSE, marker = list(colors = colours),
+          domain = list(row = 0, column = 0)) |>
+  add_pie(data = simp_last_update_acc, labels = simp_last_update_acc[,1], values = ~Accessions, hole = 0.6,
+          title = "Accessions", name ='', sort = FALSE, marker = list(colors = colours),
+         domain = list(row = 0, column = 1))  |>
+  layout(title = "", showlegend = TRUE,
+          grid=list(rows=1, columns=2),
+         plot_bgcolor="#f0f0f0",
+         legend = list(title = list(text = paste0('<b>','Seen since ', five_year_ago, '?', '</b>')), orientation = 'h', xanchor = "center", x = 0.5),
+         xaxis = list(title=paste0('Items', 'Accessions'), showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         margin = c(0,0,0,0))
 ### (END) Create last updated plots ----
 
 ### Create table of accessions not updated in last 5 years ----
@@ -1513,9 +1616,13 @@ Within the collection there are `r nrow(issue_df)` existing individuals that hav
 
 `r if( nrow(issue_df) > 0 & report_kind == 'interactive'){ItemStatusDate_details_table}`
 
+`r if( nrow(issue_df) > 0){':::: {.blackbox data-latex=""}'}`
+
 `r if( nrow(issue_df) > 0){"Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below."}`
 
 `r if( nrow(issue_df) > 0 & report_kind == 'interactive'){ItemStatusIssue_download}`
+
+`r if( nrow(issue_df) > 0){'::::'}`
 
 ***
  
@@ -1526,9 +1633,13 @@ Within the collection there are `r nrow(issue_AccYear_df)` existing individuals 
 
 `r if( nrow(issue_AccYear_df) > 0 & report_kind == 'interactive'){AccYear_details_table}`
 
+`r if( nrow(issue_AccYear_df) > 0){':::: {.blackbox data-latex=""}'}`
+
 `r if( nrow(issue_AccYear_df) > 0){"Detailed information about the accessions affected by potential most recent status update issues can be downloaded using the button below."}`
 
 `r if( nrow(issue_AccYear_df) > 0 & report_kind == 'interactive'){AccYear_download}`
+
+`r if( nrow(issue_AccYear_df) > 0){'::::'}`
 
 ***
 
@@ -1537,6 +1648,10 @@ Within the collection there are `r nrow(issue_AccYear_df)` existing individuals 
 In this section we explore how recently individuals and accessions have been updated in the collection. Where for accessions we use the date of the most recent updated individual in the accession. We extract the year from the latest update date and plot the number of individuals and items by their year of most recent update. 
 
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Snapshot"}`
+
+`r if(report_kind == 'interactive'){seen_5_year_pie}`
 
 `r if(report_kind == 'interactive'){"###### Individuals"}`
 
@@ -1567,10 +1682,179 @@ In this section we explore how recently individuals and accessions have been upd
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
+:::: {.blackbox data-latex=""}
 
-Use the button below to download individuals in the collection that haven't been updated since `r year_cur - 5`. 
+Use the button below to download individuals in the collection that have not been updated since `r year_cur - 5`. 
 
-`r if(report_kind == 'interactive'){old5yr_download}`
+`r old5yr_download`
 
+::::
 
 ***
+
+### {-} 
+<!-- Unknown provenance, only show if there are currently unknown provenance existing in the collection-->
+```{r, unknown prov}
+interest = report_original 
+interest_existing = interest[interest$ItemStatusType == 'Existing',]
+
+no_unknown = sum(interest_existing$ProvenanceCode == 'Unknown')
+
+if(no_unknown > 0){
+  
+  if(!is.null(old_accession_year_codes)){
+    has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+    acc_change_accyear = interest$AccNoFull[has_old_accessions_code] |> unique()
+
+    no_old_accessions = length(has_old_accessions_code)
+    interest$AccYear[has_old_accessions_code] = earliest_allowable_record
+  }
+  to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+  still_issue = nrow(interest) - length(to_keep)
+  interest = interest[to_keep,]
+  
+  interest = interest[!is.na(interest$ItemStatusDate),]
+  
+  
+  
+  unique_accessions = unique(interest$AccNoFull)
+  
+  LossYear = rep(NA,nrow(interest))
+  ItemStatusYear = as.numeric(stringr::str_extract(interest$ItemStatusDate,pattern = '[0-9]{4}'))
+  LossYear[interest$ItemStatusType %in% c('NotExisting', 'Not Existing')] = ItemStatusYear[interest$ItemStatusType %in% c('NotExisting', 'Not Existing')]
+  interest$LossYear = LossYear
+  # Order the items where the lower indices have the most recent death date.
+  LossYear_dummy = LossYear
+  LossYear_dummy[is.na(LossYear_dummy)] = 4000
+  ordered_items = order(LossYear_dummy,decreasing = T)
+  interest = interest[ordered_items, ]
+  
+  #Match to the ordered accessions.
+  match_to_best = match(unique_accessions,interest$AccNoFull)
+  
+  #Reduce the data to unique accessions with most recent death date.
+  interest = interest[match_to_best,]
+  interest$ProvenanceCode[interest$ProvenanceCode != 'Unknown'] = 'Other'
+  
+  interest_existing = interest[interest$ItemStatusType == 'Existing',]
+  
+  
+  
+  min_year = 1970 ; max_year = Sys.Date() |> format('%Y') |> as.numeric() ; years = min_year:max_year
+  date = paste0(years, '-12-31')
+  
+  plant_existing = BGSmartR::exist_at_date(date, AccessionYear = interest$AccYear,
+                                           ItemStatusDate = interest$ItemStatusDate,
+                                           ItemStatusType = interest$ItemStatusType,post_date = '3000-12-31')
+  
+  time_series_info_subsets = pbapply::pblapply(plant_existing, function(x){
+    garden_current = interest[x,]
+    
+    breakdown_provenance = table(garden_current$ProvenanceCode)
+    
+    return(list(breakdown_provenance = breakdown_provenance))
+  })
+  names(time_series_info_subsets) = names(plant_existing)
+  
+  # Snapshot
+  data_exist = data.frame(prov = c('Unknown','Other'), acc = c(sum(interest_existing$ProvenanceCode == 'Unknown'),
+                                                               sum(interest_existing$ProvenanceCode != 'Unknown'))
+  )
+  data_exist$prov = data_exist$prov |> factor(levels = c('Unknown','Other'))
+  snapshot_plot <- plot_ly(data_exist, labels = ~prov, values = ~acc, title = 'Accessions',
+                           # hoverinfo = "text",  hovertext = ~hover,
+                           marker = list(colors = color_binary |> rev()),  sort = FALSE) |>
+    add_pie(hole = 0.6) |>
+    layout(title = "",  showlegend = T,
+           xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+  
+  
+  # Over time
+  unknown_trend = lapply(time_series_info_subsets, function(x){
+    acc = x$breakdown_provenance['Unknown'] |> as.numeric()
+    percent = (acc/sum(x$breakdown_provenance) *100) |> round(2)
+    
+    return(c(acc,percent))
+  }) |> data.frame() |> t() |> data.frame()
+  unknown_trend = data.frame(year = years, unknown_trend)
+  names(unknown_trend) = c('years', 'acc','percent')
+  
+  
+  df = unknown_trend
+  name = 'Accessions'
+  df$text = paste0('Date: ', years, '-12-31 <br>', name,': ', df$acc)
+  
+  fig <- plot_ly(df, x = ~years, y = ~acc, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text', line = list(color = interactive_colour(1)))
+  fig <- fig %>% layout(title = "",
+                        xaxis = list(title = "Year"),
+                        yaxis = list(title = paste0("Number of ", name |> tolower()))) 
+  fig <- fig %>% layout(hovermode = 'x')
+  
+  # if(separate_figure_folder){
+  #   htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/',name,'_trend.html'),selfcontained = T)
+  # }
+  
+  df$text = paste0('Date: ', years, '-12-31 <br>Percent of ', name|> tolower(),': ', df$percent, '%')
+  
+  fig2 <- plot_ly(df, x = ~years, y = ~percent, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text', line = list(color = interactive_colour(1))) |>
+    layout(title = "",
+           xaxis = list(title = "Year"),
+           yaxis = list(title = paste0("Proportion of ", name |> tolower()))) |>
+    layout(hovermode = 'x')
+}
+
+
+# Downloadable table of unknown taxa.
+unknown_existing = interest_existing[interest_existing$ProvenanceCode == 'Unknown',
+                                     match(c('AccNoFull','AccYear', 'TaxonNameFull', 'POWO_taxon_name', 'endemic', 'native', 'threatened'), names(interest_existing))]
+
+unknown_existing$AccYear = report_original$AccYear[match(unknown_existing$AccNoFull, report_original$AccNoFull)]
+
+names(unknown_existing) = c('Accession Number','Accession Year', 'Original Taxonomic Name and Authority', 'WCVP Taxonomic Name', 'Endemic Status', 'Native Status', 'Threatened Status')
+unknown_existing = unknown_existing[order(unknown_existing$`Accession Year` |> as.numeric(), decreasing = T),]
+download_unknown = unknown_existing |>
+  download_this(
+    output_name = "existing_unknown_provenance",
+    output_extension = ".xlsx",
+    button_label = "Download exisiting plants with unknown provenance (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained =  T
+  )
+```
+
+`r if(no_unknown > 0){'### Unknown provenance'}`
+
+`r if(no_unknown > 0){'In this section we explore the number of unknown provenance accessions in the collection and how this has varied over time.'}`
+
+`r if(report_kind == 'interactive' & no_unknown > 0){"#####   {.tabset}"}`
+
+`r if(report_kind == 'interactive' & no_unknown > 0){"###### Snapshot"}`
+```{r  snapshot unknown provenance, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & no_unknown > 0}
+snapshot_plot
+```
+
+`r if(report_kind == 'interactive' & no_unknown > 0){"###### Trend (Number)"}`
+```{r  trend unknown provenance, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & no_unknown > 0}
+fig
+```
+
+`r if(report_kind == 'interactive' & no_unknown > 0){"###### Trend (Percentage)"}`
+```{r  trend percent unknown provenance, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & no_unknown > 0}
+fig2
+```
+
+`r if(report_kind == 'interactive' & no_unknown > 0){"##### {-}"}`
+
+`r if(no_unknown > 0){':::: {.blackbox data-latex=""}'}`
+
+`r if(no_unknown > 0){'Note that unique/very rare taxa may suffer from inaccurate naming. These taxa can be downloaded using the button below'}`
+
+`r if(no_unknown > 0){download_unknown}`
+
+`r if(no_unknown > 0){'::::'}`
+
+`r if(no_unknown > 0){'***'}`

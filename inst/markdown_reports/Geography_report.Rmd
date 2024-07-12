@@ -1,7 +1,7 @@
 ---
 title: "Geographic distribution of taxa in the collection"
-output:
-  word_document: default
+output: html_document
+always_allow_html: true
 ---
 
 ##### {-}
