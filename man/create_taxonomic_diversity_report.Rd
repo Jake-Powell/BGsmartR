@@ -10,6 +10,8 @@ create_taxonomic_diversity_report(
   wcvp = NULL,
   PlantClassification = BGSmartR::Diversity_classification$Classification,
   min_year = 1970,
+  earliest_allowable_record = 1700,
+  old_accession_year_codes = NULL,
   report_kind = "static",
   output_file = NULL,
   output_dir = NULL,
@@ -39,6 +41,10 @@ create_taxonomic_diversity_report(
 \item{PlantClassification}{plant classification information}
 
 \item{min_year}{The minimum year for analyses over time.}
+
+\item{earliest_allowable_record}{Number, corresponding to the minimum allowable year in the "AccYear" column.}
+
+\item{old_accession_year_codes}{Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on \code{earliest_allowable_record}.}
 
 \item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
 

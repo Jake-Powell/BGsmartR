@@ -523,6 +523,45 @@ fig <- plot_ly(data = funnel_data,
          modeBarButtonsToRemove = c('zoom2d','pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale', 'resetScale'))
 
 funnel_fig = fig
+
+
+
+
+funnel_data_format = data.frame(stage = funnel_data$names[-1],
+                                stage_start = funnel_data$values[-8] |> as.numeric(),
+                                Yes = funnel_data$stage_number[-1]|> as.numeric())
+funnel_data_format$No = funnel_data_format$stage_start - funnel_data_format$Yes 
+funnel_data_format = funnel_data_format[,-2]
+funnel_data_format = funnel_data_format[-6,]
+funnel_data_format$stage = c('1) Is it a cultivar/indeterminate?',
+                             '2) Does it match taxonomic name and authority?',
+                             '3) Does it match taxonic name and part of the authority?',
+                             '4) Does only the taxonomic name match?',
+                             '5) Can we fix the taxonomic name to find a match?',
+                             '6) No match'
+                             )
+
+dd = reshape(funnel_data_format, idvar = "stage", varying = list(2:ncol(funnel_data_format)),
+             v.names = "count", timevar = "kind", times = names(funnel_data_format)[-1], direction = "long")
+dd$stage_wrap = dd$stage |> stringr::str_wrap(width = 30)
+dd$stage_wrap = factor(dd$stage_wrap, levels = unique(dd$stage_wrap) |> rev())
+dd$hover = paste0(dd$stage, ' <br> ', dd$kind, ' <br> ', dd$count, ' taxa')
+
+hor_stack_bar_plot = plotly::plot_ly(dd,
+                             type = 'bar',
+                             y = ~stage_wrap,
+                             x = ~count,
+                             color = ~kind,
+                             colors = interactive_colour(2) |> rev(),
+                             orientation = 'h',
+                             hovertext = ~hover, hoverinfo = 'text',
+                             showlegend = TRUE
+                             # marker = list(color = ~color)
+                             )|>
+  plotly::layout(xaxis = list(title = "Taxonomic Names"),
+                 yaxis = list(title = 'Stages'),barmode = 'stack'
+                 # hovermode = 'y unified'
+  )
 ### (END) funnel chart information. ------
 
 ### Table of the matching information --------
@@ -591,7 +630,7 @@ The process is outlined in the figure below which visualises the process as pass
 <!-- `r if(report_kind == 'interactive'){"#####   {.tabset}"}` -->
 <!-- `r if(report_kind == 'interactive'){"###### Chart"}` -->
 
-`r if(report_kind == 'interactive'){funnel_fig}`
+`r if(report_kind == 'interactive'){hor_stack_bar_plot}`
 
 
 <!-- `r if(report_kind == 'interactive'){"###### Table"}` -->
@@ -1499,6 +1538,7 @@ if(separate_figure_folder){
 
 
 # Create the smaller pie charts.
+max_year = Sys.Date() |> format('%Y') |> as.numeric()
 five_year_ago = max_year - 5
 not_seen = sum(last_update_items$no_items[last_update_items$year < five_year_ago])
 seen = sum(last_update_items$no_items[last_update_items$year >= five_year_ago])
