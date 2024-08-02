@@ -1223,9 +1223,9 @@ if(!is.null(wcvp)){
   }
   texteo = stringr::str_remove(texteo,pattern = '^, ')
   wcvp_wanted$geography = texteo
-  texteo <<- texteo
-  codes <<- codes
-  geography <<- geography
+  # texteo <<- texteo
+  # codes <<- codes
+  # geography <<- geography
   wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
   wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'geography', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
 }
@@ -1755,8 +1755,8 @@ fig2 <- fig2 |> layout(title = "Accessions",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 figs$accessions = fig2
-duplication_items <<- duplication_items
-duplication_accessions <<- duplication_accessions
+# duplication_items <<- duplication_items
+# duplication_accessions <<- duplication_accessions
 
 duplication_items = duplication_items[c(2:5,1),]
 duplication_accessions = duplication_accessions[c(2:5,1),]
@@ -2781,7 +2781,7 @@ enriched_report_wanted = enriched_report_wanted[to_keep,]
                                wanted_data$Alive_dead,
                                native_non_native)
   names(data_to_analyse) = c("TaxonNameFull", "time", "Alive_dead", "tree_status")
-  data_to_analyse <<- data_to_analyse
+  # data_to_analyse <<- data_to_analyse
   if(export_data){
     exporting_data_store$Data_for_survival = data_to_analyse
   }
@@ -3183,7 +3183,7 @@ AA = lapply(remove_nodes, function(node){
     data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
     # Update the parents for each node who originally has 'node' as the parent. 
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
-    data_formatted <<- data_formatted
+    data_formatted <<- data_formatted  # This is needed don't comment
   }
  
   return()

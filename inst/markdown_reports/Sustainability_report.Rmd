@@ -362,7 +362,7 @@ This report uses data from **`r collection`** and analyses longevity in the coll
 
 <!-- `r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis. -->
 
-`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
+`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', 'items' |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
 
 This document outlines the sustainability of the collection by considering the age of plants currently in the collection, how long plants survive in the collection, how often new species are brought into the collection and how often they are lost.
 
@@ -1155,7 +1155,7 @@ all_ids =  df$POWO_plant_name_id |> unique()
 existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
 
-column_interest = match(c('AccYear', 'LossYear'), names(df))
+column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
   
   plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
@@ -1173,9 +1173,13 @@ no_more_info = pbapply::pblapply(no_more_ids, function(x){
     paste0(mess,all_years[min(consec[[ii]])], '-', all_years[max(max(consec[[ii]]), 1)], ', ' )
   }
   mess <- stringr::str_remove(mess,', $')
-  return(c(plant, last_seen, total_years, mess))
+  
+  # characteristics.
+  threat = info$threatened[1] ; threat_cat = info$threatened_category[1]
+  endemic = info$endemic[1] ; tree = info$tree[1] ; nativeo = info$native[1]
+  return(c(plant, last_seen, total_years, mess, threat, threat_cat, endemic, nativeo, tree))
 }) |> data.frame() |> t() |> data.frame()
-names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 'Total years in collection', 'In collection history')
+names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 'Total years in collection', 'In collection history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
 rownames(no_more_info) = 1:nrow(no_more_info)
 no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
 no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()

@@ -100,7 +100,7 @@ text-align: center;
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -350,7 +350,7 @@ AA = lapply(remove_nodes, function(node){
     data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
     # Update the parents for each node who originally has 'node' as the parent.
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
-    data_formatted <<- data_formatted
+    data_formatted <<- data_formatted # This is needed don't remove.
   }
 
   return()
@@ -867,7 +867,7 @@ AA = lapply(remove_nodes, function(node){
     data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
     # Update the parents for each node who originally has 'node' as the parent.
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
-    data_formatted <<- data_formatted
+    data_formatted <<- data_formatted #This is needed don't remove
   }
 
   return()
@@ -1164,7 +1164,6 @@ major_groups = c("Lycophytes", "Ferns", "Gymnosperms", "Angiosperms"
 )
 Angiosperm_groups = c('Eudicots', 'Monocots')
 Eudicot_groups = c('Asterids', 'Rosids')
-PlantClassification <<- PlantClassification
 fam_major_groups = lapply(major_groups, function(group){
   PlantClassification$family[PlantClassification$`major Land Plants lineage` == group]
 })

@@ -2698,7 +2698,7 @@ if(report_kind == 'static'){
 }
 if(report_kind == 'interactive'){
   table_data$year  =paste0(c(2,5,10,25,50,100), '-year survival')
-  names(table_data)[3] = 'Survival time (95% CI)'
+  names(table_data)[3] = 'Survival time'
   table_data = table_data[,c(3,1,2)]
   table_data |>  DT::datatable(extensions = 'Buttons',
                   rownames = FALSE,
@@ -3730,7 +3730,7 @@ AA = lapply(remove_nodes, function(node){
     # Update the parents for each node who originally has 'node' as the parent. 
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
   }
-  data_formatted <<- data_formatted
+  data_formatted <<- data_formatted # This is needed don't remove.
   return()
 })
 
@@ -3742,7 +3742,6 @@ data_formatted$parents[data_formatted$parents == ''] = 'WCVP'
 
 data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatted$values[data_formatted$parents == 'WCVP']), sum(data_formatted$in_LC[data_formatted$parents == 'WCVP']) )
 
-dff <<- data_formatted
 ### Subfamily level information
 # {
 #   # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData

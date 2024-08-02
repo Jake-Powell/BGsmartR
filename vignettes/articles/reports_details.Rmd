@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 library(BGSmartR)
 ```
 
-*Herein we describe the definitions and technicalities and concepts used thoughout the reports created by BGsmartR*
+*Herein we describe the definitions and technicalities and concepts used throughout the reports created by BGsmartR*
 
 Below we describe how we applied different concepts in the BGsmartR context. Our intention is not to provide a technical definition of concepts such as trees or species, but to specify how we defined them in the framework of our analyses.
 

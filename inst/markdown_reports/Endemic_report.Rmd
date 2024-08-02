@@ -1743,8 +1743,8 @@ fig2 <- fig2 |> layout(title = "Accessions",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
                       yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 figs$accessions = fig2
-duplication_items <<- duplication_items
-duplication_accessions <<- duplication_accessions
+# duplication_items <<- duplication_items
+# duplication_accessions <<- duplication_accessions
 
 duplication_items = duplication_items[c(2:5,1),]
 duplication_accessions = duplication_accessions[c(2:5,1),]
@@ -3289,7 +3289,7 @@ AA = lapply(remove_nodes, function(node){
     data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
     # Update the parents for each node who originally has 'node' as the parent. 
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
-    data_formatted <<- data_formatted
+    data_formatted <<- data_formatted # This is needed don't remove.
   }
  
   return()
