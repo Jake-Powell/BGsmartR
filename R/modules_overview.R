@@ -1,5 +1,8 @@
 
-#' create_overview_report()
+#' Create overview module
+#'
+#'@description
+#'The most relevant plots illustrating the general quality of a collection
 #'
 #'
 #'@inheritParams create_native_report

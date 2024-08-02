@@ -1,8 +1,10 @@
 # Script for running collection dynamics reports
 
-#' create_trends_report()
+#' Create collection dynamics module
 #'
-#'This function can be used to create the trends report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the gain and loss of items/accessions/taxa/families over time whilst also considering the type of taxa (native, endemic, threatened) in the LC.
+#'@description
+#'**Trends**: Evolution over time of the capacity and diversity of a collection. **Turnover**: Dynamics of the gained and lost plants every year.
+#'
 #'
 #' @inheritParams create_native_report
 #' @param data_type Either "Accessions" or "Items". Specifies the quantity to use when looking at the trends of provenance, native species, endemic species and threatened species.
@@ -186,11 +188,7 @@ create_trends_report <- function(enriched_report,
 }
 
 
-#' create_turnover_report()
-#'
-#'This function can be used to create the turnovers report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the gain and loss of items/accessions/taxa/families over time whilst also considering the type of taxa (native, endemic, threatened) in the LC.
-#'
-#' @inheritParams create_trends_report
+#' @rdname create_trends_report
 #' @export
 #'
 create_turnover_report <- function(enriched_report,

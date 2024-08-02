@@ -104,7 +104,6 @@ palette = 'Oranges'
 # report_kind = 'static'
 # color_binary = c('darkgray','darkgreen')
 # palette = 'Greens'
-# recent_year = 2020
 # endemic_species_per_region = NULL
 # output_dir =getwd()
 ```

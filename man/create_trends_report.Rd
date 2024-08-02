@@ -2,7 +2,8 @@
 % Please edit documentation in R/modules-collection_dynamics.R
 \name{create_trends_report}
 \alias{create_trends_report}
-\title{create_trends_report()}
+\alias{create_turnover_report}
+\title{Create collection dynamics module}
 \usage{
 create_trends_report(
   enriched_report,
@@ -35,11 +36,43 @@ create_trends_report(
   scale_fill_binned = ggplot2::scale_fill_viridis_b,
   reference_docx = NULL
 )
+
+create_turnover_report(
+  enriched_report,
+  collection = NULL,
+  min_year = 1970,
+  coordinates = NULL,
+  native = "Naturally occurring only",
+  extinct = TRUE,
+  doubtful_locations = FALSE,
+  wgsrpd3 = NULL,
+  report_kind = "static",
+  data_type = "Accessions",
+  earliest_allowable_record = 1700,
+  old_accession_year_codes = NULL,
+  do_geography_trend = TRUE,
+  output_file = NULL,
+  output_dir = NULL,
+  export_data = FALSE,
+  save_excel = FALSE,
+  separate_figure_folder = TRUE,
+  table_font_size = 10,
+  ggtheme = NULL,
+  value_on_fig = FALSE,
+  interactive_colour = viridis::viridis,
+  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
+  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
+  scale_colour_binned = ggplot2::scale_colour_viridis_b,
+  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
+  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
+  scale_fill_binned = ggplot2::scale_fill_viridis_b,
+  reference_docx = NULL
+)
 }
 \arguments{
-\item{enriched_report}{The enriched (via BGSmartR) report of a LC.}
+\item{enriched_report}{The enriched report of a living collection (created in BGsmartR)}
 
-\item{collection}{The name of the LC}
+\item{collection}{The name of the living collection}
 
 \item{min_year}{The minimum year for analyses over time.}
 
@@ -51,7 +84,7 @@ create_trends_report(
 
 \item{doubtful_locations}{Flag (TRUE/FALSE) for whether to include doubtful locations.}
 
-\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} pacakge.}
+\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} package.}
 
 \item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
 
@@ -86,5 +119,5 @@ create_trends_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-This function can be used to create the trends report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the gain and loss of items/accessions/taxa/families over time whilst also considering the type of taxa (native, endemic, threatened) in the LC.
+\strong{Trends}: Evolution over time of the capacity and diversity of a collection. \strong{Turnover}: Dynamics of the gained and lost plants every year.
 }

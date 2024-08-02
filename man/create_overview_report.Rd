@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules_overview.R
 \name{create_overview_report}
 \alias{create_overview_report}
-\title{create_overview_report()}
+\title{Create overview module}
 \usage{
 create_overview_report(
   enriched_report,
@@ -33,11 +33,11 @@ create_overview_report(
 )
 }
 \arguments{
-\item{enriched_report}{The enriched (via BGSmartR) report of a LC.}
+\item{enriched_report}{The enriched report of a living collection (created in BGsmartR)}
 
-\item{collection}{The name of the LC}
+\item{collection}{The name of the living collection}
 
-\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} pacakge.}
+\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} package.}
 
 \item{PlantClassification_filepath}{filepath to family classification. If NULL we use the default contained within BGSmartR.}
 
@@ -74,5 +74,5 @@ create_overview_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-create_overview_report()
+The most relevant plots illustrating the general quality of a collection
 }

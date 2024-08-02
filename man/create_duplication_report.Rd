@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules-duplication.R
 \name{create_duplication_report}
 \alias{create_duplication_report}
-\title{create_duplication_report()}
+\title{Rarity and duplication module}
 \usage{
 create_duplication_report(
   enriched_report,
@@ -27,9 +27,9 @@ create_duplication_report(
 )
 }
 \arguments{
-\item{enriched_report}{The enriched (via BGSmartR) report of a LC.}
+\item{enriched_report}{The enriched report of a living collection (created in BGsmartR)}
 
-\item{collection}{The name of the LC}
+\item{collection}{The name of the living collection}
 
 \item{min_year}{The minimum year for analyses over time.}
 
@@ -56,5 +56,5 @@ create_duplication_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-This function can be used to create the duplication report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the number of global collections holding taxa and duplcation within the living collection.
+Degree of rarity of a plant in cultivation globally and duplication of individuals per species in a collection.
 }

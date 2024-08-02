@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules-data_health.R
 \name{create_data_health_report}
 \alias{create_data_health_report}
-\title{create_data_health_report()}
+\title{Create data health module}
 \usage{
 create_data_health_report(
   enriched_report,
@@ -33,11 +33,11 @@ create_data_health_report(
 )
 }
 \arguments{
-\item{enriched_report}{The enriched (via BGSmartR) report of a LC.}
+\item{enriched_report}{The enriched report of a living collection (created in BGsmartR)}
 
-\item{collection}{The name of the LC}
+\item{collection}{The name of the living collection}
 
-\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} pacakge.}
+\item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} package.}
 
 \item{PlantClassification_filepath}{filepath to family classification. If NULL we use the default contained within BGSmartR.}
 
@@ -74,5 +74,5 @@ create_data_health_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-create_data_health_report()
+Inspection of the quality of the records and demonstrations of their enrichment
 }

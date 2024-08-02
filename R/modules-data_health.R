@@ -1,5 +1,9 @@
 
-#' create_data_health_report()
+#' Create data health module
+#'
+#' @description
+#' Inspection of the quality of the records and demonstrations of their enrichment
+#'
 #'
 #'
 #'@inheritParams create_native_report

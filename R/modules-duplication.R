@@ -1,13 +1,14 @@
 
-#' create_duplication_report()
+#' Create rarity and duplication module
 #'
-#'This function can be used to create the duplication report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the number of global collections holding taxa and duplcation within the living collection.
+#'@description
+#'Degree of rarity of a plant in cultivation globally and duplication of individuals per species in a collection.
+#'
 #'
 #'@inheritParams create_native_report
 #' @param join_bigger_than When exploring accessions per item, etc the value at which we merge larger values for simplified pie charts. Default is 4.
 #'
 #' @export
-#'
 create_duplication_report <- function(enriched_report,
                                    collection = NULL,
                                    min_year = 1970,

@@ -1,11 +1,11 @@
 
-#' create_sustainability_report()
+#' Create collection longevity module
+#'@description
+#' The age of the collection and probability of survival in the collection.
 #'
 #'
 #'@inheritParams create_native_report
 #' @param PlantClassification_filepath filepath to family classification. If NULL we use the default contained within BGSmartR.
-#' @param old_accession_year_codes Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on `earliest_allowable_record`.
-#' @param earliest_allowable_record Number, corresponding to the minimum allowable year in the "AccYear" column.
 #'
 #' @export
 #'

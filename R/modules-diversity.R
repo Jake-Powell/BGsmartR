@@ -1,11 +1,16 @@
 # Script for running collection dynamics reports
 
-#' create_trends_report()
+#' Create diversity module
+#' @description
+#' **Taxonomic Diversity**:Taxonomic presentation and composition in a collection. **Geography**: Geographic representation of a collection.
 #'
-#'This function can be used to create the trends report of a living collection. The report produces interactive or static graphs (bars, pies) detailing the gain and loss of items/accessions/taxa/families over time whilst also considering the type of taxa (native, endemic, threatened) in the LC.
+#'
 #'
 #' @inheritParams create_native_report
 #' @param PlantClassification plant classification information
+#' @param endemic_species_per_region A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
+#' @param accepted_species_per_region A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
+#' @param tree_species_per_region A data frame detailing the number of accepted trees (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #' @export
 #'
 create_taxonomic_diversity_report <- function(enriched_report,
@@ -155,5 +160,134 @@ create_taxonomic_diversity_report <- function(enriched_report,
                       output_dir = output_dir,
                       output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4,  toc_float =  TRUE, theme = 'cerulean', highlight = 'tango'))
   }
+
+}
+
+
+#' @rdname create_taxonomic_diversity_report
+#' @export
+#'
+create_geography_report <- function(enriched_report,
+                                    collection = NULL,
+                                    wgsrpd3 = NULL,
+                                    wcvp = NULL,
+                                    report_kind = 'static',
+                                    native = 'Naturally occurring only',
+                                    extinct = TRUE,
+                                    doubtful_locations = FALSE,
+                                    export_data = FALSE,
+                                    output_file = NULL,
+                                    output_dir = NULL,
+                                    table_font_size = 10,
+                                    ggtheme = NULL,
+                                    separate_figure_folder = TRUE,
+                                    value_on_fig = FALSE,
+                                    endemic_species_per_region = NULL,
+                                    accepted_species_per_region = NULL,
+                                    tree_species_per_region = NULL,
+                                    reference_docx = NULL){
+  # 1) Setup.
+  # A) Check enriched report.
+  if(is.null(wgsrpd3)){
+    stop('Error! Must provide wgsrpd3 dataset.')
+  }
+
+  # B) Choose output file
+  # B) Choose output file name.
+  if(report_kind == 'interactive'){
+    if(is.null(output_file) & is.null(collection)){
+      output_file = 'geography_interactive.html'
+    }
+    else if(is.null(output_file) & !is.null(collection)){
+      output_file = paste0(collection, '_geography_interactive.html')
+    }
+  }
+  else if(report_kind == 'static'){
+    if(is.null(output_file) & is.null(collection)){
+      output_file = 'geography_static.docx'
+    }
+    else if(is.null(output_file) & !is.null(collection)){
+      output_file = paste0(collection, '_geography_static.docx')
+    }
+  }else{
+    stop('Invalid report_kind input!')
+  }
+  # Set the output directory if not specified.
+  if(is.null(output_dir)){
+    output_dir = getwd()
+  }
+
+
+  if(report_kind == 'static'){
+    if(!is.null(reference_docx)){
+      rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
+                        params = list(enriched_report = enriched_report,
+                                      wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
+                                      collection = collection,
+                                      native = native,
+                                      extinct = extinct,
+                                      doubtful_locations = doubtful_locations,
+                                      export_data = export_data,
+                                      table_font_size = table_font_size,
+                                      ggtheme = ggtheme,
+                                      separate_figure_folder = separate_figure_folder,
+                                      output_dir = output_dir,
+                                      endemic_species_per_region = endemic_species_per_region,
+                                      accepted_species_per_region = accepted_species_per_region,
+                                      tree_species_per_region = tree_species_per_region,
+                                      value_on_fig = value_on_fig),
+                        output_file = output_file,
+                        output_dir = output_dir,
+                        output_format = rmarkdown::word_document(reference_docx = reference_docx, toc = TRUE, toc_depth = 4))
+    }
+    else{
+      rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
+                        params = list(enriched_report = enriched_report,
+                                      wgsrpd3 = wgsrpd3,
+                                      wcvp = wcvp,
+                                      collection = collection,
+                                      native = native,
+                                      extinct = extinct,
+                                      doubtful_locations = doubtful_locations,
+                                      export_data = export_data,
+                                      table_font_size = table_font_size,
+                                      ggtheme = ggtheme,
+                                      separate_figure_folder = separate_figure_folder,
+                                      output_dir = output_dir,
+                                      endemic_species_per_region = endemic_species_per_region,
+                                      accepted_species_per_region = accepted_species_per_region,
+                                      tree_species_per_region = tree_species_per_region,
+                                      value_on_fig = value_on_fig),
+                        output_file = output_file,
+                        output_dir = output_dir,
+                        output_format = rmarkdown::word_document(toc = TRUE, toc_depth = 4))
+    }
+  }
+
+  if(report_kind == 'interactive'){
+    rmarkdown::render(paste0(system.file(package = "BGSmartR"), "/markdown_reports/Geography_report.Rmd"),
+                      params = list(enriched_report = enriched_report,
+                                    wgsrpd3 = wgsrpd3,
+                                    wcvp = wcvp,
+                                    collection = collection,
+                                    native = native,
+                                    extinct = extinct,
+                                    doubtful_locations = doubtful_locations,
+                                    export_data = export_data,
+                                    table_font_size = table_font_size,
+                                    ggtheme = ggtheme,
+                                    separate_figure_folder = separate_figure_folder,
+                                    output_dir = output_dir,
+                                    endemic_species_per_region = endemic_species_per_region,
+                                    accepted_species_per_region = accepted_species_per_region,
+                                    tree_species_per_region = tree_species_per_region,
+                                    value_on_fig = value_on_fig),
+                      output_file = output_file,
+                      output_dir = output_dir,
+                      output_format = rmarkdown::html_document(toc = TRUE, toc_depth = 4,  toc_float =  TRUE, theme = 'cerulean', highlight = 'tango'))
+  }
+
+
 
 }

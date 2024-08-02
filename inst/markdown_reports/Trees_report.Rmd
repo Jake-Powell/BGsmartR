@@ -102,7 +102,6 @@ palette = 'Oranges'
 # report_kind = 'static'
 # color_binary = c('darkgray','darkgreen')
 # palette = 'Greens'
-# recent_year = 2020
 ```
 
 ```{r, add logo, eval = report_kind == 'interactive'}
