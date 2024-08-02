@@ -1,5 +1,5 @@
 ---
-title: "Overview of collection analysis"
+title: "Overview of the living collection"
 output: html_document
 ---
 
@@ -83,7 +83,7 @@ palette = 'Oranges'
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r, imported parameters}
@@ -520,12 +520,9 @@ if(separate_figure_folder){
 
 ```
 
+This report provides an overview of top level analyses of your living collection. 
 
-This report combines key figures from modules across BGSmartR into a single document.
-
-Further detail can be found by running other modules.  
-
-
+Further detail can be found by running the other BGSmartR modules.  
 
 ***
 
@@ -535,7 +532,7 @@ In this section we look into the composition of the collection across various me
 
 #### Size of the collection 
 
-```{r, Size of the collection, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r, Size of the collection, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 interest = report[report$ItemStatusType == 'Existing',]
 no_items = nrow(interest)
 no_accessions = length(unique(interest$AccNoFull)[!is.na(unique(interest$AccNoFull))])
@@ -548,7 +545,7 @@ basics = data.frame(count = c(no_items,no_accessions, no_taxa, no_species), obje
 basics$colors = rep(interactive_colour(1), nrow(basics))
 basics$text = paste0(format(basics$count,big.mark=','), ' ', basics$objects)
 
-if(report_kind == 'interactive'){
+# if(report_kind == 'interactive'){
   fig <- plot_ly(basics, x = ~objects, y = ~count, type = 'bar', marker = list(color = ~colors), hovertext = ~text, hoverinfo = 'text') |>
     layout(title = "",
          xaxis = list(title = ""),
@@ -560,13 +557,12 @@ if(separate_figure_folder){
 }
 
 fig
-}
+# }
 
 ```
 
-We can also view the size of the collection by the number of families, genera, species there are in the collection. This is shown below. 
 
-```{r Current taxonomic diversity (number of Families, Genera, Species, Taxa), fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r Current taxonomic diversity (number of Families, Genera, Species, Taxa), fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 interest = report[report$ItemStatusType == 'Existing',]
 no_family = length(unique(interest$family_use)[!is.na(unique(interest$family_use))]) 
 no_genera = length(unique(interest$genera_use)[!is.na(unique(interest$genera_use))])
@@ -593,9 +589,9 @@ fig
 ```
 
 
-
-
 #### Sub sections
+
+Next, we look at various subsections within the collection and their size relative to the whole collection.  
 
 ```{r, Composition of the collection (Current)}
 # Select wanted data and add needed columns
@@ -789,7 +785,7 @@ names(doughnut_figs) = quant
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Whole collection"}`
-```{r  composition Whole collection, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
+```{r  composition Whole collection, fig.fullwidth=TRUE, fig.dim = c(10, 5)}
 hor_stack_bar_plot
 ```
 
@@ -844,9 +840,9 @@ doughnut_figs$Threatened
 ***
 
 
-### Geographic distribution of the collection
+### Geographic coverage of the collection
 
-```{r, Map represented areas by number of species (entire collection; Geography module),  fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
+```{r, Map represented areas by number of species (entire collection; Geography module),  fig.fullwidth=TRUE, fig.dim = c(10, 6)}
 interest = report[report$ItemStatusType == 'Existing',]
 
 # Restrict to only those matched to WCVP.
@@ -989,22 +985,21 @@ if(!is.null(wcvp) & (is.null(accepted_species_per_region) | is.null(endemic_spec
   
 
 
-  index = seq(0,1,0.01)
-  col_rep = color_binary
-  colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
-  counter = 1:length(index)
-  col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
-  
-  colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
-  ramp <- scales::colour_ramp(colours_cont)
-  colos = ramp(seq(0, 1, length = 100))
-  
-  
-  index = seq(0,1,0.01)
-  colours_cont = c("black",colos)
-  counter = 1:length(index)
-  col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+index = seq(0,1,0.01)
+col_rep = rev(color_binary)
+colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+counter = 1:length(index)
+col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
 
+colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+ramp <- scales::colour_ramp(colours_cont)
+colos = ramp(seq(0, 1, length = 1001))
+
+
+index = seq(0,1,0.001)
+colours_cont = c( "#e6e6e6","#e6e6e6",colos)
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
 
 
   rep_species = rep('No', nrow(plot_int_info))
@@ -1083,7 +1078,7 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
 ```
 ***
 
-### Trend analysis
+### Change over time of the collection
 
 ```{r extract change over time}
 interest = report
@@ -1300,7 +1295,7 @@ names(time_series_info_subsets) = names(plant_existing)
 
 #### For collection size 
 
-```{r, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 time_series_info_normalised = as.data.frame(t(t(time_series_info)/as.numeric(apply(time_series_info, MARGIN=c(2), max))))
 names(time_series_info_normalised) = paste0(names(time_series_info_normalised),'_Norm')
 time_series_info_normalised = data.frame(years = years, time_series_info, time_series_info_normalised) 
@@ -1338,7 +1333,7 @@ fig
 
 ***
 
-#### For categories 
+#### For type of plant 
 
 ```{r, Change over time number all categories together (entire collection; Trends module)}
 taxon_type_categories = c('Species', 'Infraspecific', 'Horticultural', 'Indeterminate')
@@ -1354,7 +1349,7 @@ no_taxon_type = data.frame(t(data.frame(lapply(time_series_info_subsets, functio
   }))))
 names(no_taxon_type) = taxon_type_categories
 
-int_plots = group_trend_plots(years, no_taxon_type, "Types of plant", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
+int_plots = group_trend_plots(years, no_taxon_type, "Types of plant", report_kind = 'interactive', separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
 
 
 ```
@@ -1362,7 +1357,7 @@ int_plots = group_trend_plots(years, no_taxon_type, "Types of plant", report_kin
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
-```{r  taxon_type trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r  taxon_type trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 int_plots$number
 ```
 
@@ -1375,9 +1370,9 @@ int_plots$proportion
 
 ***
 
-#### For key-collections 
+#### For key collections 
 
-```{r, Change over number time key-collections together (Trends module), fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r, Change over number time key-collections together (Trends module), fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 Endemic_categories = unique(interest$endemic)
 no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_endemic
@@ -1460,7 +1455,7 @@ fig
 
 ***
 
-#### For provenance 
+#### For provenance categories
 
 ```{r, Change over time proportion by provenance (entire collection; Trends module)}
 
@@ -1476,21 +1471,21 @@ cats = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 index = match(cats, names(no_prov)) ; index = index[!is.na(match(cats, names(no_prov)))]
 no_prov = no_prov[,index ] 
 
-int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
+int_plots = group_trend_plots(years, no_prov, "Provenance", report_kind = 'interactive', separate_figure_folder = separate_figure_folder, data_type = 'Accessions')
 
 
 
 ```
 
-`r if(report_kind == 'interactive'){"#####  Provenance Trends {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number"}`
-```{r  Provenance trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r  Provenance trend (number) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 int_plots$number
 ```
 
 `r if(report_kind == 'interactive'){"###### Proportion"}`
-```{r  Provenance trend (proportion) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r  Provenance trend (proportion) - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 int_plots$proportion
 ```
 
@@ -1499,7 +1494,7 @@ int_plots$proportion
 
 ***
 
-### Turnover analysis
+### Turnover of the collection
 
 ```{r, Get Trends, echo = F}
 interest = report
@@ -1882,20 +1877,20 @@ plots = plots_turnover(turnover = overall_turnover, trend = overall_trend, repor
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Net"}`
-```{r  Net turnover of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r  Net turnover of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 plots$trend_and_net
 
 ```
 
 `r if(report_kind == 'interactive'){"###### Gain/Loss"}`
-```{r  Gain/Loss of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r  Gain/Loss of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 plots$gain_loss
 
 ```
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-#### Gained accessions split by provenance over time
+#### Gained accessions by provenance over time
 
 ```{r, turnover of provenance}
 exporting_data_store = list()
@@ -2093,7 +2088,7 @@ loss_all = data.frame(year = years,
  ff_prop$group = factor(ff_prop$group, levels = ordered_provenance)
  ff_prop = ff_prop[!is.na(ff_prop$count),]
 
-if(report_kind == 'interactive'){
+# if(report_kind == 'interactive'){
   ## gain
    colour_scale = rev(interactive_colour(4))
   colors = colour_scale[dd$group]
@@ -2162,22 +2157,21 @@ if(report_kind == 'interactive'){
                          yaxis = list (title = "Loss percentage", ticksuffix = '%'),
                          barmode = 'stack',legend = list(traceorder = 'normal'))
  fig4 = fig
- fig4
  plots_prov_all = list(gain = fig1, gain_prop = fig2,
                        loss = fig3, loss_prop = fig4)
-}
+# }
 ```
 
 
 `r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive'){"###### Number of accessions"}`
-```{r  Gain (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+```{r  Gain (Number) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = do_garden}
 plots_prov_all$gain
 ```
 
 `r if(report_kind == 'interactive'){"###### Percentage of accessions"}`
-```{r  Gain (Percentage) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_garden}
+```{r  Gain (Percentage) by provenance in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = do_garden}
 plots_prov_all$gain_prop
 ```
 
@@ -2185,9 +2179,9 @@ plots_prov_all$gain_prop
 ***
 
 
-### Taxonomic diversity
+### Taxonomic diversity of the collection
 
-To visualise the taxonomic diversity below we produce a sunburst chart of all species held in the collection by the number of individuals each species contains. The species are then grouped into genera, families and higher levels.
+To visualise the taxonomic diversity below we produce a sunburst chart of all species held in the collection by the number of items each species contains. The species are then grouped into genera, families, and higher levels.
 
 ```{r, Current taxonomic diversity Sunburst (Taxonomic diversity module),  fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
 interest = report[report$ItemStatusType == 'Existing',]
@@ -2365,112 +2359,12 @@ data_formatted$parents[data_formatted$parents == ''] = 'Collection'
 
 data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(data_formatted$values[data_formatted$parents == 'Collection']))
 
-
-### Subfamily level information
-{
-  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
-file = '/Users/jakepowell/Downloads/classification.csv'
-data = read.csv(file, sep = '\t')
-
-data_accepted = data[data$taxonomicStatus == 'Accepted',]
-data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-## Create a summary of families and their subfamilies.
-data_simp <- data_care |>
-  dplyr::group_by(.data$family) |>
-  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-data_simp = data_simp[rev(order(data_simp$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
-
-
-data_accepted = data[data$taxonomicStatus == 'Accepted',]
-data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-data_simp <- data_care |>
-  dplyr::group_by(.data$family) |>
-  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-data_simp = data_simp[rev(order(data_simp$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-data_tribe <- data_care[data_care$tribe != '',] |>
-  dplyr::group_by(.data$subfamily) |>
-  dplyr::summarise(family = toString(unique(.data$family)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
-data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
-data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
-
-data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-data_subtribe <- data_care[data_care$subtribe != '',] |>
-  dplyr::group_by(.data$tribe) |>
-  dplyr::summarise(family = toString(unique(.data$family)),
-                   subfamily = toString(unique(.data$subfamily)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-
-}
-
 ### Add subfamily info to data_formatted
 {
   #############################################################################
 ## Add subfamilies (All)
 #############################################################################
-## Get the genus that are linked to each sub family.
-families_with_sub = data_simp$family[data_simp$subfamily != ""]
-data_fam_sub = data_care[data_care$family %in% families_with_sub,]
-data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
-data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
-subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-subfamily_genus_simp <- subfamily_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
-subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
-
-subfamily_genus_simp <- subfamily_genus_simp[as.numeric(subfamily_genus_simp$no_genera)>1,]
-# Remove those without a subfamily (we will deal with these later)
-subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
-save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+subfamily_genus_simp = BGSmartR::subfamily_genus_simp
 
 for(i in 1:nrow(subfamily_genus_simp)){
   subfamily_info = subfamily_genus_simp[i,]
@@ -2480,7 +2374,7 @@ for(i in 1:nrow(subfamily_genus_simp)){
     next
   }
   in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
-                         grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+                         data_formatted$labels %in% subfamily_genera)
    if(length(in_formatted) == 0){
     next
   }
@@ -2551,26 +2445,7 @@ for(i in 1:length(families_with_subfamilies)){
 #############################################################################
 ## Add tribes (All)
 #############################################################################
-# asteraceae = data_simp[data_simp$family == "Asteraceae",]
-## Get the genus that are linked to each sub family.
-subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
-data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
-data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
-data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
-subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-tribe_genus_simp <- subfamily_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
-tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
-
-# Remove those without a subfamily (we will deal with these later)
-tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$tribe != "No Tribe",]
-save(tribe_genus_simp, file = 'tribe_genus_simp.rda')
-
+tribe_genus_simp = BGSmartR::tribe_genus_simp
 for(i in 1:nrow(tribe_genus_simp)){
   tribe_info = tribe_genus_simp[i,]
   tribe_genera = unlist(stringr::str_split(tribe_info$all_genera ,', '))
@@ -2660,26 +2535,8 @@ for(i in 1:length(subfamilies_with_tribes)){
 #############################################################################
 ## Add Subtribes (All)
 #############################################################################
-# asteraceae = data_simp[data_simp$family == "Asteraceae",]
+subtribe_genus_simp = BGSmartR::subtribe_genus_simp
 
-## Get the genus that are linked to each sub family.
-tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
-data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
-data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
-data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
-subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
-subtribe_genus_simp <- subtribe_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
-subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
-
-# Remove those without a subfamily (we will deal with these later)
-subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
-save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
 for(i in 1:nrow(subtribe_genus_simp)){
   # for(i in 1:30){
   subtribe_info = subtribe_genus_simp[i,]
@@ -2803,12 +2660,12 @@ colours = rep('white', nrow(data_formatted))
 
 ***
 
-### Survival analysis
+### Survival in the collection
 
-In this section we apply survival analysis to all records in the collection (including historical records) to determine the survival probability within the collection and key categories. 
+In this section we apply survival analysis to all records in the collection (including historical records) to determine the survival probability within the collection and key collections. 
 
 
-```{r Overall Survival probability,  fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+```{r Overall Survival probability,  fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 interest = report_original
 
 if(!is.null(old_accession_year_codes)){
@@ -2981,7 +2838,7 @@ The metrics include:
 
 ```
 
-### Provenance
+### Provenance in the collection
 
 We look at the provenance of the whole collection and across key collections.
 
@@ -3078,7 +2935,7 @@ hor_stack_bar_plot
 
 We look at the overlap of threatened, wild-origin and endemic accessions.
 
-```{r, overlap important,results='hide',fig.keep='all', message=FALSE, fig.dim=c(6,6), fig.align = 'center', eval = report_kind == 'interactive'}
+```{r, overlap important,results='hide',fig.keep='all', message=FALSE, fig.dim=c(6,6), fig.align = 'center'}
 # Select wanted data and add needed columns
 interest = report[report$ItemStatusType == 'Existing',]
 interest = interest[!interest$taxon_type |> is.na(),]
@@ -3111,7 +2968,7 @@ grid.draw(venn_diag)
 
 You can download the existing wild, threatened or endemic accessions using the button below
 
-```{r}
+```{r,eval =  report_kind == 'interactive' }
 export_df |>
   download_this(
     output_name = "wild_threatened_endemic_accessions",

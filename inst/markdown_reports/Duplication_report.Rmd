@@ -1,5 +1,5 @@
 ---
-title: "Duplication and rarity at the global and local scales"
+title: "Rarity and duplication"
 output: html_document
 always_allow_html: true
 ---
@@ -99,7 +99,7 @@ bru_codes = NA
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 
@@ -296,9 +296,13 @@ rm(tree)
 
 #Select columns of interest
 report = report[,match(c('AccNoFull','sanitised_taxon', 'TaxonNameFull', 'powo_name', 'extracted_author', 'POWO_taxon_name', 'POWO_taxon_authors', 'good_name', 'best_name', 'no_gardens', 'endemic', 'threatened', 'native', 'tree', 'ItemStatusType', 'taxon_type', 'AccYear'), names(report))]
+
+
 index_want = which(report$ItemStatusType == 'Existing' & !grepl('0|5|6',report$taxon_type))
 no_want = length(index_want)
 interest = report[index_want,]
+# interest_global = interest[which(interest$ItemStatusType == 'Existing' & !grepl('0|5|6',interest$taxon_type)),]
+interest_global = interest
 
 # Create a column with the name if we want to print the taxa. (latin words with italic, others plain.)
 print_name = interest$sanitised_taxon
@@ -342,7 +346,7 @@ writexl::write_xlsx(deaccessioning_list_format, path =paste0(output_dir,'/',coll
 
 # -Sheet of taxa in 0-10 LCs including at least taxon name according to POWO, original name, and accession number. Can these be fake rare taxa (typos, non-matching names)? If so, add warning to plot and management sheet.
 
-rare_global_list = interest[which(interest$no_gardens <= 10 | is.na(interest$no_gardens)),]
+rare_global_list = interest_global[which(interest_global$no_gardens <= 10 | is.na(interest_global$no_gardens)),]
 rare_global_list$match_powo_issue = rare_global_list$POWO_taxon_name == rare_global_list$POWO_taxon_name
 rare_global_list$match_powo_issue[is.na(rare_global_list$match_powo_issue)] = FALSE
 
@@ -369,40 +373,33 @@ writexl::write_xlsx(rare_global_list_format, path =paste0(output_dir,'/',collect
 
 ```
 
-This report explores duplication for existing plants at **`r collection`**. This is performed in two ways:
+###### {-} 
 
-- Global level: how many collections globally are taxa in the living collection found.
-- Collection Level: investigates how many items or accessions there are for each taxa.
+This report explores rarity and duplication for existing plants at **`r collection`**. Rarity refers to the spread of a plant among living plant collections globally, whereas duplication focuses at the local scale by evaluating the number of plants of a given species in a single living collection.
 
-In all sections we only consider plants that are:
+Within this report we only consider plants that are not hybrids or cultivars. This reduces the number of records in the living collection to `r format(no_records, big.mark =',')` from `r format(nrow(interest), big.mark =',')`.
 
-- Are not hybrids or cultivars.
-
-This reduces the number of records in the living collection to `r format(no_records, big.mark =',')` from `r format(nrow(interest), big.mark =',')`.
-
-Moreover, where possible we will use the taxonomic name from matching to POWO online, if this is not possible we use the original name from the living collection. 
+Where possible we use the name from matching to POWO; if this is not possible, we use the original name from the living collection. 
 
 ***
 
-## Duplication on the global scale
+## Rarity in cultivation
 
 `r if(!do_global){"Since the report does not contain the number of global collections holding taxa we cannot perform this analysis!"}`
 
-`r if(do_global){"To find the rarity of plants on the Global scale we use BGCI's plant search to extract the number of ex-situ sites a taxa is held in (only plants, not seeds or pollen). Therefore, the process is as follows:"}`
+`r if(do_global){"To find the rarity of plants on the Global scale we use BGCI's PlantSearch tool to extract the number of ex-situ sites a taxon is held in (only plants, not seeds or pollen)."}`
 
-`r if(do_global){"- Match to POWO, and update taxonomic name and authority if needed (e.g. going to accepted name)."}`
-`r if(do_global){"- Use the taxonomic name and authority to match to BGCI's plant search."}`
-`r if(do_global){"- Extract the number of ex-situ sites, if the record does not exist set the number of gardens to zero."}`
+<!-- `r if(do_global){"- Match to POWO, and update taxonomic name and authority if needed (e.g. going to accepted name)."}` -->
+<!-- `r if(do_global){"- Use the taxonomic name and authority to match to BGCI's plant search."}` -->
+<!-- `r if(do_global){"- Extract the number of ex-situ sites, if the record does not exist set the number of gardens to zero."}` -->
 
-`r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the living collection classed as very rare (<= 10 living collections globally) where the original taxonomic name from the report and POWO's taxonomic name differ. See downloadable data at the end of this section.")}`
-
-`r if(do_global){"Below we show the number of taxa in the living collection against the number of sites the taxa is held globally. This is shown for all taxa as well as key collections - threatened, endemic, native. \n"}`
+`r if(do_global){"Below we show the number of taxa in the living collection against the number of sites the taxa is held globally. This is shown for all taxa as well as key collections - threatened, endemic, native and tree. \n"}`
 
 
 ```{r, taxa in collection against how many sites globally - data, eval = do_global}
 # only unique records.
-report_unique = unique(interest[,-1]) # Remove the accession number as it's not needed for unique species.
-report_unique = interest[match(unique(interest$best_name), interest$best_name),]
+report_unique = unique(interest_global[,-1]) # Remove the accession number as it's not needed for unique species.
+report_unique = interest_global[match(unique(interest_global$best_name), interest_global$best_name),]
 no_unique_records = nrow(report_unique)
 report_unique$no_gardens[is.na(report_unique$no_gardens)] = 0
 
@@ -541,18 +538,14 @@ figs$tree
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
+As another way to visualise rarity and compare the whole collection to its key collections, we defined discrete rarity categories as follows
 
-Next we group taxa by the number of collections they are found in globally. These are:
+- **Unique**: plants found nowhere else (0 or 1 collection). These are names that do not match any name or match a name reported in only one collection in BGCI’s PlantSearch tool. Since it is not possible to know to which collection it belongs, BGsmartR assumes it belongs to yours and the name is in PlantSearch thanks to your input to that database. 
+- **Very Rare**: plants found in 2-10 collections.
+- **Rare**: plants found in 11-50 collections.
+- **Common**: plants found in 51-100 collections.
+- **Very Common**: plants found in more than 100 collections.
 
-- **Unique**: found in 0 or 1 collection.
-- **Very Rare**: found in between 2 and 10 collections.
-- **Rare**: found in between 11 and 50 collections.
-- **Common**: found in between 51 and 100 collections.
-- **Very Common**: found in more than 100 collections.
-
-Moreover, we do this for all taxa in the collection as well as the key collections (threatened, endemic and native). 
-
-Rarity of species at the living collection
 
 ```{r, grouped rarity - data, fig.dim = c(10, 4), eval = do_global}
 colo_rare = rev(scales::brewer_pal(palette = palette, direction = 1)(5))
@@ -670,6 +663,8 @@ hor_stack_bar_plot_acc
 
 ```
 
+`r if(do_global & no_different_rare_taxa > 0){paste0("Note that there are ", no_different_rare_taxa, " taxa in the living collection classed as unique or very rare (plants found in 0-10 living collections globally) where the original name from the report and POWO's name differ. See downloadable data at the end of this section.")}`
+
 
 :::: {.blackbox data-latex=""}
 
@@ -695,7 +690,7 @@ rare_global_list_format |>
 
 ## Duplication in the living collection
 
-Top 20 most common taxa (removing cultivars and hybrids) in the collection
+Top 20 most common biological taxa in the collection
 
 ```{r, Headline table and stats}
 taxa_count = sort(table(interest$best_name), decreasing = T)
@@ -714,6 +709,7 @@ unique_not_in_sum = data.frame(name = unique_not_in_BGCI$best_name, in_BGCI = 'F
 
 most_rare = rbind(unique_sum, unique_not_in_sum)
 names(most_rare) = c('Taxa', "Is in BGCI's PlantSearch?")
+most_rare = most_rare[order(most_rare$`Is in BGCI's PlantSearch?`, most_rare$Taxa),]
 most_rare_table = most_rare |>  DT::datatable(extensions = 'Buttons',
                                               rownames = FALSE,
                                               options = list(scrollX = TRUE,
@@ -747,7 +743,7 @@ most_common_table = most_common |>  DT::datatable(extensions = 'Buttons',
 
 `r if(report_kind == "interactive"){most_common_table}`
 
-In the living collection there are `r no_unique +  no_unique_not_in_BGCI` taxa that are unique to the collection (either not contained (`r no_unique_not_in_BGCI`) or belongs to a single garden in BGCI's PlantSearch (`r no_unique`)) and only a single item exists in the collection. There are shown in the table below. 
+In the living collection there are `r no_unique +  no_unique_not_in_BGCI` taxa that are unique to the living collection  and only a single item exists in the collection. These are shown in the table below. 
 
 `r if(report_kind == "interactive"){most_rare_table}`
 
@@ -770,7 +766,6 @@ rare_global_list_format |>
 ```
 
 ::::
-Further information (such as accession number, threatened status, etc) can be found in 'rare_global_list.xlsx'. management sheet. 
 
 
 ```{r}
@@ -847,7 +842,7 @@ plot_data = data.frame(accessions, cum_densities)
 
 ### Duplication of taxa
 
-In this section we explore the duplication of taxa in the collection across both items and accessions. 
+In this section we explore the duplication of taxa in the collection across both items and accessions. We show duplication in the whole collection and in its key collections. 
 
 ```{r, number of accessions per taxa - data}
 # Reduced to only unique accessions.
@@ -1106,7 +1101,6 @@ item_taxa_group_dataset = item_taxa_group[which(item_taxa_group$total == 1),]
 
 ```
 
-Below we show a comparison of the number of accessions and items per taxa across key collections. 
 
 <!-- <div class="boxBorder"> -->
 
@@ -1147,9 +1141,7 @@ hor_stack_bar_plot_items
 <!-- :::: -->
 
 
-Next we go into further detail across each key collection for items and accessions separately.
-
-#### Accessions per taxa 
+#### Accessions per taxon
  
 `r if(report_kind == 'interactive'){"#####   {.tabset}"}`
 `r if(report_kind == 'interactive'){"###### All"}`
@@ -1160,9 +1152,9 @@ figs_acc$all
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa$total_accessions)`** this occurs for the accession **`r top_name_acc`**. 
-- The mean number of accessions per taxa is **`r round(mean(accession_taxa_group$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(accession_taxa_group$total)`**.
+- **`r top_name_acc`**  is the taxon with the highest number of accessions - **`r max(accession_taxa$total_accessions)`** - in the whole collection.
+- The mean number of accessions per taxon is **`r round(mean(accession_taxa_group$total),digits=2)`**.
+- The median number of accessions per taxon is **`r median(accession_taxa_group$total)`**.
 - **`r format(sum(accession_taxa_group$total == 1), big.mark =',')`** taxa have a single accession.
 
 
@@ -1174,9 +1166,9 @@ figs_acc$threatened
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_threat$total_accessions)`** this occurs for the accession **`r top_name_threat_acc`**. 
-- The mean number of accessions per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(acc_threat$total)`**.
+- **`r top_name_threat_acc`** is the taxon with the highest number of accessions - **`r max(accession_taxa_threat$total_accessions)`** - in the threatened key collection.
+- The mean number of accessions per taxon is **`r round(mean(acc_threat$total),digits=2)`**.
+- The median number of accessions per taxon is **`r median(acc_threat$total)`**.
 - **`r format(sum(acc_threat$total == 1), big.mark =',')`** taxa have a single accession.
 
 `r if(report_kind == 'interactive'){"###### Endemic"}`
@@ -1186,9 +1178,9 @@ figs_acc$endemic
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_endemic$total_accessions)`** this occurs for the accession **`r top_name_endemic_acc`**. 
-- The mean number of accessions per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(acc_endemic$total)`**.
+- **`r top_name_endemic_acc`** is the taxon with the highest number of accessions - **`r max(accession_taxa_endemic$total_accessions)`** - in the endemic key collection.
+- The mean number of accessions per taxon is **`r round(mean(acc_endemic$total),digits=2)`**.
+- The median number of accessions per taxon is **`r median(acc_endemic$total)`**.
 - **`r format(sum(acc_endemic$total == 1), big.mark =',')`** taxa have a single accession.
 
 
@@ -1199,9 +1191,9 @@ figs_acc$native
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_nat$total_accessions)`** this occurs for the accession **`r top_name_nat_acc`**. 
-- The mean number of accessions per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(acc_nat$total)`**.
+- **`r top_name_nat_acc`** is the taxon with the highest number of accessions - **`r max(accession_taxa_nat$total_accessions)`** - in the native key collection.
+- The mean number of accessions per taxon is **`r round(mean(acc_nat$total),digits=2)`**.
+- The median number of accessions per taxon is **`r median(acc_nat$total)`**.
 - **`r format(sum(acc_nat$total == 1), big.mark =',')`** taxa have a single accession.
 
 `r if(report_kind == 'interactive'){"###### Tree"}`
@@ -1211,9 +1203,9 @@ figs_acc$tree
 
 Where 
 
-- The maximum number of accessions for a given taxon is **`r max(accession_taxa_tree$total_accessions)`** this occurs for the accession **`r top_name_tree_acc`**. 
-- The mean number of accessions per taxa is **`r round(mean(acc_tree$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(acc_tree$total)`**.
+- **`r top_name_tree_acc`** is the taxon with the highest number of accessions - **`r max(accession_taxa_tree$total_accessions)`** - in the tree key collection.
+- The mean number of accessions per taxon is **`r round(mean(acc_tree$total),digits=2)`**.
+- The median number of accessions per taxon is **`r median(acc_tree$total)`**.
 - **`r format(sum(acc_tree$total == 1), big.mark =',')`** taxa have a single accession.
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
@@ -1221,7 +1213,7 @@ Where
 
 ***
 
-#### Items per taxa 
+#### Items per taxon 
  
 `r if(report_kind == 'interactive'){"#####   {.tabset}"}`
 `r if(report_kind == 'interactive'){"###### All"}`
@@ -1232,10 +1224,10 @@ figs_items$all
 
 Where 
 
-- The maximum number of items for a given taxon is **`r max(item_taxa$total_items)`** this occurs for the item **`r top_name`**. 
-- The mean number of accessions per taxa is **`r round(mean(item_taxa_group$total),digits=2)`**.
-- The median number of accessions per taxa is **`r median(item_taxa_group$total)`**.
-- **`r format(sum(item_taxa_group$total == 1), big.mark =',')`** taxa have a single accession.
+- **`r top_name`** is the taxon with the highest number of items - **`r max(item_taxa$total_items)`** - in the whole collection.
+- The mean number of items per taxon is **`r round(mean(item_taxa_group$total),digits=2)`**.
+- The median number of items per taxon is **`r median(item_taxa_group$total)`**.
+- **`r format(sum(item_taxa_group$total == 1), big.mark =',')`** taxa have a single item.
 
 
 
@@ -1246,9 +1238,9 @@ figs_items$threatened
 
 Where 
 
-- The maximum number of items for a given taxon is **`r max(item_taxa_threat$total_items)`** this occurs for the item **`r top_name_threat`**. 
-- The mean number of items per taxa is **`r round(mean(acc_threat$total),digits=2)`**.
-- The median number of items per taxa is **`r median(acc_threat$total)`**.
+- **`r top_name_threat`** is the taxon with the highest number of items - **`r max(item_taxa_threat$total_items)`** - in the threatened key collection.
+- The mean number of items per taxon is **`r round(mean(item_threat$total),digits=2)`**.
+- The median number of items per taxon is **`r median(item_threat$total)`**.
 - **`r format(sum(item_threat$total == 1), big.mark =',')`** taxa have a single item.
 
 `r if(report_kind == 'interactive'){"###### Endemic"}`
@@ -1258,9 +1250,9 @@ figs_items$endemic
 
 Where 
 
-- The maximum number of items for a given taxon is **`r max(item_taxa_endemic$total_items)`** this occurs for the item **`r top_name_endemic`**. 
-- The mean number of items per taxa is **`r round(mean(acc_endemic$total),digits=2)`**.
-- The median number of items per taxa is **`r median(acc_endemic$total)`**.
+- **`r top_name_endemic`** is the taxon with the highest number of items - **`r max(item_taxa_endemic$total_items)`** - in the endemic key collection.
+- The mean number of items per taxon is **`r round(mean(item_endemic$total),digits=2)`**.
+- The median number of items per taxon is **`r median(item_endemic$total)`**.
 - **`r format(sum(item_endemic$total == 1), big.mark =',')`** taxa have a single item.
 
 
@@ -1271,9 +1263,9 @@ figs_items$native
 
 Where 
 
-- The maximum number of items for a given taxon is **`r max(item_taxa_nat$total_items)`** this occurs for the item **`r top_name_nat`**. 
-- The mean number of items per taxa is **`r round(mean(acc_nat$total),digits=2)`**.
-- The median number of items per taxa is **`r median(acc_nat$total)`**.
+- **`r top_name_nat`** is the taxon with the highest number of items - **`r max(item_taxa_nat$total_items)`** - in the native key collection.
+- The mean number of items per taxon is **`r round(mean(item_nat$total),digits=2)`**.
+- The median number of items per taxon is **`r median(item_nat$total)`**.
 - **`r format(sum(item_nat$total == 1), big.mark =',')`** taxa have a single item.
 
 
@@ -1284,9 +1276,9 @@ figs_items$tree
 
 Where 
 
-- The maximum number of items for a given taxon is **`r max(item_taxa_tree$total_items)`** this occurs for the item **`r top_name_tree`**. 
-- The mean number of items per taxa is **`r round(mean(acc_tree$total),digits=2)`**.
-- The median number of items per taxa is **`r median(acc_tree$total)`**.
+- **`r top_name_tree`** is the taxon with the highest number of items - **`r max(item_taxa_tree$total_items)`** - in the tree key collection.
+- The mean number of items per taxon is **`r round(mean(item_tree$total),digits=2)`**.
+- The median number of items per taxon is **`r median(item_tree$total)`**.
 - **`r format(sum(item_tree$total == 1), big.mark =',')`** taxa have a single item.
 
 `r if(report_kind == 'interactive'){"##### {-}"}`

@@ -55,3 +55,18 @@
 #'  - Classification: containing how families link to higher order groups.
 #'  - synomym_families: containing family names that are synomym and which to use within Classificiation.
 "Diversity_classification"
+
+#' Tribe information
+#'
+#' A data frame containing tribe information used for creating sunburst/treemap charts of taxonomic diversity. Source WFO.
+"tribe_genus_simp"
+
+#' Sub-family information
+#'
+#' A data frame containing sub-family information used for creating sunburst/treemap charts of taxonomic diversity. Source WFO.
+"subfamily_genus_simp"
+
+#' Sub-tribe information
+#'
+#' A data frame containing sub-tribe information used for creating sunburst/treemap charts of taxonomic diversity. Source WFO.
+"subtribe_genus_simp"

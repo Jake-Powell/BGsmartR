@@ -432,12 +432,12 @@ if(export_data){
 
   # Reduce to only trees.
   wcvp_geography_tree = wcvp_geography[which(wcvp_geography$id %in% (wcvp$trees |> unlist() |> as.numeric())), ]
-   if(!exists('trees_per_region')){
-      no_trees_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+   # if(!exists('tree_species_per_region') || is.null(tree_species_per_region)){
+      no_tree_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
     sum(grepl(x, wcvp_geography_tree$codes))
   }))
-  tree_species_per_region = data.frame(code = All_locations, no_trees_accepted_species_wcvp = no_trees_accepted_species_wcvp)
-   }
+  tree_species_per_region = data.frame(code = All_locations, no_tree_accepted_species_wcvp = no_tree_accepted_species_wcvp)
+   # }
   
   location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
   location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
@@ -477,21 +477,21 @@ if(report_kind == 'interactive'){
   
 }
 
-  index = seq(0,1,0.01)
-  col_rep = color_binary
-  colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
-  counter = 1:length(index)
-  col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
-  
-  colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
-  ramp <- scales::colour_ramp(colours_cont)
-  colos = ramp(seq(0, 1, length = 100))
-  
-  
-  index = seq(0,1,0.01)
-  colours_cont = c("black",colos)
-  counter = 1:length(index)
-  col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
+ index = seq(0,1,0.01)
+col_rep = rev(color_binary)
+colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
+counter = 1:length(index)
+col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
+
+colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+ramp <- scales::colour_ramp(colours_cont)
+colos = ramp(seq(0, 1, length = 1001))
+
+
+index = seq(0,1,0.001)
+colours_cont = c( "#e6e6e6","#e6e6e6",colos)
+counter = 1:length(index)
+col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
 ```
 
 `r if(report_kind == 'interactive'){"Below we show the data used for the geographic plots shown in the later sections."}`
@@ -973,7 +973,7 @@ if(report_kind == 'interactive'){
                                  pageLength = min(nrow(missing_regions), 10),
                                  dom = 'Btp',
                                  buttons = c('copy', 'csv', 'excel', 'pdf'),
-                                 paging=FALSE,
+                                 paging= ifelse(nrow(missing_regions) > 10, T,F),
                                  ordering=T),
                   filter = list(position = "top"))
 }
@@ -1988,7 +1988,7 @@ location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands'
 location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
 
 # If we are given wcvp calculate the number of endemic species that each geographic area contains.
-if(!is.null((tree_species_per_region))){
+if(!is.null(tree_species_per_region)){
   no_tree_accepted_species_wcvp = tree_species_per_region[,2][match(location_data$code,tree_species_per_region[,1])]
   location_data$no_tree_accepted_wcvp_species = no_tree_accepted_species_wcvp
 }
@@ -2027,9 +2027,6 @@ if(!is.null(wcvp)){
   }
   texteo = stringr::str_remove(texteo,pattern = '^, ')
   wcvp_wanted$geography = texteo
-  texteo <<- texteo
-  codes <<- codes
-  geography <<- geography
   wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
   wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'geography', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
 }
@@ -2203,7 +2200,7 @@ Note that not every region has trees. In particular, within WCVP there are `r su
 
 `r if(report_kind == 'interactive'){"###### Representation"}`
 ```{r  Map of the representation of tree species - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
- prop = round(location_data$no_tree_species / no_tree_accepted_wcvp_species*100,digits=2)
+ prop = round(location_data$no_tree_species / location_data$no_tree_accepted_wcvp_species*100,digits=2)
   prop_true = prop
   prop_true[is.nan(prop_true)] = 'NA'
   prop[prop ==  0] = -0.01

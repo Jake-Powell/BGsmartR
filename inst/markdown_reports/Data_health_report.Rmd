@@ -24,10 +24,15 @@ interactive_colour <- function(n){
   color[1:n]
 }
 
-color_binary <- rev(c('#f46d43', '#848484'))
+color_binary <- rev(c('#f46d43', '#e6e6e6'))
 palette = 'Oranges'
 ```
 
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
+```
 
 ```{r, imported parameters}
 # Inputs
@@ -1104,8 +1109,8 @@ comb$collect_part  = comb$collect_part |> dplyr::case_match("type_plant" ~ 'Type
 comb$collect_part = factor(comb$collect_part, levels = rev(unique(comb$collect_part)))
 comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', comb$category)
         
-comb$color[which(comb$category == 'Tree')]   = '#f46d43'  
-comb$color[which(comb$category == 'Not tree')]   = '#848484'    
+comb$color[which(comb$category == 'Tree')]   = color_binary[2] 
+comb$color[which(comb$category == 'Not tree')]   = color_binary[1]    
 
   
 
@@ -1597,9 +1602,12 @@ old5yr_download = data |>
 ### (END)Create table of accessions not updated in last 5 years ----
 
 ### Create table after for most recent accession/item update.
-table_data = data.frame(year = last_update_acc$year,
-                        accessions = last_update_acc$no_acc,
-                        acc_cum = last_update_acc$cumulative,
+year = unique(c(last_update_acc$year,last_update_items$year )) |> sort()
+no_acc = rep(0,length(year)) ; no_acc[match(last_update_acc$year, year)] = last_update_acc$no_acc
+acc_cumulative = rep(0,length(year)) ; acc_cumulative[match(last_update_acc$year, year)] = last_update_acc$cumulative
+table_data = data.frame(year = year,
+                        accessions = no_acc,
+                        acc_cum = acc_cumulative,
                         items = last_update_items$no_items,
                         items_cum = last_update_items$cumulative)
 names(table_data) = c('Year', 'Number of <br> Accessions', 'Cumulative Number<br>of Accessions',

@@ -54,7 +54,7 @@ palette = 'Oranges'
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r theme_ggplot2}
@@ -296,16 +296,18 @@ missing_date = length(c(index_string_length_4, index_string_length_7))
 ### (END) Find the number of items/accessions where we have to do some fixing to the most recent status update.
 ```
 
+#### {-}
+
 This report uses data from **`r collection`** and analyses trends in the collection from **`r min_year`** to **`r max_year`**.
 
-`r if(!is.null(old_accession_year_codes)){paste0("Within the collection the accession years '", paste0(old_accession_year_codes, collapse = ', '),"' are used to denote items which have unknown accession year but have being in the collection since near the beginning. There are ", no_old_accessions," items in the collection with these accession years. In this analysis we set the accession year of such plants to ", earliest_allowable_record, ".")}`
+<!-- `r if(!is.null(old_accession_year_codes)){paste0("Within the collection the accession years '", paste0(old_accession_year_codes, collapse = ', '),"' are used to denote items which have unknown accession year but have being in the collection since near the beginning. There are ", no_old_accessions," items in the collection with these accession years. In this analysis we set the accession year of such plants to ", earliest_allowable_record, ".")}` -->
 
-`r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis.
+<!-- `r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis. -->
 
-To determine how long a plant survives in the collection we use the date of the plants most recent update and whether the plant was noted to be alive or dead. All plants that were alive at their most recent check are assumed to be alive to the present day. For plants that are dead we take the most recent update date to be their date of death. 
-`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
+<!-- To determine how long a plant survives in the collection we use the date of the plants most recent update and whether the plant was noted to be alive or dead. All plants that were alive at their most recent check are assumed to be alive to the present day. For plants that are dead we take the most recent update date to be their date of death.  -->
+<!-- `r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}` -->
 
-This document outlines the changes in the number of items, accessions, taxa, species, genera, families, provenance and key collections. 
+This document outlines the changes in the number of items, accessions, taxa, species, genera, families, provenance categories and key collections. 
 
 Using the accession date and the last item status date, for each year we recreate a snapshot of what was existing on the 31st of December.
 
@@ -422,7 +424,7 @@ names(time_series_info_subsets) = names(plant_existing)
 single_trend_plot <- function(years, values, name, report_kind, separate_figure_folder){
   df = data.frame(years = years, values = values)
   if(report_kind == 'interactive'){
-    df$text = paste0('Date: ', years, '-01-01 <br>', name,': ', values)
+    df$text = paste0('Date: ', years, '-12-31 <br>', name,': ', values)
     
     fig <- plot_ly(df, x = ~years, y = ~values, type = 'scatter', mode = 'lines', text = ~text, hoverinfo = 'text', line = list(color = interactive_colour(1)))
     fig <- fig %>% layout(title = "",
@@ -797,7 +799,7 @@ fig
 
 ### Trends by type of plant
 
-This section explores the trends over time of different types of plants. We use characteristics in the name of plants to determine whether they are classified as indeterminate, species, subspecies, variety, forma, cultivar, and hybrid (see more details in the appendix at the bottom). We are going to explore the trends of biological (species and infraspecific categories), horticultural (hybrids and cultivars), and indeterminate taxa
+This section explores the trends over time of different types of plants. We use characteristics in the name of plants to determine whether they are classified as indeterminate, species, subspecies, variety, forma, cultivar, and hybrid. We are going to explore the trends of biological (species and infraspecific categories), horticultural (hybrids and cultivars), and indeterminate taxa.
 
 ```{r Trends in taxon_type data}
 taxon_type_categories = c('Species', 'Infraspecific', 'Horticultural', 'Indeterminate')
@@ -836,8 +838,6 @@ int_plots$proportion
 ```
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
-
-
 
 
 ***
@@ -888,7 +888,7 @@ int_plots$proportion
 
 ### Trends in key collections
 
-In this section we look at trends across the key collections in the living collection. This includes threatened, endemic, native, and tree species. 
+In this section we look at trends across key collections in the living collection. This includes threatened, endemic, native, and tree species. 
 
 <!-- - Threatened species, those classed as extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's Red List](https://www.iucnredlist.org). -->
 <!-- - Endemic species, those in the collection that belong to a single region according to [TDWG geographical codes](https://web.archive.org/web/20160125135239/http:/www.nhm.ac.uk/hosted_sites/tdwg/TDWG_geo2.pdf) (Brummitt, 2001) expressed to that system's third level. -->

@@ -180,7 +180,7 @@ In particular this report explores the representation of different clades in the
 
 Note that within this report we compare the taxonomic coverage of the collection relative to accepted plants within WCVP. Therefore, we do not calculate this comparison for non-vascular plants as this is not contained within WCVP.
 
-Any analyses over time reconstructs the existing plants in the collection on the 1st of January each year. 
+Any analyses over time reconstructs the existing plants in the collection on the 31st of December each year. 
 
 ***
 
@@ -365,111 +365,12 @@ data_formatted$parents[data_formatted$parents == ''] = 'Collection'
 data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(data_formatted$values[data_formatted$parents == 'Collection']))
 
 
-### Subfamily level information
-{
-  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
-  file = '/Users/jakepowell/Downloads/classification.csv'
-  data = read.csv(file, sep = '\t')
-
-  data_accepted = data[data$taxonomicStatus == 'Accepted',]
-  data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-  ## Create a summary of families and their subfamilies.
-  data_simp <- data_care |>
-    dplyr::group_by(.data$family) |>
-    dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                     tribe = toString(unique(.data$tribe)),
-                     subtribe = toString(unique(.data$subtribe)),
-                     majorGroup = toString(unique(.data$majorGroup)),
-                     no_genus = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-
-  data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-  data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-  data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-  data_simp = data_simp[rev(order(data_simp$no_genus)),]
-  writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
-
-
-  data_accepted = data[data$taxonomicStatus == 'Accepted',]
-  data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-  data_simp <- data_care |>
-    dplyr::group_by(.data$family) |>
-    dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                     tribe = toString(unique(.data$tribe)),
-                     subtribe = toString(unique(.data$subtribe)),
-                     majorGroup = toString(unique(.data$majorGroup)),
-                     no_genus = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-
-  data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-  data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-  data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-  data_simp = data_simp[rev(order(data_simp$no_genus)),]
-  writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-  data_tribe <- data_care[data_care$tribe != '',] |>
-    dplyr::group_by(.data$subfamily) |>
-    dplyr::summarise(family = toString(unique(.data$family)),
-                     tribe = toString(unique(.data$tribe)),
-                     subtribe = toString(unique(.data$subtribe)),
-                     majorGroup = toString(unique(.data$majorGroup)),
-                     no_genus = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-
-  data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
-  data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
-  data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
-
-  data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
-  writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-  data_subtribe <- data_care[data_care$subtribe != '',] |>
-    dplyr::group_by(.data$tribe) |>
-    dplyr::summarise(family = toString(unique(.data$family)),
-                     subfamily = toString(unique(.data$subfamily)),
-                     subtribe = toString(unique(.data$subtribe)),
-                     majorGroup = toString(unique(.data$majorGroup)),
-                     no_genus = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-
-  data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
-  writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-
-}
-
 ### Add subfamily info to data_formatted
 {
   #############################################################################
   ## Add subfamilies (All)
   #############################################################################
-  ## Get the genus that are linked to each sub family.
-  families_with_sub = data_simp$family[data_simp$subfamily != ""]
-  data_fam_sub = data_care[data_care$family %in% families_with_sub,]
-  data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
-  data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
-  subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-  subfamily_genus_simp <- subfamily_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
-  subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
-
-  subfamily_genus_simp <- subfamily_genus_simp[as.numeric(subfamily_genus_simp$no_genera)>1,]
-  # Remove those without a subfamily (we will deal with these later)
-  subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
-  save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+  subfamily_genus_simp = BGSmartR::subfamily_genus_simp
 
   for(i in 1:nrow(subfamily_genus_simp)){
     subfamily_info = subfamily_genus_simp[i,]
@@ -479,7 +380,7 @@ data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(
       next
     }
     in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
-                           grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+                           data_formatted$labels %in% subfamily_genera)
     if(length(in_formatted) == 0){
       next
     }
@@ -550,25 +451,7 @@ data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(
   #############################################################################
   ## Add tribes (All)
   #############################################################################
-  # asteraceae = data_simp[data_simp$family == "Asteraceae",]
-  ## Get the genus that are linked to each sub family.
-  subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
-  data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
-  data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
-  data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
-  subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-  tribe_genus_simp <- subfamily_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
-  tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
-
-  # Remove those without a subfamily (we will deal with these later)
-  tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$tribe != "No Tribe",]
-  save(tribe_genus_simp, file = 'tribe_genus_simp')
+  tribe_genus_simp = BGSmartR::tribe_genus_simp
 
   for(i in 1:nrow(tribe_genus_simp)){
     tribe_info = tribe_genus_simp[i,]
@@ -659,26 +542,7 @@ data_formatted[nrow(data_formatted)+1,] = c('Collection', 'Collection', '', sum(
   #############################################################################
   ## Add Subtribes (All)
   #############################################################################
-  # asteraceae = data_simp[data_simp$family == "Asteraceae",]
-
-  ## Get the genus that are linked to each sub family.
-  tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
-  data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
-  data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
-  data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
-  subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
-  subtribe_genus_simp <- subtribe_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
-  subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
-
-  # Remove those without a subfamily (we will deal with these later)
-  subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
-  save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+ subtribe_genus_simp = BGSmartR::subtribe_genus_simp
   for(i in 1:nrow(subtribe_genus_simp)){
     # for(i in 1:30){
     subtribe_info = subtribe_genus_simp[i,]
@@ -1019,110 +883,13 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
 
 
 
-### Subfamily level information
-# {
-#   # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
-# file = '/Users/jakepowell/Downloads/classification.csv'
-# data = read.csv(file, sep = '\t')
-#
-# data_accepted = data[data$taxonomicStatus == 'Accepted',]
-# data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-#
-# ## Create a summary of families and their subfamilies.
-# data_simp <- data_care |>
-#   dplyr::group_by(.data$family) |>
-#   dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-#                    tribe = toString(unique(.data$tribe)),
-#                    subtribe = toString(unique(.data$subtribe)),
-#                    majorGroup = toString(unique(.data$majorGroup)),
-#                    no_genus = length(unique(.data$genus))
-#   ) |>
-#   dplyr::ungroup()
-#
-# data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-# data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-# data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-#
-# data_simp = data_simp[rev(order(data_simp$no_genus)),]
-# writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
-#
-#
-# data_accepted = data[data$taxonomicStatus == 'Accepted',]
-# data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-#
-# data_simp <- data_care |>
-#   dplyr::group_by(.data$family) |>
-#   dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-#                    tribe = toString(unique(.data$tribe)),
-#                    subtribe = toString(unique(.data$subtribe)),
-#                    majorGroup = toString(unique(.data$majorGroup)),
-#                    no_genus = length(unique(.data$genus))
-#   ) |>
-#   dplyr::ungroup()
-#
-# data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-# data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-# data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-#
-# data_simp = data_simp[rev(order(data_simp$no_genus)),]
-# writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
-#
-# data_tribe <- data_care[data_care$tribe != '',] |>
-#   dplyr::group_by(.data$subfamily) |>
-#   dplyr::summarise(family = toString(unique(.data$family)),
-#                    tribe = toString(unique(.data$tribe)),
-#                    subtribe = toString(unique(.data$subtribe)),
-#                    majorGroup = toString(unique(.data$majorGroup)),
-#                    no_genus = length(unique(.data$genus))
-#   ) |>
-#   dplyr::ungroup()
-#
-# data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
-# data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
-# data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
-#
-# data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
-# writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-#
-# data_subtribe <- data_care[data_care$subtribe != '',] |>
-#   dplyr::group_by(.data$tribe) |>
-#   dplyr::summarise(family = toString(unique(.data$family)),
-#                    subfamily = toString(unique(.data$subfamily)),
-#                    subtribe = toString(unique(.data$subtribe)),
-#                    majorGroup = toString(unique(.data$majorGroup)),
-#                    no_genus = length(unique(.data$genus))
-#   ) |>
-#   dplyr::ungroup()
-#
-# data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
-# writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-#
-#
-# }
 
 ### Add subfamily info to data_formatted
 {
   #############################################################################
   ## Add subfamilies (All)
   #############################################################################
-  ## Get the genus that are linked to each sub family.
-  families_with_sub = data_simp$family[data_simp$subfamily != ""]
-  data_fam_sub = data_care[data_care$family %in% families_with_sub,]
-  data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
-  data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
-  subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-  subfamily_genus_simp <- subfamily_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
-  subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
-
-  # Remove those without a subfamily (we will deal with these later)
-  subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
-  save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+  subfamily_genus_simp = BGSmartR::subfamily_genus_simp
 
   for(i in 1:nrow(subfamily_genus_simp)){
     # for(i in 1:30){
@@ -1133,7 +900,7 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
       next
     }
     in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
-                           grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+                           data_formatted$labels %in% subfamily_genera)
     if(length(in_formatted) >0){
       data_want = data_formatted[in_formatted,]
       new_ID = paste0(subfamily_info$sub_family,'---', subfamily_info$family)
@@ -1189,27 +956,7 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
   #############################################################################
   ## Add tribes (All)
   #############################################################################
-  # asteraceae = data_simp[data_simp$family == "Asteraceae",]
-
-  ## Get the genus that are linked to each sub family.
-  subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
-  data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
-  data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
-  data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
-  subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-  tribe_genus_simp <- subfamily_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
-  tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
-
-  # Remove those without a subfamily (we will deal with these later)
-  tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$sub_family != "No Subfamily",]
-  save(tribe_genus_simp, file = 'tribe_genus_simp')
-
+ tribe_genus_simp = BGSmartR::tribe_genus_simp
   for(i in 1:nrow(tribe_genus_simp)){
     # for(i in 1:30){
     tribe_info = tribe_genus_simp[i,]
@@ -1219,7 +966,7 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
       next
     }
     in_formatted = which(grepl(paste0(tribe_info$sub_family, '$'),data_formatted$ID) &
-                           grepl(paste0(tribe_genera, collapse = '|'),data_formatted$labels))
+                           data_formatted$labels %in% tribe_genera)
     if(length(in_formatted) >0){
       data_want = data_formatted[in_formatted,]
       new_ID = paste0(tribe_info$tribe,'---', tribe_info$sub_family)
@@ -1276,26 +1023,7 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
   #############################################################################
   ## Add Subtribes (All)
   #############################################################################
-  # asteraceae = data_simp[data_simp$family == "Asteraceae",]
-
-  ## Get the genus that are linked to each sub family.
-  tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
-  data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
-  data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
-  data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
-  subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
-  subtribe_genus_simp <- subtribe_genus |>
-    dplyr::group_by(.data$together) |>
-    dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                     no_genera = length(unique(.data$genus))
-    ) |>
-    dplyr::ungroup()
-  subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
-  subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
-
-  # Remove those without a subfamily (we will deal with these later)
-  subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
-  save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+ subtribe_genus_simp = BGSmartR::subtribe_genus_simp
 
   for(i in 1:nrow(subtribe_genus_simp)){
     # for(i in 1:30){
@@ -1306,7 +1034,7 @@ data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatt
       next
     }
     in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) &
-                           grepl(paste0(subtribe_genera, collapse = '|'),data_formatted$labels))
+                           data_formatted$labels %in% subtribe_genera)
     if(length(in_formatted) == 0){
       next
     }

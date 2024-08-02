@@ -1,16 +1,9 @@
 ---
-title: "Sustainability and longevity at the collection"
+title: "Sustainability at the collection"
 output: html_document
 ---
 
-###### {-} 
-
-```{r, add logo, eval = report_kind == 'interactive'}
-htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
-               alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
-```
-
+#### {-}
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(plotly)
@@ -19,39 +12,17 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
-library(downloadthis)
 
 interactive_colour <- function(n){
-  color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
+  color = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
   if(n==2){
     return(color[c(1,4)])
   }
   color[1:n]
 }
 
-color_binary <- rev(c('#f46d43', '#848484'))
+color_binary <- c('#f46d43', '#e6e6e6')
 palette = 'Oranges'
-```
-
-```{r, imported parameters}
-# Inputs
-# As an input we get 
-# - Enriched report
-# # - collection the name to be printed in the report.
-# load("/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_May2024_enriched_report.rda")
-# # coordinates = c(52.19375565279363, 0.1277770504441467)
-# collection = 'CUBG'
-# 
-# separate_figure_folder = FALSE
-# output_dir = getwd()
-# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
-# # load('/Users/jakepowell/Cambridge/Modules/Basic Stats/wgsrpd3.rda)
-# report_kind = 'interactive'
-# native = 'Naturally occurring only'
-# extinct = TRUE
-# doubtful_locations = FALSE
-# ggtheme = NULL
-# value_on_fig = TRUE
 ```
 
 ```{css, echo = FALSE}
@@ -76,7 +47,7 @@ palette = 'Oranges'
   left: 0;
   right: 0;
   bottom: 0;
-  background: #2098D1;
+  background: #f46d43;
   -webkit-transform: scaleX(0);
   transform: scaleX(0);
   -webkit-transform-origin: 100% 50%;
@@ -95,6 +66,48 @@ palette = 'Oranges'
   -webkit-transform: scaleX(1);
   transform: scaleX(1);
 }
+
+.blackbox {
+  padding: 1em;
+  background: #FDAE6B;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
+}
+```
+
+
+<!-- Motivation HERE -->
+
+
+```{r, imported parameters}
+# #Inputs
+# load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
+# collection = 'CUBG'
+# coordinates = c(52.19378853629289,0.1277234065606053)
+# load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# 
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
+# 
+# separate_figure_folder = F
+# output_dir = getwd()
+# report_kind = 'interactive'
+# ggtheme = NULL
+# value_on_fig = TRUE
+# min_year = 1970
+# data_type = 'Accessions'
+# earliest_allowable_record = 1650
+# old_accession_year_codes = c(1000)
+```
+
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r theme_ggplot2}
@@ -133,95 +146,6 @@ scale_fill_discrete <- scale_fill_discrete
 scale_fill_binned <- scale_fill_binned
 ```
 
-```{r, onRender text}
-bar_col = interactive_colour(1) ; bar_col_alpha = BGSmartR::add_alpha(bar_col, 0.7)
-
-render_barplot = paste0("
-    function(el) { 
-    console.log(el)
-      el.on('plotly_hover', function(data){
-  var pn='',
-      tn='',
-      colors=[];
-  for(var i=0; i < data.points.length; i++){
-    pn = data.points[i].pointNumber;
-    tn = data.points[i].curveNumber;
-    colors = data.points[i].data.marker.color;
-  };
-  colors[pn] = '", bar_col ,"';
-    
-  var update = {'marker':{color: colors}};
-  Plotly.restyle(el.id, update, [tn]);
-});
-      el.on('plotly_unhover', function(data){
-  var pn='',
-      tn='',
-      colors=[];
-  for(var i=0; i < data.points.length; i++){
-    pn = data.points[i].pointNumber;
-    tn = data.points[i].curveNumber;
-    colors = data.points[i].data.marker.color;
-  };
-  colors[pn] = '", bar_col_alpha ,"';
-  var update = {'marker':{color: colors}};
-  Plotly.restyle(el.id, update, [tn]);
-});
-    }
-  ")
-
-icon_svg_path = "M15.608,6.262h-2.338v0.935h2.338c0.516,0,0.934,0.418,0.934,0.935v8.879c0,0.517-0.418,0.935-0.934,0.935H4.392c-0.516,0-0.935-0.418-0.935-0.935V8.131c0-0.516,0.419-0.935,0.935-0.935h2.336V6.262H4.392c-1.032,0-1.869,0.837-1.869,1.869v8.879c0,1.031,0.837,1.869,1.869,1.869h11.216c1.031,0,1.869-0.838,1.869-1.869V8.131C17.478,7.099,16.64,6.262,15.608,6.262z M9.513,11.973c0.017,0.082,0.047,0.162,0.109,0.226c0.104,0.106,0.243,0.143,0.378,0.126c0.135,0.017,0.274-0.02,0.377-0.126c0.064-0.065,0.097-0.147,0.115-0.231l1.708-1.751c0.178-0.183,0.178-0.479,0-0.662c-0.178-0.182-0.467-0.182-0.645,0l-1.101,1.129V1.588c0-0.258-0.204-0.467-0.456-0.467c-0.252,0-0.456,0.209-0.456,0.467v9.094L8.443,9.553c-0.178-0.182-0.467-0.182-0.645,0c-0.178,0.184-0.178,0.479,0,0.662L9.513,11.973z"
-
-dl_button <- list(
-    name = "Download data",
-    icon = list(
-        path = icon_svg_path,
-        transform = "scale(0.84) translate(-1, -1)"
-        ),
-    click = htmlwidgets::JS("
-          function(gd) {
-            var text = '';
-            for(var i = 0; i < gd.data.length; i++){
-              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].x + '\\n';
-              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].y + '\\n';
-            };
-            var blob = new Blob([text], {type: 'text/plain'});
-            var a = document.createElement('a');
-            const object_URL = URL.createObjectURL(blob);
-            a.href = object_URL;
-            a.download = 'data.csv';
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(object_URL);
-          }
-   ")
-)
-
-dl_button_map <- list(
-    name = "Download data",
-    icon = list(
-        path = icon_svg_path,
-        transform = "scale(0.84) translate(-1, -1)"
-        ),
-    click = htmlwidgets::JS("
-          function(gd) {
-            var text = '';
-            for(var i = 0; i < gd.data.length; i++){
-              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].z + '\\n';
-              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].hovertext + '\\n';
-            };
-            var blob = new Blob([text], {type: 'text/plain'});
-            var a = document.createElement('a');
-            const object_URL = URL.createObjectURL(blob);
-            a.href = object_URL;
-            a.download = 'data.csv';
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(object_URL);
-          }
-   ")
-)
-```
-
 ```{r, Add combined geography column to enriched report}
 geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
 want = c('000','010','001','011','100','110','101')
@@ -256,18 +180,6 @@ level3codes[level3codes == "NA"] = NA
 enriched_report$geography_codes = level3codes
 ```
 
-`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
-
-`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: Each item is assumed to be a unique accession.\n"}`
-`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to POWO will be used (No non-vascular families). \n"}`
-`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to POWO will be used."}`
-`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in POWO will be used."}`
-`r if(!'AccYear' %in% names(enriched_report)){"- AccYear: All Accession years set to missing. \n"}`
-`r if(!'ItemStatusDate' %in% names(enriched_report)){"- ItemStatusDate: All set to missing. \n"}`
-`r if(!'ItemStatusType' %in% names(enriched_report)){"- ItemStatusType: All set to exisiting. \n"}`
-
-`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
-
 ```{r, Get location_type_text}
 location_type_text = ''
 if(native == 'Naturally occurring only'){
@@ -291,7 +203,7 @@ if(doubtful_locations){
 }
 ```
 
-```{r, Find LC location}
+```{r, Find LC location, echo = FALSE}
 coord_contained = TRUE
 # Extract the location of the collection.
 pnts <- data.frame( x = coordinates[2], y = coordinates[1])
@@ -315,328 +227,978 @@ if(length(location_name) == 0){
   location_name = collection_geog_details$LEVEL3_NAM
   location_code = collection_geog_details$LEVEL3_COD
 }
- collection_geog_details_og = collection_geog_details
 ```
 
-```{r, Extracting information from enriched report}
-# Add required columns if missing.
-needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+`r if(any(!c('AccNoFull') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: assume each item is its own accession.\n"}`
+
+`r if(any(!c('no_gardens','AccNoFull') %in% names(enriched_report))){"***"}`
+
+```{r, Extracting required information from enriched report, echo = F}
+
+needed_columns = c('AccNoFull', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
 if(!'AccNoFull' %in% names(enriched_report)){
   enriched_report$AccNoFull = 1:nrow(enriched_report)
 }
-if(!'Family' %in% names(enriched_report)){
-  enriched_report$Family =rep(NA, nrow(enriched_report))
-}
-if(!'Genus' %in% names(enriched_report)){
-  enriched_report$Genus = rep(NA, nrow(enriched_report))
-}
-if(!'GenusSpecies' %in% names(enriched_report)){
-  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
-}
 if(!'AccYear' %in% names(enriched_report)){
+  do_over_time = FALSE
   enriched_report$AccYear = rep(0, nrow(enriched_report))
 }
 if(!'ItemStatusDate' %in% names(enriched_report)){
-  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+  do_over_time = FALSE
+  enriched_report$ItemStatusDate = rep(NA, nrow(enriched_report))
 }
 if(!'ItemStatusType' %in% names(enriched_report)){
+  do_over_time = FALSE
   enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
 }
-
-do_coord = !is.na(coordinates[1])
-# Set report to only the existing items.
-# report = enriched_report[enriched_report$ItemStatusType == 'Existing',]
-report = enriched_report
-
-#Extract endemic information from report
-endemic = rep('Not Endemic', nrow(report))
-endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+if(all(is.na(enriched_report$ItemStatusDate))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$ItemStatusType))){
+  do_over_time = FALSE
+}
+if(all(is.na(enriched_report$AccYear))){
+  do_over_time = FALSE
+}
+#Extract endemic information from enriched_report
+endemic = rep('Not Endemic', nrow(enriched_report))
+endemic_index = which(stringr::str_length(enriched_report$geography_codes) == 3)
 endemic[endemic_index] = 'Endemic'
-report$endemic = endemic
+enriched_report$endemic = endemic
 rm(endemic)
-
-#Extract endemic information from report
-tree = rep('Not Tree', nrow(report))
-tree_index = which(report$Enrich_is_tree)
-tree[tree_index] = 'Tree'
-report$tree = tree
-rm(tree)
-
-# Add native column.
-nativeo = rep('Non-native', nrow(report))
-native_index = which(grepl(location_code, report$geography_codes))
-nativeo[native_index] = 'Native'
-report$native = nativeo
-rm(nativeo)
 
 # Extract threatened. 
 threat_cat = c('VU','EN','CR','EW','EX')
-threatened = rep('Not Threatened', nrow(report))
-threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
-threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
-report$threatened = threatened
+threatened = rep('Not Threatened', nrow(enriched_report))
+threatened[which(enriched_report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(enriched_report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+enriched_report$threatened = threatened
 rm(threatened)
 
 # Extract threatened category. 
-threatened_category = rep(NA, nrow(report))
+threatened_category = rep(NA, nrow(enriched_report))
 for(i in 1:length(threat_cat)){
- threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
- threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(enriched_report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(enriched_report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
 }
-report$threatened_category = threatened_category
+enriched_report$threatened_category = threatened_category
 rm(threatened_category)
 
 # Convert Provenance code to text.
-report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
-report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
-report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
-report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
+enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Extract tree.
+tree =rep('Not Tree', nrow(enriched_report))
+tree[enriched_report$Enrich_is_tree] = 'Tree'
+enriched_report$tree = tree
+rm(tree)
+
+# Extract native.
+nativeo = rep('Not Native', nrow(enriched_report))
+native_index = grepl(location_code,enriched_report$geography_codes)
+nativeo[native_index] = 'Native'
+enriched_report$native = nativeo
+rm(nativeo)
+
+LossYear = rep(NA,nrow(enriched_report))
+ItemStatusYear = as.numeric(stringr::str_extract(enriched_report$ItemStatusDate,pattern = '[0-9]{4}'))
+LossYear[enriched_report$ItemStatusType %in% c('NotExisting', 'Not Existing')] = ItemStatusYear[enriched_report$ItemStatusType %in% c('NotExisting', 'Not Existing')]
+enriched_report$LossYear = LossYear
 
 # Create a sanitised taxonomic name.
-report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
 
-best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
-best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
-report$best_name = best_name
-report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+best_name = paste0(enriched_report$POWO_taxon_name, ' ', enriched_report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = enriched_report$good_name[which(best_name == 'NA NA')]
+enriched_report$best_name = best_name
 
-# Get the best family (use powo match o/w original)
-family = report$POWO_family
-family[is.na(family)] = report$Family[is.na(family)]
-report$family_use = family
-rm(family)
+report_original = enriched_report
 
-# Combine powo genus and original genus
-genera = report$POWO_genus
-genera[is.na(genera)] = report$Genus[is.na(genera)]
-report$genera_use = genera
-rm(genera)
-
-# Get genus species pair.
-POWO_GenusSpecies = rep(NA, nrow(report))
-POWO_GenusSpecies[!is.na(report$POWO_plant_name_id)] = paste0(report$POWO_genus[!is.na(report$POWO_plant_name_id)],
-                                                              ' ',
-                                                              report$POWO_species[!is.na(report$POWO_plant_name_id)])
-species_data = data.frame(original = report$GenusSpecies, POWO = POWO_GenusSpecies, infra = report$taxon_type)
-use_genus_species = species_data$POWO
-use_genus_species[is.na(use_genus_species)] = species_data$original[is.na(use_genus_species)]
-report$genus_species_use= use_genus_species
-
-# Get best taxonomic name.
-taxon_name_auth = paste0(report$sanitised_taxon, ' ', report$extracted_author)
-taxon_name_auth[!is.na(report$POWO_plant_name_id)] = (paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors))[!is.na(report$POWO_plant_name_id)]
-report$taxa_use = taxon_name_auth
-rm(taxon_name_auth)
-
-
-major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes",
-                                  "Bryophytes", "Hornworts", "Liverworts", "Mosses"
-)
-Angiosperm_groups = c('Eudicots', 'Monocots')
-Eudicot_groups = c('Asterids', 'Rosids')
-fam_major_groups = lapply(major_groups, function(group){
- PlantClassification$family[PlantClassification$`major Land Plants lineage` == group]
-})
-names(fam_major_groups) = major_groups
-fam_Angiosperm_groups = lapply(Angiosperm_groups, function(group){
-PlantClassification$family[PlantClassification$`major Angiosperm lineage` == group]
-})
-names(fam_Angiosperm_groups) = Angiosperm_groups
-fam_Eudicot_groups = lapply(Eudicot_groups, function(group){
-PlantClassification$family[PlantClassification$`major Eudicot lineage` == group]
-})
-names(fam_Eudicot_groups) = Eudicot_groups
-families_of_groups = c(fam_major_groups, fam_Angiosperm_groups, fam_Eudicot_groups)
-
-to_do = c("Bryophytes", "Ferns", "Gymnosperms", "Lycophytes", 'Eudicots', 'Monocots')
-taxo_group = rep('Other',nrow(report))
-for(i in 1:length(to_do)){
-  taxo_group[report$family_use %in% families_of_groups[[to_do[i] ]] ] = to_do[i]
-}
-report$taxo_group = taxo_group
-
-
-report_original = report
+report = enriched_report
 
 if(separate_figure_folder){
   figures_dir = paste0(output_dir,'/',collection,'_Figures')
   dir.create(figures_dir,showWarnings = FALSE)
 }
 
-```
+exporting_data_store = list()
 
+## Data for trends
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+years = min_year:max_year
 
-This report provides an overview of analyses of the collection further detail can be found by running other reports (such as Geography, Endemic, trends, etc... reports).
-
-
-
-***
-
-
-### Age of accessions
-
-```{r, age of accessions}
-interest = report[report$ItemStatusType == 'Existing',]
-interest = interest[match(unique(interest$AccNoFull), interest$AccNoFull),]
-
-# Update codes linked to older records to earliest allowable record.
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
 if(!is.null(old_accession_year_codes)){
-  old_acc_codes_index = which(interest$AccYear %in% old_accession_year_codes)
-  no_old_acc_codes = length(old_acc_codes_index)
-  interest$AccYear[old_acc_codes_index] = earliest_allowable_record
+  has_old_accessions_code = which(report$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  report$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(report$AccYear) >= earliest_allowable_record  & as.numeric(report$AccYear) <= max_year)
+still_issue = nrow(report) - length(to_keep)
+report = report[to_keep,]
+
+report = report[!is.na(report$ItemStatusDate),]
+
+report_after_old_acc = report
+### Find the number of items/accessions where we have to do some fixing to the most recent status update.
+post_date = report$ItemStatusDate
+index_string_length_4 = which(stringr::str_length(post_date) == 4)
+index_string_length_7 = which(stringr::str_length(post_date) == 7)
+missing_date = length(c(index_string_length_4, index_string_length_7))
+
+### (END) Find the number of items/accessions where we have to do some fixing to the most recent status update.
+```
+
+###### {-} 
+
+This report uses data from **`r collection`** and analyses longevity in the collection.
+
+<!-- `r if(!is.null(old_accession_year_codes)){paste0("Within the collection the accession years '", paste0(old_accession_year_codes, collapse = ', '),"' are used to denote items which have unknown accession year but have being in the collection since near the beginning. There are ", no_old_accessions," items in the collection with these accession years. In this analysis we set the accession year of such plants to ", earliest_allowable_record, ".")}` -->
+
+<!-- `r if(!is.null(old_accession_year_codes)){"Afterwards the"}else{'The'}` collection contains **`r still_issue`** items whose accession year is not within `r earliest_allowable_record` and `r max_year`. These records are excluded in the following analysis. -->
+
+`r if(missing_date > 0){paste0("Within the collection there are ", missing_date, ' ', data_type |> tolower(), ' that are either missing the day or month and day of their most recent status update. If only the day is missing we set it to the 28th, if the month and day are missing we set the date to the 31st of December. ')}`
+
+This document outlines the sustainability of the collection by considering the age of plants currently in the collection, how long plants survive in the collection, how often new species are brought into the collection and how often they are lost.
+
+```{r, Get survival, echo = F}
+year_cur = Sys.Date() |> format('%Y') |> as.numeric()
+
+#### 1) age of items in the collection --------
+existing = report[report$ItemStatusType == 'Existing',]
+plant_age  = year_cur - existing$AccYear |> as.numeric()
+max_age = max(plant_age)
+ages = 0:max_age
+all = table(plant_age) |> as.data.frame()
+names(all) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(all$Age, ages)] = all$Freq ; all = AA
+
+#table for cats
+threatened = table(plant_age[existing$threatened == 'Threatened']) |> as.data.frame()
+names(threatened) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+
+tree = table(plant_age[existing$tree == 'Tree']) |> as.data.frame()
+names(tree) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+
+native = table(plant_age[existing$native == 'Native']) |> as.data.frame()
+names(native) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+
+endemic = table(plant_age[existing$endemic == 'Endemic']) |> as.data.frame()
+names(endemic) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+
+indet = table(plant_age[grep('0', existing$taxon_type)]) |> as.data.frame()
+names(indet) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+
+hort = table(plant_age[grep('5|6', existing$taxon_type)]) |> as.data.frame()
+names(hort) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+
+species = table(plant_age[!grepl('0|5|6|2|3|4', existing$taxon_type)]) |> as.data.frame()
+names(species) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+
+infra = table(plant_age[!grepl('0|5|6', existing$taxon_type) & grepl('2|3|4', existing$taxon_type)]) |> as.data.frame()
+names(infra) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+
+prov_values = unique(report$ProvenanceCode)
+prov = lapply(prov_values, function(x){
+ prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
+names(prov) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
+prov
+}) |> data.frame()
+names(prov) =prov_values
+# combine
+age_of_items = data.frame(ages = ages, all = all,
+                          species = species, infra = infra, hort = hort, indet = indet,
+                          prov,
+                          threatened = threatened, endemic = endemic, native = native, tree = tree
+                          )
+names(age_of_items) = names(age_of_items) |>
+  stringr::str_replace_all(pattern = '_', ' ') |>
+  stringr::str_replace_all(pattern = '\\.', '-') |>
+  stringr::str_to_sentence()
+
+columns_names = names(age_of_items)[-1]
+summary_table = lapply(columns_names, function(x){
+  long = rep(age_of_items[['Ages']],age_of_items[[x]])
+  c(mean(long), sd(long), quantile(long, probs = c(0,0.25,0.5,0.75,1))) |> as.numeric()|> round(2)
+}) |> data.frame() |> t() |> data.frame()
+names(summary_table) = c('Mean', 'SD', 'Min', 'Q1', 'Median (Q2)', 'Q3', 'Max') 
+row.names(summary_table) =columns_names 
+summary_table_item = summary_table
+#### (END) age of items in the collection --------
+
+#### 2) age of accessions in the collection --------
+existing = report[report$ItemStatusType == 'Existing',]
+existing = existing[match(unique(existing$AccNoFull), existing$AccNoFull),]
+plant_age  = year_cur - existing$AccYear |> as.numeric()
+max_age = max(plant_age)
+ages = 0:max_age
+all = table(plant_age) |> as.data.frame()
+names(all) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(all$Age, ages)] = all$Freq ; all = AA
+
+#table for cats
+threatened = table(plant_age[existing$threatened == 'Threatened']) |> as.data.frame()
+names(threatened) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+
+tree = table(plant_age[existing$tree == 'Tree']) |> as.data.frame()
+names(tree) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+
+native = table(plant_age[existing$native == 'Native']) |> as.data.frame()
+names(native) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+
+endemic = table(plant_age[existing$endemic == 'Endemic']) |> as.data.frame()
+names(endemic) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+
+indet = table(plant_age[grep('0', existing$taxon_type)]) |> as.data.frame()
+names(indet) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+
+hort = table(plant_age[grep('5|6', existing$taxon_type)]) |> as.data.frame()
+names(hort) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+
+species = table(plant_age[!grepl('0|5|6|2|3|4', existing$taxon_type)]) |> as.data.frame()
+names(species) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+
+infra = table(plant_age[!grepl('0|5|6', existing$taxon_type) & grepl('2|3|4', existing$taxon_type)]) |> as.data.frame()
+names(infra) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+
+prov_values = unique(report$ProvenanceCode)
+prov = lapply(prov_values, function(x){
+ prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
+names(prov) = c('Age', 'Freq')
+AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
+prov
+}) |> data.frame()
+names(prov) =prov_values
+# combine
+age_of_accessions = data.frame(ages = ages, all = all,
+                          species = species, infraspecific = infra, horticultral = hort, indeterminate_taxa = indet,
+                          prov,
+                          threatened = threatened, endemic = endemic, native = native, tree = tree
+                          )
+names(age_of_accessions) = names(age_of_accessions) |>
+  stringr::str_replace_all(pattern = '_', ' ') |>
+  stringr::str_replace_all(pattern = '\\.', '-') |>
+  stringr::str_to_sentence()
+
+columns_names = names(age_of_accessions)[-1]
+summary_table = lapply(columns_names, function(x){
+  long = rep(age_of_accessions[['Ages']],age_of_accessions[[x]])
+  c(mean(long), sd(long), quantile(long, probs = c(0,0.25,0.5,0.75,1))) |>  as.numeric() |> round(2)
+}) |> data.frame() |> t() |> data.frame()
+names(summary_table) = c('Mean', 'SD', 'Min', 'Q1', 'Median (Q2)', 'Q3', 'Max') 
+row.names(summary_table) =columns_names 
+summary_table_acc = summary_table
+#### (END) age of accessions in the collection --------
+
+
+```
+
+```{r, sustain functions}
+plot_single_age = function(age, count, data_type = 'items'){
+  hover = paste0(count, ' ', data_type, ' in the collection are ', age, ' years old. (Accessioned in ',max_year - age,')')
+  fig <- plot_ly(x = count, y = age, type = 'bar', orientation = 'h',
+                 hoverinfo = 'text', hovertext = hover,
+                 marker = list(color = interactive_colour(1))) |> 
+    layout(xaxis = list(title = paste0('Number of ',data_type)),
+           yaxis = list(title = paste0('Age (years)')),
+           hovermode = 'y unified')
+  fig
+}
+```
+
+### Age of plants currently in the collection 
+
+We first look at the age of existing items and accessions in the collection.
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r  Items age, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+age = age_of_items$Ages ; count = age_of_items$All
+plot_single_age(age, count, 'items')
+```
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r  Accessions trend - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+age = age_of_accessions$Ages ; count = age_of_accessions$All
+plot_single_age(age, count, 'accessions')
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+
+The difference in plant age across plant characteristics is summarised in the table below
+
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Items"}`
+```{r  Item age across charactistics, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+summary_table_item |>  DT::datatable(extensions = 'Buttons',
+                  rownames = T,
+                  options = list(scrollX = TRUE,
+                                 # pageLength = min(nrow(show_table), 10),
+                                 dom = 'Btp',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=F,
+                                 ordering=T),
+                  filter = list(position = "top"))
+```
+
+`r if(report_kind == 'interactive'){"###### Accessions"}`
+```{r  Accessions age across charactistics, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+summary_table_acc |>  DT::datatable(extensions = 'Buttons',
+                  rownames = T,
+                  options = list(scrollX = TRUE,
+                                 # pageLength = min(nrow(show_table), 10),
+                                 dom = 'Btp',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=F,
+                                 ordering=T),
+                  filter = list(position = "top"))
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+***
+
+### Survival in the collection
+
+Rather than looking at the age of existing plants in the collection we now consider how long plants survive in the collection taking into account of all recorded plants in the collections history.
+
+To determine how long a plant survives in the collection we use the date of the plants most recent update and whether the plant was noted to be alive or dead. All plants that were alive at their most recent check are assumed to be alive to the present day. For plants that are dead we take the most recent update date to be their date of death. 
+
+In this section we shall begin by looking at survival curves across various plant characteristics in the collections followed by comparing the median survival times. 
+
+```{r survival analysis}
+#### Setup data for survival analysis ------
+
+interest = report
+
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  interest$AccYear[has_old_accessions_code] = earliest_allowable_record
 }
 
-year_cur = format(Sys.Date(),'%Y') |> as.numeric()
-# How many issue accession years are there. 
-Acc_year = interest$AccYear |> as.numeric()
-issue_acc_year =which(Acc_year < earliest_allowable_record | Acc_year > year_cur | is.na(Acc_year))
+to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+still_issue = nrow(interest) - length(to_keep)
+interest = interest[to_keep,]
 
-issue_values = interest$AccYear[issue_acc_year] |> unique()
-if(length(issue_acc_year) > 0){
-  interest = interest[-issue_acc_year,]
+do_survival = TRUE
+enriched_report_wanted = interest[as.numeric(interest$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
+enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]
+
+# Create a data-frame of the information we want.
+wanted_data = enriched_report_wanted
+
+if(nrow(wanted_data) == 0){
+  do_survival = FALSE
+}
+if(do_survival){
+  #Set accession date (just chose the first of June)
+pre_date = rep(NA, length(wanted_data$AccYear))
+pre_date = paste(wanted_data$AccYear, "06", "01", sep = "-")
+
+# Convert ItemStatusDate into all dates (i.e if month or day missing add one)
+post_date = rep(as.character(Sys.Date()), length(wanted_data$AccYear))
+post_date[which(wanted_data$ItemStatusType == "NotExisting")] = as.character(wanted_data$ItemStatusDate[which(wanted_data$ItemStatusType == 
+  "NotExisting")])
+
+post_date[which(stringr::str_length(post_date) == 4)] = paste(post_date[which(stringr::str_length(post_date) == 
+  4)], "12", "28", sep = "-")
+post_date[which(stringr::str_length(post_date) == 7)] = paste(post_date[which(stringr::str_length(post_date) == 
+  7)], "28", sep = "-")
+
+# Create the time difference between accession and ItemStatusDate.
+time = as.numeric(as.Date(post_date) - as.Date(pre_date)) /365.25
+
+# Create status to tell whether the last item status date was item death or just a check.
+status = rep(0,length(wanted_data$AccYear))
+status[wanted_data$ItemStatusType == 'NotExisting'] = 1
+
+wanted_data = data.frame(wanted_data, AccessionDate = pre_date,
+                         StatusDate = post_date,
+                         time = time,
+                         Alive_dead = status)
+
+
+# We haven't removed those with missing ItemStatusDate, these will most likely have negative time so remove these.
+missing_itemstatusdate_index = which(wanted_data$time > 0)
+status_year = wanted_data$ItemStatusDate |> stringr::str_extract('^[0-9]{4}') |> unlist() |> as.numeric()
+status_before_current_year = which(status_year <= format(Sys.Date(),'%Y') |> as.numeric() )
+to_keep = intersect(missing_itemstatusdate_index,status_before_current_year)
+wanted_data = wanted_data[to_keep,]
+
+enriched_report_wanted = enriched_report_wanted[to_keep,]
+
+# missing_itemstatusdate_index = which(wanted_data$time > 0)
+# wanted_data = wanted_data[missing_itemstatusdate_index,]
+# enriched_report_wanted = enriched_report_wanted[missing_itemstatusdate_index,]
+
+
+data_to_analyse = wanted_data
+
+}
+#### (END) Setup data for survival analysis ------
+median_vals = list() ; surv_percent_vals = list()
+### Run survival fits across groups that we care about ------
+fit_all = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_to_analyse)
+median_vals$items = fit_all |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$items = fit_all |> gtsummary::tbl_survfit(times = c(5,10,20))
+
+fit_all$surv = fit_all$surv*100
+fit_all$hover = paste0('Time: ',fit_all$time |> round(2),'<br>Items survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
+data_acc = data_to_analyse
+data_acc$ItemStatusDate[which(data_acc$ItemStatusType == 'Existing')] = '3000-01-01'
+data_acc = data_acc[order(data_acc$ItemStatusDate,decreasing = T),]
+data_acc = data_acc[match(unique(data_acc$AccNoFull), data_acc$AccNoFull),]
+fit_accessions = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_acc)
+median_vals$accessions = fit_accessions |> 
+    gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$accessions = fit_accessions |> gtsummary::tbl_survfit(times = c(5,10,20))
+
+fit_accessions$surv = fit_accessions$surv*100
+fit_accessions$hover = paste0('Time: ',fit_accessions$time |> round(2),'<br>Accessions survival Probability: ', (fit_accessions$surv) |> round(2), '% <br> 95% conf interval: (',(fit_accessions$lower*100) |> round(2),  '%, ', (fit_accessions$upper*100) |> round(2),'%)')
+
+fit_species = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(!grepl('0|2|3|4|5|6',data_to_analyse$taxon_type)),])
+median_vals$species = fit_species |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$species = fit_species |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_species$surv = fit_species$surv*100
+fit_species$hover = paste0('Time: ',fit_species$time|> round(2),'<br>Species survival Probability: ', (fit_species$surv) |> round(2), '% <br> 95% conf interval: (',(fit_species$lower*100) |> round(2),  '%, ', (fit_species$upper*100) |> round(2),'%)')
+
+fit_infra = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(!grepl('0|5|6', data_to_analyse$taxon_type) & grepl('2|3|4', data_to_analyse$taxon_type)),])
+median_vals$infra = fit_infra |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$infra = fit_infra |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_infra$surv = fit_infra$surv*100
+fit_infra$hover = paste0('Time: ',fit_infra$time|> round(2),'<br>Infraspecific survival Probability: ', (fit_infra$surv) |> round(2), '% <br> 95% conf interval: (',(fit_infra$lower*100) |> round(2),  '%, ', (fit_infra$upper*100) |> round(2),'%)')
+
+fit_hort = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[grep('5|6',data_to_analyse$taxon_type),])
+median_vals$hort = fit_hort |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$hort = fit_hort |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_hort$surv = fit_hort$surv*100
+fit_hort$hover = paste0('Time: ',fit_hort$time|> round(2),'<br>Horticultral survival Probability: ', (fit_hort$surv) |> round(2), '% <br> 95% conf interval: (',(fit_hort$lower*100) |> round(2),  '%, ', (fit_hort$upper*100) |> round(2),'%)')
+
+fit_indet = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[grep('0',data_to_analyse$taxon_type),])
+median_vals$indet = fit_indet |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$indet = fit_indet |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_indet$surv = fit_indet$surv*100
+fit_indet$hover = paste0('Time: ',fit_indet$time|> round(2),'<br>Indeterminate survival Probability: ', (fit_indet$surv) |> round(2), '% <br> 95% conf interval: (',(fit_indet$lower*100) |> round(2),  '%, ', (fit_indet$upper*100) |> round(2),'%)')
+
+fit_garden = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Garden'),])
+median_vals$garden = fit_garden |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$garden = fit_garden |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_garden$surv = fit_garden$surv*100
+fit_garden$hover = paste0('Time: ',fit_garden$time|> round(2),'<br>Garden origin survival Probability: ', (fit_garden$surv) |> round(2), '% <br> 95% conf interval: (',(fit_garden$lower*100) |> round(2),  '%, ', (fit_garden$upper*100) |> round(2),'%)')
+
+fit_wild = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild'),])
+median_vals$wild = fit_wild |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$wild = fit_wild |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_wild$surv = fit_wild$surv*100
+fit_wild$hover = paste0('Time: ',fit_wild$time|> round(2),'<br>Wild origin survival Probability: ', (fit_wild$surv) |> round(2), '% <br> 95% conf interval: (',(fit_wild$lower*100) |> round(2),  '%, ', (fit_wild$upper*100) |> round(2),'%)')
+
+if("Wild-derived" %in% data_to_analyse$ProvenanceCode){
+  fit_z = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild-derived'),])
+  median_vals$z = fit_z |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+    surv_percent_vals$z = fit_z |> gtsummary::tbl_survfit(times = c(5,10,20))
+
+fit_z$surv = fit_z$surv*100
+fit_z$hover = paste0('Time: ',fit_z$time|> round(2),'<br>Wild-derived origin survival Probability: ', (fit_z$surv) |> round(2), '% <br> 95% conf interval: (',(fit_z$lower*100) |> round(2),  '%, ', (fit_z$upper*100) |> round(2),'%)')
 }
 
+if('Unknown' %in% data_to_analyse$ProvenanceCode){
+  fit_unknown = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Unknown'),])
+  median_vals$unknown = fit_unknown |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+  surv_percent_vals$unknown = fit_unknown |> gtsummary::tbl_survfit(times = c(5,10,20))
 
-age = rep('>75 years ago', nrow(interest))
-age[which((year_cur - as.numeric(interest$AccYear)) <= 75)] = '50-75 years ago'
-age[which((year_cur - as.numeric(interest$AccYear)) <= 50)] = '25-50 years ago'
-age[which((year_cur - as.numeric(interest$AccYear)) < 25)] = '< 25 years ago'
-interest$age = age
+fit_unknown$surv = fit_unknown$surv*100
+fit_unknown$hover = paste0('Time: ',fit_unknown$time|> round(2),'<br>Unknown origin survival Probability: ', (fit_unknown$surv) |> round(2), '% <br> 95% conf interval: (',(fit_unknown$lower*100) |> round(2),  '%, ', (fit_unknown$upper*100) |> round(2),'%)')
+}
+
+fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                data = data_to_analyse[which(data_to_analyse$native == 'Native'),])
+median_vals$native = fit_native |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$native = fit_native |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_native$surv = fit_native$surv*100
+fit_native$hover = paste0('Time: ',fit_native$time|> round(2),'<br>Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
+
+fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                 data = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),])
+median_vals$endemic = fit_endemic |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$endemic = fit_endemic |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_endemic$surv = fit_endemic$surv*100
+fit_endemic$hover = paste0('Time: ',fit_endemic$time|> round(2),'<br>Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
+
+fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                    data = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),])
+median_vals$threatened = fit_threatened |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$threatened = fit_threatened |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_threatened$surv = fit_threatened$surv*100
+fit_threatened$hover = paste0('Time: ',fit_threatened$time|> round(2),'<br>Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
+
+fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = data_to_analyse[which(data_to_analyse$tree == 'Tree'),])
+median_vals$tree = fit_tree |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
+surv_percent_vals$tree = fit_tree |> gtsummary::tbl_survfit(times = c(5,10,20))
+fit_tree$surv = fit_tree$surv*100
+fit_tree$hover = paste0('Time: ',fit_tree$time|> round(2),'<br>Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
 
 
-# Create indices for each subset.
-columns_of_interest = c('tree', 'native', 'endemic', 'threatened','ProvenanceCode')
 
-info = lapply(columns_of_interest, function(x){
-  data_cur = interest[c(x, 'age')] |>
-    dplyr::group_by_all() |>
-    dplyr::count() 
-  data_cur = data_cur |>
-    dplyr::group_by(across(x)) |>
-    dplyr::mutate(per =  100 *n/sum(n)) |> 
-    dplyr::ungroup()
-  data_cur$column = x
-  
-  data_cur
+
+### Run survival fits across groups that we care about ------
+survival_table = lapply(names(median_vals), function(x){
+  tb = median_vals[[x]]
+  median = tb$table_body[1,6] |> as.character() #|> stringr::str_extract_all('[0-9]{1,3}') |> unlist() |> as.numeric()
+  tb = surv_percent_vals[[x]]
+  surv_prob = tb$table_body[1,6:8] |> as.character()
+  return(c(x |> stringr::str_to_sentence(), median, surv_prob))
+  }) |> data.frame() |> t() |> data.frame()
+names(survival_table) = c('Characteristic', 'Median survival in years (95% CI)',
+                          '5-year survival % (95% CI)',
+                          '10-year survival % (95% CI)',
+                          '20-year survival % (95% CI)')
+rownames(survival_table) = 1:nrow(survival_table)
+survival_table$Characteristic  = dplyr::case_match(survival_table$Characteristic,
+                                                   'Hort' ~ 'Horticultral',
+                                                   'Indet' ~ 'Indeterminate',
+                                                   'Z' ~ 'Wild-derived',
+                                                   "Infra" ~ 'Infraspecific',
+                                                   .default = survival_table$Characteristic)
+```
+
+First we look at the survival time of the entire collection across varying metrics (where we look at survival across items unless specified otherwise in the whole collection)
+
+##### Whole collection
+
+```{r, items and accessions survival times, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+colors = interactive_colour(4)[1:2]
+
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'Items', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]), visable = FALSE )
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_accessions$time, y = fit_accessions$surv, name = 'Accessions', hoverinfo = "text",  hovertext = fit_accessions$hover, line = list(color = colors[2]))
+
+fig <- fig |> layout(title = "",
+                     hovermode = 'xt unified',
+         xaxis = list(title = "Years", showspikes=T, spikemode="across"),
+         yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
+         )
+
+hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color, dash="dot")
+  )
+}
+fig = fig |>
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+           text = c("median survival"))
+fig
+```
+
+##### Type of plant
+
+```{r, type of plant survival times, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+colors = scales::brewer_pal(palette = palette, direction = 1)(4)
+
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_species$time, y = fit_species$surv, name = 'Species', hoverinfo = "text",  hovertext = fit_species$hover, line = list(color = colors[1]))
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_infra$time, y = fit_infra$surv, name = 'Infraspecific', hoverinfo = "text",  hovertext = fit_infra$hover, line = list(color = colors[2]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_hort$time, y = fit_hort$surv, name = 'Horticultral', hoverinfo = "text",  hovertext = fit_hort$hover, line = list(color = colors[3]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_indet$time, y = fit_indet$surv, name = 'Indeterminate', hoverinfo = "text",  hovertext = fit_indet$hover, line = list(color = colors[4]))
+
+
+fig <- fig |> layout(title = "",
+                     hovermode = 'xt unified',
+         xaxis = list(title = "Years", showspikes=T, spikemode="across"),
+         yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
+         )
+
+hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color, dash="dot")
+  )
+}
+fig = fig |>
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+           text = c("median survival"))
+fig
+
+```
+
+##### Provenance
+
+```{r, provenance survival times, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+colors = interactive_colour(4)
+names(colors) = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_garden$time, y = fit_garden$surv, name = 'Garden', hoverinfo = "text",  hovertext = fit_garden$hover, line = list(color = colors[['Garden']]) )
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_wild$time, y = fit_wild$surv, name = 'Wild', hoverinfo = "text",  hovertext = fit_wild$hover, line = list(color = colors[['Wild']]))
+
+if(exists('fit_z')){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_z$time, y = fit_z$surv, name = 'Wild-derived', hoverinfo = "text",  hovertext = fit_z$hover, line = list(color = colors[['Wild-derived']]))
+}
+
+if(exists('fit_unknown')){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_unknown$time, y = fit_unknown$surv, name = 'Unknown', hoverinfo = "text",  hovertext = fit_unknown$hover, line = list(color = colors[['Unknown']]))
+}
+
+fig <- fig |> layout(title = "",
+                     hovermode = 'xt unified',
+         xaxis = list(title = "Years", showspikes=T, spikemode="across"),
+         yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
+         )
+
+hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color, dash="dot")
+  )
+}
+fig = fig |>
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+           text = c("median survival"))
+fig
+```
+
+##### Key collections 
+
+```{r, key collections survival times, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
+colors = scales::brewer_pal(palette = palette, direction = 1)(5)
+
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'All', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]), visable = FALSE )
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_native$time, y = fit_native$surv, name = 'Native', hoverinfo = "text",  hovertext = fit_native$hover, line = list(color = colors[2]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_endemic$time, y = fit_endemic$surv, name = 'Endemic', hoverinfo = "text",  hovertext = fit_endemic$hover, line = list(color = colors[3]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_threatened$time, y = fit_threatened$surv, name = 'Threatened', hoverinfo = "text",  hovertext = fit_threatened$hover, line = list(color = colors[4]))
+
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_tree$time, y = fit_tree$surv, name = 'Tree', hoverinfo = "text",  hovertext = fit_tree$hover, line = list(color = colors[5]))
+
+fig <- fig |> layout(title = "",
+                     hovermode = 'xt unified',
+         xaxis = list(title = "Years", showspikes=T, spikemode="across"),
+         yaxis = list (title = "Survival probability", showspikes=T,  spikemode="across")
+         )
+
+hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color, dash="dot")
+  )
+}
+fig = fig |>
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+           text = c("median survival"))
+fig
+
+```
+
+
+```{r median survival times}
+survival_table |>  DT::datatable(extensions = 'Buttons',
+                  rownames = FALSE,
+                  options = list(scrollX = TRUE,
+                                 pageLength = nrow(survival_table),
+                                 dom = 'Btp',
+                                 buttons = c('copy', 'csv', 'excel', 'pdf'),
+                                 paging=F,
+                                 ordering=F))
+```
+
+***
+
+### Gain and loss of species to the collection
+
+In this section we only consider plants that were successfully matched to POWO.
+
+Here we investigate the gain of plants that were not in the collection in the previous year and the loss of plants that causes the species to no longer be represented in the living collection.
+
+
+```{r, gain new/unique plants POWO only}
+# First need to create a list of taxonomic names that were in the LC each previous year
+report_cur = report[!is.na(report$POWO_plant_name_id),]
+existing_items = BGSmartR::exist_at_date(date = paste0(years-1,'-12-31'),
+                                         AccessionYear = report_cur$AccYear,
+                                         ItemStatusDate = report_cur$ItemStatusDate,
+                                         ItemStatusType = report_cur$ItemStatusType,
+                                         post_date = '3000-01-01')
+
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report_cur$best_name[x]
+  return(unique(data_cur))
 })
-names(info) = columns_of_interest
 
-## All
-age_all = interest |>
-  dplyr::group_by(age) |>
-  dplyr::count()
-age_all$per = age_all$n / sum(age_all$n) *100
-info$all = age_all
+names(taxonomic_names_in_LC_years) = paste0('plants_previous_year_to_',years)
+new_to_collection = unlist(lapply(years, function(x){
+  plants_accessioned = unique(report_cur$best_name[which(report_cur$AccYear == x)])
+  previous_plants = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_accessioned %in% previous_plants)
+}))
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_accessioned = report_cur$best_name[report_cur$AccYear == x]
+  length(unique(plants_accessioned))
+}))
+
+prop_new_collection = new_to_collection*100 /total_taxonomic_names
+prop_new_collection[is.nan(prop_new_collection)] = NA
+
+plot_data = data.frame(years, new_to_collection, total_taxonomic_names, prop_new_collection)
+exporting_data_store$gained_taxa_with_new_to_LC_without_cult_or_indet = plot_data
+
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$new_to_collection, prop = plot_data$prop_new_collection, fill = rep('Yes',nrow(plot_data)) ),
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$new_to_collection, prop = 100 - plot_data$prop_new_collection, fill = rep('No',nrow(plot_data)) )
+)
+plot_data_formatted$fill = factor(plot_data_formatted$fill, levels = c('Yes', 'No'))
+
+
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+  fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, colors = interactive_colour(2), type = 'bar')
+  fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                       xaxis = list(title = "Year"),
+                       legend=list(title=list(text='New to collection?')),
+                       barmode = 'stack')
+  fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+  fig1 = fig
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_number_without_cult_indet.html'))
+  }
+
+  fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, colors = interactive_colour(2), type = 'bar')
+  fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                       xaxis = list(title = "Year"),
+                       legend=list(title=list(text='New to collection?')),
+                       barmode = 'stack')
+  fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+  fig2 = fig
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_new_to_LC_gained_percentage_without_cult_indet.html'))
+  }
+  gained_new_taxa_without_cult_indet = list(number = fig1, percentage = fig2)
 
 ```
 
-`r if(!is.na(old_accession_year_codes)){paste0("Within the collection there are coded accessions years linked to older records, these include: ", paste0(old_accession_year_codes, collapse = ', '), ". For the following analysis we assume the ", no_old_acc_codes ," accessions with such codes were accessioned in the ", earliest_allowable_record, '.')}`
+Below we show the number of gained taxa each year (where we count taxa by unique taxonomic name and author), and show how many of the gained taxa are new to the living collection.
 
-`r if(length(issue_acc_year) > 0){"paste0('Within the collection there are ', length(issue_acc_year), ' assessions that have an issue with their accession year (too old, too new, not numeric). Their values include: ', paste0(issue_values,collapse = ', '), '. These records are removed from the following analysis.')"}`
+`r if(report_kind == 'interactive'){"#####  Gained Taxa and whether the taxa is new to the living collection {.tabset}"}`
 
-Next we group accessions by their age into the following brackets: < 25 years old, 25-50 years old, 51-75 years old and over 75 years old. 
-
-This gives
-
-```{r, all plot}
-cur = info$all |> as.data.frame()
-cur$type = 'all'
-cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
-cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of accessions were accessioned ', cur$age)
-cur <- cur[order(cur$age,decreasing = TRUE),]
-cur$color = interactive_colour(4)
-
-hor_stack_bar_plot = plot_ly(cur,
-                             type = 'bar',
-                             y = ~age,
-                             x = ~per,
-                             group = ~type,
-                             # colors = ~color,
-                             orientation = 'h',
-                             hovertext = ~hover, hoverinfo = 'text',
-                             showlegend = FALSE,
-                             marker = list(color = ~color)) |>
-  plotly::layout(xaxis = list(title = "Percentage of accessions"),
-                 yaxis = list(title = ''), barmode = 'stack' )
-
-hor_stack_bar_plot
+`r if(report_kind == 'interactive'){"###### Number of taxa"}`
+```{r  number gained taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+gained_new_taxa_without_cult_indet$number
 ```
 
-***
-
-### Sustainability by key collections
-
-```{r sustain key collections}
-info1 = info
-info1 = lapply(info1, function(x){
-  names(x)[1] = 'type'
-  x
-  })
-
-cur = rbind(info1$tree, info1$native, info1$threatened, info1$endemic)
-cur$type = factor(cur$type, levels = unique(cur$type))
-cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
-col = rep(NA, nrow(cur))
-colours = interactive_colour(4)
-prov = c( "< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")
-for(i in 1:length(prov)){
-  col[cur$age == prov[i]] = colours[i]
-}
-
-cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of ',cur[[1]],' accessions were accessioned ', cur$age)
-cur$color =col 
-cur <- cur[order(cur$age,decreasing = TRUE),]
-hor_stack_bar_plot = plot_ly(cur,
-                             type = 'bar',
-                             y = ~cur[[1]],
-                             x = ~per,
-                             group = ~age,
-                             orientation = 'h',
-                             hovertext = ~hover, hoverinfo = 'text',
-                             showlegend = T,
-                             marker = list(color = ~color)) |>
-  plotly::layout(xaxis = list(title = "Percentage of accessions", categoryorder = "array",
-              categoryarray = prov),
-                 yaxis = list(title = ''),
-                 barmode = 'stack'
-                  )
-
-hor_stack_bar_plot
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage gained taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+gained_new_taxa_without_cult_indet$percentage
 ```
 
-***
+`r if(report_kind == 'interactive'){"##### {-}"}`
 
-### Sustainability by provenance
 
-```{r sustain provenance}
-cur = info$ProvenanceCode |> as.data.frame()
-cur$age = factor(cur$age, levels =  rev(c("< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")))
-col = rep(NA, nrow(cur))
-colours = interactive_colour(4)
-prov = c( "< 25 years ago", "25-50 years ago" ,  "50-75 years ago" , ">75 years ago")
-for(i in 1:length(prov)){
-  col[cur$age == prov[i]] = colours[i]
-}
+```{r, loss unique plants powo only}
+report_cur = report[!is.na(report$POWO_plant_name_id),]
 
-cur$hover = paste0(cur$per |> round(2), '% (', cur$n,') of ',cur[[1]],' accessions were accessioned ', cur$age)
-cur$color =col 
-cur <- cur[order(cur$age,decreasing = TRUE),]
-hor_stack_bar_plot = plot_ly(cur,
-                             type = 'bar',
-                             y = ~cur[[1]],
-                             x = ~per,
-                             group = ~age,
-                             orientation = 'h',
-                             hovertext = ~hover, hoverinfo = 'text',
-                             showlegend = T,
-                             marker = list(color = ~color)) |>
-  plotly::layout(xaxis = list(title = "Percentage of accessions", categoryorder = "array",
-              categoryarray = prov),
-                 yaxis = list(title = ''),
-                 barmode = 'stack'
-                  )
+# First need to create a list of taxonomic names that were in the LC at the end of the year.
+existing_items = BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
+                                         AccessionYear = report_cur$AccYear,
+                                         ItemStatusDate = report_cur$ItemStatusDate,
+                                         ItemStatusType = report_cur$ItemStatusType,
+                                         post_date = '3000-01-01')
 
-hor_stack_bar_plot
+taxonomic_names_in_LC_years = lapply(existing_items, function(x){
+  data_cur = report_cur$best_name[x]
+  return(unique(data_cur))
+})
+
+names(taxonomic_names_in_LC_years) = paste0('plants_at_end_of_year_',years)
+
+lost_to_the_collection = unlist(lapply(years, function(x){
+  plants_lost = unique(report_cur$best_name[which(report_cur$LossYear == x)])
+  in_LC_end_year = taxonomic_names_in_LC_years[[which(grepl(x,names(taxonomic_names_in_LC_years)))]]
+  sum(!plants_lost %in% in_LC_end_year)
+}))
+
+total_taxonomic_names = unlist(lapply(years, function(x){
+  plants_lost = report_cur$best_name[which(report_cur$LossYear == x)]
+  length(unique(plants_lost))
+}))
+
+prop_lost_unique = lost_to_the_collection*100 /total_taxonomic_names
+prop_lost_unique[is.nan(prop_lost_unique)] = NA
+
+plot_data = data.frame(years, lost_to_the_collection, total_taxonomic_names, prop_lost_unique)
+exporting_data_store$lost_taxa_with_lost_to_LC_without_cult_or_indet = plot_data
+
+plot_data_formatted = rbind(data.frame(year = plot_data$years, taxa = plot_data$lost_to_the_collection, prop = plot_data$prop_lost_unique, fill = rep('Yes',nrow(plot_data)) ),
+                            data.frame(year = plot_data$years, taxa = plot_data$total_taxonomic_names -  plot_data$lost_to_the_collection, prop = 100 - plot_data$prop_lost_unique, fill = rep('No',nrow(plot_data)) )
+)
+plot_data_formatted$fill = factor(plot_data_formatted$fill, levels = c('Yes', 'No'))
+  # plot_data_formatted$text = paste0(round(stacked_bar_data$no_accessions,digits = 2), ' accessions have ', stacked_bar_data$total_items, ' items')
+
+  fig <- plot_ly(plot_data_formatted, x = ~year, y = ~taxa, color = ~fill, colors = interactive_colour(2), type = 'bar')
+  fig <- fig |> layout(yaxis = list(title = 'Number of Taxa'),
+                       xaxis = list(title = "Year"),
+                       legend=list(title=list(text='No longer represented?')),
+                       barmode = 'stack')
+  fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+  fig1 = fig
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_number_without_cult_indet.html'))
+  }
+
+  fig <- plot_ly(plot_data_formatted, x = ~year, y = ~prop, color = ~fill, colors = interactive_colour(2), type = 'bar')
+  fig <- fig |> layout(yaxis = list(title = 'Percentage'),
+                       xaxis = list(title = "Year"),
+                       legend=list(title=list(text='No longer represented?')),
+                       barmode = 'stack')
+  fig <- fig |> layout(hovermode = 'x unified', bargap =0)
+
+  fig2 = fig
+
+  if(separate_figure_folder){
+    htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','Stacked_Bar-Turnover_loss_to_LC_unique_percentage_without_cult_indet.html'))
+  }
+  loss_unique_taxa_without_cult_indet = list(number = fig1, percentage = fig2)
+
 ```
+
+<!-- Next up we consider the loss of taxa from the living collection each year. In the following graphs we show the total number of taxa which have loss. Moreover, we group the taxa into those that are no longer represented in the living collection and those that are at the end of the year. For example a taxa will be classed as 'No longer represented in the living collection' if during the year the taxa has experienced loss (plant removal/death) and on the 31st of December that year the taxa is no longer represented in the garden. This method does therefore class taxa which are not in th living collection for a period of the year to be still represented in the living collection as long as the taxa is reintroduced by the 31st of December. -->
+
+Next up we consider the loss of taxa from the living collection each year.
+
+`r if(report_kind == 'interactive'){"#####  Lost taxa and whether they are still represented in the living collection {.tabset}"}`
+
+`r if(report_kind == 'interactive'){"###### Number of Taxa"}`
+```{r  number lost taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+loss_unique_taxa_without_cult_indet$number
+```
+
+`r if(report_kind == 'interactive'){"###### Proportion"}`
+```{r  percentage lost taxa are new without cult or indet - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
+loss_unique_taxa_without_cult_indet$percentage
+```
+
+`r if(report_kind == 'interactive'){"##### {-}"}`
+
+```{r, get WCVP plants that were in the LC but no more}
+df = report[!is.na(report$POWO_plant_name_id),]
+all_ids =  df$POWO_plant_name_id |> unique()
+existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
+no_more_ids = all_ids[!all_ids %in% existing_ids]
+
+column_interest = match(c('AccYear', 'LossYear'), names(df))
+no_more_info = pbapply::pblapply(no_more_ids, function(x){
+  
+  plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
+  info = df[df$POWO_plant_name_id == x, column_interest]
+  last_seen = max(info$LossYear) ; first_seen = min(info$AccYear)
+  all_years = first_seen:last_seen
+  seen_years = apply(info, 1, function(x){x[1]:x[2]}) |> unlist() |> unique() |> sort()
+  has_year = all_years %in% seen_years
+  total_years = sum(has_year)
+  consec = split(which(has_year),cumsum(c(1,diff(which(has_year))!=1)))
+  
+   mess = ''
+  for(ii in 1:length(consec)){
+    mess = 
+    paste0(mess,all_years[min(consec[[ii]])], '-', all_years[max(max(consec[[ii]]), 1)], ', ' )
+  }
+  mess <- stringr::str_remove(mess,', $')
+  return(c(plant, last_seen, total_years, mess))
+}) |> data.frame() |> t() |> data.frame()
+names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 'Total years in collection', 'In collection history')
+rownames(no_more_info) = 1:nrow(no_more_info)
+no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
+no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()
+```
+
+:::: {.blackbox data-latex=""}
+
+To download all plants (found within POWO) that are no longer found in the collection together with their history in the collection use the button below
+
+```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive'}
+  no_more_info |>
+  download_this(
+    output_name = "collection_history_of_plants_no_longer_present_WCVP",
+    output_extension = ".xlsx",
+    button_label = "Download collection history of plants no longer present (xlsx)",
+    button_type = "default",
+    has_icon = TRUE,
+    icon = "fa fa-save",
+    class = "hvr-sweep-to-left",
+    self_contained = T
+  )
+```
+
+::::
 
 ***

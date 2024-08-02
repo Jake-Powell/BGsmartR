@@ -1,5 +1,5 @@
 ---
-title: "Native taxa in the Living Collection"
+title: "Native taxa in the living collection"
 output: html_document
 ---
 
@@ -109,7 +109,7 @@ palette = 'Oranges'
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r theme_ggplot2, echo = FALSE}
@@ -638,10 +638,10 @@ ItemStatusYear = as.numeric(stringr::str_extract(enriched_report$ItemStatusDate,
 LossYear[enriched_report$ItemStatusType == 'NotExisting'] = ItemStatusYear[enriched_report$ItemStatusType == 'NotExisting']
 enriched_report$LossYear = LossYear
 
+enriched_report$AccYearOrig  =enriched_report$AccYear
 
 # Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
 if(!is.null(old_accession_year_codes)){
-  enriched_report$AccYearOrig  =enriched_report$AccYear
   has_old_accessions_code = which(enriched_report$AccYear %in% old_accession_year_codes)
   no_old_accessions = length(has_old_accessions_code)
   enriched_report$AccYear[has_old_accessions_code] = earliest_allowable_record
@@ -662,22 +662,25 @@ if(separate_figure_folder){
 exporting_data_store = list()
 ```
 
+###### {-} 
+
 This report explores the native taxa existing in **`r collection`**, and how the representation of native species has varied over time.
 
- To determine the geographic distribution of items in the living collection we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
+<!--  To determine the geographic distribution of items in the living collection we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions: -->
 
-- Native / introduced,
-- Extinct / Not extinct,
-- Location is doubtful / otherwise.
+<!-- - Native / introduced, -->
+<!-- - Extinct / Not extinct, -->
+<!-- - Location is doubtful / otherwise. -->
 
-This document considers locations that are: `r location_type_text` 
+<!-- This document considers locations that are: `r location_type_text`  -->
  
-`r if(coord_contained){paste0("Within TDWG geographical codes ",collection," is  found within the region ",coord_name,".")}`
-`r if(!coord_contained){paste0("Within TDWG geographical codes ",collection," is not found within any regions, however the nearest region is ",coord_name,".")}`
+ `r if(coord_contained){paste0("**",collection,"**", ' is located in the botanical country "', coord_name, '" highlighted in green in the map below, where the black dot shows the location of the living collection. Species in the collection naturally occurring in that green area are considered as native, otherwise as non-native. ')}`
 
-`r if(is.na(bru_codes[1])){paste0("Therefore, any taxa whose geographic distribution includes ", location_name, " is classed as native to the living collection. Otherwise, taxa are classed as non-native.")}`
+ `r if(!coord_contained){paste0("**",collection, "**", ' is closest to the botanical country "', coord_name, '" highlighted in green in the map below, where the black dot shows the location of the living collection. Species in the collection naturally occurring in that green area are considered as native, otherwise as non-native. ')}` 
+ 
+<!-- `r if(is.na(bru_codes[1])){paste0("Therefore, any taxa whose geographic distribution includes ", location_name, " is classed as native to the living collection. Otherwise, taxa are classed as non-native.")}` -->
 
-`r if(is.na(bru_codes[1])){paste0("The location of the living collection and the native region are shown below.")}`
+<!-- `r if(is.na(bru_codes[1])){paste0("The location of the living collection and the native region are shown below.")}` -->
 
 `r if(!is.na(bru_codes[1])){paste0("In this document we consider plants that are native to ", paste0(location_name, collapse = ', '), " (i.e the plants whose geographic distribution overlaps with those regions), all other plants are classed as non-native.")}`
 
@@ -831,7 +834,7 @@ year_cur = as.numeric(format(Sys.Date(),'%Y'))
 
 # Get which items are existing each year in the collection.
 years = min_year:year_cur
-date = paste0(years, '-01-01')
+date = paste0(years, '-12-31')
 
 # Add Genus species columns from WCVP.
 GenusSpecies = paste0(LC_native_over_time$POWO_genus, ' ', LC_native_over_time$POWO_species)
@@ -844,10 +847,12 @@ LC_native_over_time = LC_native_over_time[LC_native_over_time$AccYear > 1650 &
 LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$AccYear),]
 LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$ItemStatusDate),]
 LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$ItemStatusType),]
+
 # Get the species/genera that are existing
 plant_existing_LC_native = BGSmartR::exist_at_date(date, AccessionYear = as.character(LC_native_over_time$AccYear),
                        ItemStatusDate = as.character(LC_native_over_time$ItemStatusDate),
-                       ItemStatusType = as.character(LC_native_over_time$ItemStatusType))
+                       ItemStatusType = as.character(LC_native_over_time$ItemStatusType),
+                       post_date = '3000-01-01')
 
 # For each year get the number in each group (species and genera)
 over_time_info = lapply(plant_existing_LC_native, function(x){
@@ -874,9 +879,7 @@ if(export_data){
 
 ```
 
-In this section we explore the number of native plants in the living collection compared to all plants in the living collection. In particular, we will determine if the number of native plants in the living collection is stable, increasing or decreasing. 
-
-We will examine the proportion of the living collection that is native, this is shown in the table below.
+In this section we explore the number of native plants relative to non-native plants in the living collection.
 
 ```{r, What proportion of the LC at `r collection` is native and how has this varied over time}
 LC = enriched_report
@@ -949,7 +952,7 @@ if(report_kind == 'interactive'){
 
 ### Change of native species over time
 
-`r if(do_over_time){"In this section we explore how the number of native species in the living collection has varied over time. For each year we use the accession year and item status date to determine which items in the collection are existing on the 31st of December each year."}`
+`r if(do_over_time){"In this section we explore how the number of native species in the living collection has varied over time."}`
 
 `r if(!do_over_time){"We do not have the information to perform how the number of native plants in the living collection has varied over time."}`
 
@@ -1006,7 +1009,7 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','number_native_over
 }
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"##### Number of native plants over time {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Number of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -1065,7 +1068,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
 
-`r if(do_over_time){"Next we show native plants in the living collection as a percentage of all plants in the living collection over time."}`
+`r if(do_over_time){"Next we view native plants as a percentage of all plants in the living collection over time."}`
 
 ```{r, What proportion of the LC at `r collection` is native and how has this varied over time - percentage data, eval = do_over_time}
 # Do the same for the whole collection.
@@ -1301,13 +1304,15 @@ no_native_genus_LC = length(unique(LC_native_exisiting$POWO_genus))
 no_native_species_LC = length(unique(paste0(LC_native_exisiting$POWO_genus, ' ', LC_native_exisiting$POWO_species)))
 no_native_taxa_LC = length(unique(paste0(LC_native_exisiting$POWO_taxon_name, ' ', LC_native_exisiting$POWO_taxon_authors)))
 
-category = c('Family', 'Genus', 'Species', 'Taxa')
+category = c('Families', 'Genera', 'Species', 'Taxa')
 WCVP = c(no_native_families, no_native_genus, no_native_species, no_native_taxa)
 LC  = c(no_native_families_LC, no_native_genus_LC, no_native_species_LC, no_native_taxa_LC)
 proportion = paste0(round(LC/WCVP*100, digits = 2),'%')
 
 df = data.frame(category, WCVP,LC, proportion)
-names(df) = c('Category', 'Native', ' Number found in collection', 'Proportion in collection')
+df2 = df
+names(df2) = c('Category', 'Native', ' Number of native plants found in collection', 'Proportion of native plants found in the collection')
+names(df) = c('', 'Total number of native plants', ' Number of native plants found in collection', 'Proportion of native plants found in the collection')
 
 if(export_data){
   exporting_data_store$Representative_of_native_species_in_LC_current = df
@@ -1327,7 +1332,8 @@ if(length(family_not_in) > 0){
   any_in_collection = rep('No', nrow(wcvp_wanted_format))
   any_in_collection[wcvp_wanted_format$Family %in% families_collection] = 'Yes'
   wcvp_wanted_format$In_col = any_in_collection
-    names(wcvp_wanted_format) = c('Family', 'Total native taxa', 'Family in collection (not-native)')
+  wcvp_wanted_format = wcvp_wanted_format[order(wcvp_wanted_format$In_col, wcvp_wanted_format$Family),]
+    names(wcvp_wanted_format) = c('Family', 'Total number of native taxa', 'Is the family in the collection (not-native)?')
 
   
   
@@ -1357,7 +1363,9 @@ if(export_data){
 
 ```
 
-In the living collection there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants. In the following table we show how many families/genus/species/taxa of native plants are represented in the living collection (compared to all plants from `r paste0(location_name, collapse = ', ')` in WCVP). Note that here species is defined as the genus species pair and taxa is the taxonomic name and author (thus including subspecies, variety, forma).
+In the living collection there are `r format(no_native_items_LC, big.mark=',')` items corresponding to  `r format(no_native_accessions_LC, big.mark=',')` accessions of existing native plants.
+
+In the following table we show how many native plants are represented in the living collection at different taxonomic levels relative to all plants from `r paste0(location_name, collapse = ', ')` in WCVP.
 
 ```{r, How many native species are in the LC - table}
 if(report_kind == 'static'){
@@ -1392,7 +1400,7 @@ if(report_kind == 'interactive'){
 
 ```
 
-`r if(length(family_not_in) > 0){"The native families missing from the collection are outlined below, together with the total number of native taxa in each family."}`
+`r if(length(family_not_in) > 0){"The families either not represented in the collection or represented by non-native taxa are outlined below, together with the total number of native taxa in each family."}`
 
 ```{r families not in the LC - Table, eval = length(family_not_in) > 0}
 if(report_kind == 'static'){
@@ -1428,7 +1436,7 @@ if(report_kind == 'interactive'){
 
 `r if(length(family_not_in) > 0){':::: {.blackbox data-latex=""}'}`
 
-`r if(length(family_not_in) > 0){"Further information about the plants from the missing families can be downloaded using the button below."}`
+`r if(length(family_not_in) > 0){"Download below a list of native plants from the missing families that you could aim to source to increase the diversity and the representation of native taxa in your collection."}`
 
 
 ```{r link to download missing native family plants, eval = report_kind == 'interactive' & length(family_not_in) > 0}
@@ -1448,7 +1456,7 @@ wcvp_wanted |>
 `r if(length(family_not_in) > 0){"::::"}`
 
 
-`r if(do_over_time){"Below we produce figures detailing how the representation of native families/genus/species/taxa has changed over time in the living collection."}`
+`r if(do_over_time){"Below we produce figures detailing how the representation of native plants at different taxonomic levels has changed over time in your living collection."}`
 
 
 
@@ -1460,7 +1468,7 @@ year_cur = as.numeric(format(Sys.Date(),'%Y'))
 
 # Get which items are existing each year in the collection.
 years = min_year:year_cur
-date = paste0(years, '-01-01')
+date = paste0(years, '-12-31')
 
 # Add Genus species columns from WCVP.
 GenusSpecies = paste0(LC_native_over_time$POWO_genus, ' ', LC_native_over_time$POWO_species)
@@ -1476,7 +1484,8 @@ LC_native_over_time = LC_native_over_time[!is.na(LC_native_over_time$ItemStatusT
 # Get the species/genera that are existing
 plant_existing_LC_native = BGSmartR::exist_at_date(date, AccessionYear = as.character(LC_native_over_time$AccYear),
                        ItemStatusDate = as.character(LC_native_over_time$ItemStatusDate),
-                       ItemStatusType = as.character(LC_native_over_time$ItemStatusType))
+                       ItemStatusType = as.character(LC_native_over_time$ItemStatusType),
+                       post_date = '3000-01-01')
 
 # For each year get the number in each group (species and genera)
 over_time_info = lapply(plant_existing_LC_native, function(x){
@@ -1493,7 +1502,7 @@ over_time_info = lapply(plant_existing_LC_native, function(x){
                   data.frame() |>
                   t() |> 
                   data.frame()
-names(over_time_info) = c('Family', 'Genus', 'Species', 'Taxa')
+names(over_time_info) = c('Families', 'Genera', 'Species', 'Taxa')
 over_time_info = data.frame(Date = date, over_time_info)
 row.names(over_time_info) = 1:nrow(over_time_info)
 
@@ -1504,7 +1513,7 @@ if(export_data){
 ```
 
 ```{r  How many native species are in the LC - static figures, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static' & do_over_time}
-to_do = c('Family', 'Genus', 'Species', 'Taxa')
+to_do = c('Families', 'Genera', 'Species', 'Taxa')
 titles  = c('Families', 'Genera', 'Species', 'Taxa')
 # Loop over to_do.
 for(i in 1:length(to_do)){
@@ -1548,9 +1557,8 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','How_many_native_sp
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Families"}`
 ```{r  How many native species are in the LC - interactive Family plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
-# type = 'Family' ;whole_collection = df; data = over_time_info ; title = 'families'
-represented_figure <- function(data,whole_collection, type, title){
-  count = as.numeric(unlist(over_time_info[match(type, names(over_time_info))]))
+represented_figure <- function(data, whole_collection, type, title){
+  count = as.numeric(unlist(data[match(type, names(data))]))
   percent = round(count/whole_collection$Native[which(whole_collection$Category == type)]*100, digits = 3)
   plot_dataA = data.frame(date =years, 
                                percent = percent,
@@ -1577,7 +1585,7 @@ represented_figure <- function(data,whole_collection, type, title){
 return(fig)
 }
 
-fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Family', title = 'families')
+fig = represented_figure(data = over_time_info, whole_collection = df2, type = 'Families', title = 'families')
 
   if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_family_represented_over_time.html'))
@@ -1588,7 +1596,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Genera"}`
 ```{r  How many native species are in the LC - interactive Genera plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
-fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Genus', title = 'genera')
+fig = represented_figure(data = over_time_info, whole_collection = df2, type = 'Genera', title = 'genera')
   
   if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_genera_represented_over_time.html'))
@@ -1599,7 +1607,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Species"}`
 ```{r  How many native species are in the LC - interactive Species plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
-fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Species', title = 'species')
+fig = represented_figure(data = over_time_info, whole_collection = df2, type = 'Species', title = 'species')
   
   if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_species_represented_over_time.html'))
@@ -1610,7 +1618,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Taxa"}`
 ```{r  How many native species are in the LC - interactive Taxa plot, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
-fig = represented_figure(data = over_time_info, whole_collection = df, type = 'Taxa', title = 'taxa')
+fig = represented_figure(data = over_time_info, whole_collection = df2, type = 'Taxa', title = 'taxa')
   
   if(separate_figure_folder){
   htmlwidgets::saveWidget(fig, file = paste0(figures_dir, '/','native_taxa_represented_over_time.html'))
@@ -1619,17 +1627,13 @@ fig = represented_figure(data = over_time_info, whole_collection = df, type = 'T
 fig
 ```
 
+
+
 ***
 
 ### Provenance of native species
 
-In this section we are exploring the provenance of native plants in the collection. Each accession in the garden has one of the following provenance types:
-
-- Wild: plants that were collected directly from the wild,
-- Wild-derived: cultivated plants descended from plants of known wild origin,
-- Garden: cultivated plants descended from plants not of known wild origin,
-- Unknown: plants with unknown origin.
-
+In this section we explore the provenance of native plants in the collection.
 
 ```{r, Provenance of native plants in the LC, ,  results='hide',fig.keep='all', message=FALSE}
 # LC_native_exisiting the data of existing native plants in the LC. 
@@ -1734,7 +1738,7 @@ names(taxa_prov) = c("Best name found by BGSmartR",
 ### MANAGEMENT SHEET: Wild/Wild-derived accessions of native plants
 ```
 
-Below we produce a chart and table of provenance for items and accessions.
+The table and the pie charts below show the numbers of native plants in the living collection by provenance categories.
 
 ```{r, Provenance of native plants in the LC pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static'}
 # Basic piechart
@@ -1886,7 +1890,7 @@ if(report_kind == 'interactive'){
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-`r if(do_over_time){"We will now look at how the provenance of native plants in the living collection has changed over time."}`
+`r if(do_over_time){"We now look at how the provenance of native plants in the living collection has changed over time."}`
 
 `r if(!do_over_time){"We do not have the information to explore how provenance of native plants in the living collection has changed over time."}`
 
@@ -2427,7 +2431,7 @@ if(!is.null(old_accession_year_codes)){
   enriched_report$AccYear[has_old_accessions_code] = earliest_allowable_record
 }
 
-enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYearOrig) > 1650 & as.numeric(enriched_report$AccYearOrig) < as.numeric(format(Sys.Date(),'%Y')),]
+enriched_report_wanted = enriched_report[as.numeric(enriched_report$AccYear) > 1650 & as.numeric(enriched_report$AccYear) < as.numeric(format(Sys.Date(),'%Y')),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$ItemStatusDate),]
 enriched_report_wanted = enriched_report_wanted[!is.na(enriched_report_wanted$AccYear),]
 
@@ -2495,17 +2499,19 @@ if(export_data){
 
 ```
 
-In this section, we look at whether the survival period of native plants are longer than non-native plants. Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years. 
+In this section, we look at whether the survival period of native plants is longer than non-native plants. 
+
+<!-- Note that plants can be long-lived and most collections will have plants that are older than the collection itself. Therefore, we need to lean into tools from statistics to analyse the lifespan of plants in a collection. Herein, we use survival analysis to calculate the probability that plants will survive for any number of years.  -->
 
 `r if(FALSE){"Note that \"lifespan\" may be a preferable way to describe this section, however we use survival because accessioned plants may arrive in the garden already a few years old. As we will be using the accession date and item status date to determine the length of time plants have been in the collection this might not align perfectly with the age of the plant. Moreover, it is important to be aware that the data used in the analysis is not \"perfect\" in the sense that plants might have already died a large period of time prior to an audit, moreover this analysis doesn't account for circumstances of plant death which could be natural, or for renovation of a section of the garden, etc. "}`
 
-In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. )
+<!-- In the following analysis, we assume that existing items are still existing to the present day. Therefore, even if the last item status date was a year ago if the plant was found to be existing then we assume it is still existing now. (I could change this to just use alive at Item status date, it won't make much difference. ) -->
 
-Since we only have the accession year we set the accession date to be the middle of the year (1st June).
+<!-- Since we only have the accession year we set the accession date to be the middle of the year (1st June). -->
 
-Native plants are any that are from `r paste0(location_name, collapse = ', ')`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r paste0(location_name, collapse = ', ')`. This means that we exclude plants not matched to WCVP for the comparison (cultivars, etc). 
+<!-- Native plants are any that are from `r paste0(location_name, collapse = ', ')`, non-native plants are plants that have geographic information (matched to WCVP) but are not from `r paste0(location_name, collapse = ', ')`. This means that we exclude plants not matched to WCVP for the comparison (cultivars, etc).  -->
  
-`r if(do_survival){"Below we show the survival probability (Kaplan-Meier plots) for native and non-native plants."}`
+`r if(do_survival){"Below we present a survival plot (Kaplan-Meier) to show how survival probability changes over time."}`
 
 `r if(!do_survival){"Survival analysis cannot be performed. (This could be due to lack of accession year or item status date."}`
 
@@ -2546,7 +2552,7 @@ if(report_kind == 'interactive'){
   fig$x$layout$title$text =''
   fig$x$layout$legend$title$text = ''
   fig$x$layout$hovermode = 'x unified'
-  fig$x$data[[2]]$name = 'Not-native'
+  fig$x$data[[2]]$name = 'Non-native'
   fig$x$data[[2]]$legendgroup = 'Non-native'
   fig$x$data[[1]]$name = 'Native'
   fig$x$data[[1]]$legendgroup = 'Native'
@@ -2614,7 +2620,7 @@ fig
 }
 ```
 
-`r if(do_survival){"Next we give the median surivival times for threatened and non-threatened plants in the collection."}`
+`r if(do_survival){"Below we give the median surivival times for native and non-native plants in the collection, and the survival probability for a given number of years."}`
 
 ```{r, survival analysis - median survival tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
@@ -2629,7 +2635,7 @@ table_data2 = table_data2$table_body
 table_data2 = table_data2[,-c(1:4)]
 table_data2 = table_data2[-1,]
 names(table_data2) = c('Characteristic', 'Median survival + 95% CI (Years)')
-
+table_data2$Characteristic[table_data2$Characteristic == 'Not Native'] = 'Non-native'
 table_data2 |>  DT::datatable(extensions = 'Buttons',
                              rownames = FALSE,
                              options = list(scrollX = TRUE,
@@ -2642,8 +2648,6 @@ table_data2 |>  DT::datatable(extensions = 'Buttons',
 
 ```
 
-
-`r if(do_survival){"Lastly, we give the survival probability for particular lengths of time."}`
 
 ```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
@@ -2664,7 +2668,7 @@ table_data = table_data$table_body
                         '100-year survival (95% CI)')
   table_data = data.frame(t(table_data))
   table_data = table_data[-1,]
-  names(table_data) = c('Threatened', 'Not Threatened')
+  names(table_data) = c('Native', 'Non-native')
   
   
   table_data2 = fit |> 
@@ -2714,7 +2718,6 @@ if(report_kind == 'interactive'){
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - Data}
 # LC_native_exisiting, native and existing part of LC database.
-LC_native_exisiting <<- LC_native_exisiting
 endemic = rep(FALSE, nrow(LC_native_exisiting))
 endemic[which(stringr::str_length(LC_native_exisiting$geography_codes) == 3)] = TRUE
 total_endemic = sum(endemic)
@@ -2736,7 +2739,7 @@ if(total_threat_endemic > 0){
 
 `r if(need_venn){paste0("In this section, we concentrate on native plants in the living collection that are either endemic to ", paste0(location_name, collapse = ', ') ," or on IUCN's Red List.")}`
 
-`r if(overlap & need_venn){paste0("Withn the native sub-collection of ", collection, " there are ", total_endemic, " endemic items and ", total_threatened, " threatened items, where ", total_threat_endemic, " are both. Therefore, ",round(total_endemic/nrow(LC_native_exisiting)*100,digits = 2), "% of the native items are endemic and ",round(total_threatened/nrow(LC_native_exisiting)*100,digits = 2),"% are threatened.")}`
+`r if(overlap & need_venn){paste0("Within the native plant collection of ", collection, " there are ", total_endemic, " endemic items and ", total_threatened, " threatened items, where ", total_threat_endemic, " are both. Therefore, ",round(total_endemic/nrow(LC_native_exisiting)*100,digits = 2), "% of the native items are endemic and ",round(total_threatened/nrow(LC_native_exisiting)*100,digits = 2),"% are threatened.")}`
 
 `r if((!overlap) & need_venn){paste0("Withn the native sub-collection of ", collection, " there are ", total_endemic, " endemic items and ", total_threatened, " threatened items. No items are both endemic and threatened."," Therefore, ",round(total_endemic/nrow(LC_native_exisiting)*100,digits = 2), "% of the native items are endemic and ",round(total_threatened/nrow(LC_native_exisiting)*100,digits = 2),"% are threatened.")}`
 
@@ -2784,7 +2787,7 @@ ggplot2::ggsave(filename = paste0(figures_dir, '/','Native_threatened_endemic_Ve
 ```
 
 
-`r if(need_venn){"For these native and endemic/threatened plants we produce a table below detailing how many of each species is in the collection together with the accession number and when each item was last checked."}`
+`r if(need_venn){"For these native and endemic/threatened plants we produce a table below detailing how many items of each species are in the collection together with the accession number and when each item was last checked."}`
 
 ```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, ft.keepnext = FALSE, eval = need_venn}
 if('ItemAccNoFull' %in% names(LC_native_exisiting)){
@@ -2901,7 +2904,7 @@ data_save |>
 ::::
 ***
 
-#### Red list categories of threatened native taxa
+#### Threatened native plants by risk level
 
 In this section we are exploring the threatened, native plants in the collection. We shall do this in two parts: existing plants in the living collection and how this has changed over time.
 
@@ -2973,9 +2976,6 @@ if(export_data){
 
 `r if(!have_redlist){"The living collection does not contain any theatened native plants."}`
 
-
-
-`r if(have_redlist){"Putting the data into a pie charts yields"}`
 
 ```{r,  Threatened, native, existing plants in the LC - static pie charts, echo = FALSE, fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'static' & have_redlist}
 if(nrow(flex_data) > 0){
@@ -3139,7 +3139,7 @@ flex_data |> DT::datatable(extensions = 'Buttons',
 
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
-`r if(have_redlist & do_over_time){"We will now look at how the threatened categories of native plants in the living collection has changed over time."}`
+`r if(have_redlist & do_over_time){""}`
 
 `r if(!do_over_time){"We do not have the information to explore how hreatened categories of native plants in the LC has changed over time."}`
 
@@ -3562,9 +3562,9 @@ saveWorkbook(wb, file = file)
 
 ```
 
-### Proportion of native taxonomy found in the living collection
+### Taxonomic representation of native taxa 
 
-In this section we create sunburst and treemap charts showing all of the genera native to `r paste0(location_name, collapse = ', ')` within WCVP, where the genera are grouped into families, order and higher level lineages. The charts are shaded lighter to darker orange depending on the proportion of the native lineage is found in the collection. 
+In this section we create sunburst and treemap charts showing all the genera native to `r paste0(location_name, collapse = ', ')` where the genera are grouped into families, orders and higher-level lineages. The charts are shaded lighter to darker orange depending on the proportion of the native lineages that are found in the collection, where lineages in light orange are not represented. This provides a tool to visualise potential lineages to add to the collection in order to increase taxonomic diversity.  
 
 ```{r, Create taxonomic diversity genus level, echo = FALSE, message = FALSE}
 report = native_wcvp
@@ -3729,9 +3729,8 @@ AA = lapply(remove_nodes, function(node){
     data_formatted$parents[grepl(paste0('^',node, '---'),data_formatted$parents)] = new_parent
     # Update the parents for each node who originally has 'node' as the parent. 
     data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)] = unlist(stringr::str_replace(data_formatted$parents[grepl(paste0(node,'$'),data_formatted$parents)],paste0('---',node), paste0('---',new_label)))
-    data_formatted <<- data_formatted
   }
- 
+  data_formatted <<- data_formatted
   return()
 })
 
@@ -3743,86 +3742,88 @@ data_formatted$parents[data_formatted$parents == ''] = 'WCVP'
 
 data_formatted[nrow(data_formatted)+1,] = c('WCVP', 'WCVP', '', sum(data_formatted$values[data_formatted$parents == 'WCVP']), sum(data_formatted$in_LC[data_formatted$parents == 'WCVP']) )
 
+dff <<- data_formatted
 ### Subfamily level information
-{
-  # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
-file = '/Users/jakepowell/Downloads/classification.csv'
-data = read.csv(file, sep = '\t')
-
-data_accepted = data[data$taxonomicStatus == 'Accepted',]
-data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-## Create a summary of families and their subfamilies.
-data_simp <- data_care |>
-  dplyr::group_by(.data$family) |>
-  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-data_simp = data_simp[rev(order(data_simp$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
-
-
-data_accepted = data[data$taxonomicStatus == 'Accepted',]
-data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
-
-data_simp <- data_care |>
-  dplyr::group_by(.data$family) |>
-  dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
-data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
-data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
-
-data_simp = data_simp[rev(order(data_simp$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-data_tribe <- data_care[data_care$tribe != '',] |>
-  dplyr::group_by(.data$subfamily) |>
-  dplyr::summarise(family = toString(unique(.data$family)),
-                   tribe = toString(unique(.data$tribe)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
-data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
-data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
-
-data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-data_subtribe <- data_care[data_care$subtribe != '',] |>
-  dplyr::group_by(.data$tribe) |>
-  dplyr::summarise(family = toString(unique(.data$family)),
-                   subfamily = toString(unique(.data$subfamily)),
-                   subtribe = toString(unique(.data$subtribe)),
-                   majorGroup = toString(unique(.data$majorGroup)),
-                   no_genus = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-
-data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
-writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
-
-
-}
+# {
+#   # Load the downloaded WFO dataset from -> https://www.worldfloraonline.org/downloadData
+# file = '/Users/jakepowell/Downloads/classification.csv'
+# data = read.csv(file, sep = '\t')
+# 
+# data_accepted = data[data$taxonomicStatus == 'Accepted',]
+# data_care = data[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+# 
+# ## Create a summary of families and their subfamilies.
+# data_simp <- data_care |>
+#   dplyr::group_by(.data$family) |>
+#   dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+#                    tribe = toString(unique(.data$tribe)),
+#                    subtribe = toString(unique(.data$subtribe)),
+#                    majorGroup = toString(unique(.data$majorGroup)),
+#                    no_genus = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# 
+# data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+# data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+# data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+# 
+# data_simp = data_simp[rev(order(data_simp$no_genus)),]
+# writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12.xlsx')
+# 
+# 
+# data_accepted = data[data$taxonomicStatus == 'Accepted',]
+# data_care = data_accepted[c('family', 'subfamily', 'tribe', 'subtribe','majorGroup','genus')]
+# 
+# data_simp <- data_care |>
+#   dplyr::group_by(.data$family) |>
+#   dplyr::summarise(subfamily = toString(unique(.data$subfamily)),
+#                    tribe = toString(unique(.data$tribe)),
+#                    subtribe = toString(unique(.data$subtribe)),
+#                    majorGroup = toString(unique(.data$majorGroup)),
+#                    no_genus = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# 
+# data_simp$subfamily = stringr::str_remove(string = data_simp$subfamily, pattern = 'NA, ')
+# data_simp$tribe = stringr::str_remove(string = data_simp$tribe, pattern = 'NA, ')
+# data_simp$subtribe = stringr::str_remove(string = data_simp$subtribe, pattern = 'NA, ')
+# 
+# data_simp = data_simp[rev(order(data_simp$no_genus)),]
+# data_subfamily = data_simp
+# writexl::write_xlsx(data_simp, path = 'Subfamily_information_in_WFO_v.2023.12_accepted_only.xlsx')
+# 
+# data_tribe <- data_care[data_care$tribe != '',] |>
+#   dplyr::group_by(.data$subfamily) |>
+#   dplyr::summarise(family = toString(unique(.data$family)),
+#                    tribe = toString(unique(.data$tribe)),
+#                    subtribe = toString(unique(.data$subtribe)),
+#                    majorGroup = toString(unique(.data$majorGroup)),
+#                    no_genus = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# 
+# data_tribe$family = stringr::str_remove(string = data_tribe$family, pattern = 'NA, ')
+# data_tribe$tribe = stringr::str_remove(string = data_tribe$tribe, pattern = 'NA, ')
+# data_tribe$subtribe = stringr::str_remove(string = data_tribe$subtribe, pattern = 'NA, ')
+# 
+# data_tribe = data_tribe[rev(order(data_tribe$no_genus)),]
+# writexl::write_xlsx(data_simp, path = 'Tribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+# 
+# data_subtribe <- data_care[data_care$subtribe != '',] |>
+#   dplyr::group_by(.data$tribe) |>
+#   dplyr::summarise(family = toString(unique(.data$family)),
+#                    subfamily = toString(unique(.data$subfamily)),
+#                    subtribe = toString(unique(.data$subtribe)),
+#                    majorGroup = toString(unique(.data$majorGroup)),
+#                    no_genus = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# 
+# data_subtribe = data_subtribe[rev(order(data_subtribe$no_genus)),]
+# writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_accepted_only.xlsx')
+# 
+# 
+# }
 
 ### Add subfamily info to data_formatted
 {
@@ -3830,24 +3831,25 @@ writexl::write_xlsx(data_simp, path = 'Subtribe_information_in_WFO_v.2023.12_acc
 ## Add subfamilies (All)
 #############################################################################
 ## Get the genus that are linked to each sub family.
-families_with_sub = data_simp$family[data_simp$subfamily != ""]
-data_fam_sub = data_care[data_care$family %in% families_with_sub,]
-data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
-data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
-subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-subfamily_genus_simp <- subfamily_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
-subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
-
-# Remove those without a subfamily (we will deal with these later)
-subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
-save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
-
+# families_with_sub = data_simp$family[data_simp$subfamily != ""]
+# data_fam_sub = data_care[data_care$family %in% families_with_sub,]
+# data_fam_sub$subfamily[data_fam_sub$subfamily == ''] = 'No Subfamily'
+# data_fam_sub$together = paste0(data_fam_sub$family, '---', data_fam_sub$subfamily)
+# subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+# subfamily_genus_simp <- subfamily_genus |>
+#   dplyr::group_by(.data$together) |>
+#   dplyr::summarise(all_genera = toString(unique(.data$genus)),
+#                    no_genera = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# subfamily_genus_simp$family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*')
+# subfamily_genus_simp$sub_family = stringr::str_extract(subfamily_genus_simp$together, '[A-Za-z ]*$')
+# 
+# # Remove those without a subfamily (we will deal with these later)
+# subfamily_genus_simp = subfamily_genus_simp[subfamily_genus_simp$sub_family != "No Subfamily",]
+# save(subfamily_genus_simp, file = 'subfamily_genus_simp.rda')
+# load('subfamily_genus_simp.rda')
+subfamily_genus_simp = BGSmartR::subfamily_genus_simp
 for(i in 1:nrow(subfamily_genus_simp)){
   # for(i in 1:30){
   subfamily_info = subfamily_genus_simp[i,]
@@ -3858,6 +3860,7 @@ for(i in 1:nrow(subfamily_genus_simp)){
   }
   in_formatted = which(grepl(paste0(subfamily_info$family, '$'),data_formatted$ID) &
                          grepl(paste0(subfamily_genera, collapse = '|'),data_formatted$labels))
+  length(in_formatted) >0
   if(length(in_formatted) >0){
     data_want = data_formatted[in_formatted,]
     new_ID = paste0(subfamily_info$sub_family,'---', subfamily_info$family)
@@ -3913,29 +3916,29 @@ for(i in 1:length(families_with_subfamilies)){
 #############################################################################
 ## Add tribes (All)
 #############################################################################
-# asteraceae = data_simp[data_simp$family == "Asteraceae",]
 
 ## Get the genus that are linked to each sub family.
-subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
-data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
-data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
-data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
-subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
-tribe_genus_simp <- subfamily_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
-tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
-
-# Remove those without a subfamily (we will deal with these later)
-tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$sub_family != "No Subfamily",]
-save(tribe_genus_simp, file = 'tribe_genus_simp')
-
+# subfamilies_with_tribe = data_tribe$subfamily[data_tribe$tribe != ""]
+# data_fam_sub = data_care[data_care$subfamily %in% subfamilies_with_tribe,]
+# data_fam_sub$tribe[data_fam_sub$tribe == ''] = 'No Tribe'
+# data_fam_sub$together = paste0(data_fam_sub$subfamily, '---', data_fam_sub$tribe)
+# subfamily_genus = unique(data_fam_sub[c("together", 'genus')])
+# tribe_genus_simp <- subfamily_genus |>
+#   dplyr::group_by(.data$together) |>
+#   dplyr::summarise(all_genera = toString(unique(.data$genus)),
+#                    no_genera = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# tribe_genus_simp$tribe = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*$')
+# tribe_genus_simp$sub_family = stringr::str_extract(tribe_genus_simp$together, '[A-Za-z ]*')
+# 
+# # Remove those without a subfamily (we will deal with these later)
+# tribe_genus_simp = tribe_genus_simp[tribe_genus_simp$sub_family != "No Subfamily",]
+# save(tribe_genus_simp, file = 'tribe_genus_simp.rda')
+# load('tribe_genus_simp.rda')
+tribe_genus_simp = BGSmartR::tribe_genus_simp
 for(i in 1:nrow(tribe_genus_simp)){
-  # for(i in 1:30){
+  # for(i in 1:14){
   tribe_info = tribe_genus_simp[i,]
   tribe_genera = unlist(stringr::str_split(tribe_info$all_genera ,', '))
   tribe_genera = tribe_genera[tribe_genera !=  ""]
@@ -3943,7 +3946,8 @@ for(i in 1:nrow(tribe_genus_simp)){
     next
   }
   in_formatted = which(grepl(paste0(tribe_info$sub_family, '$'),data_formatted$ID) &
-                         grepl(paste0(tribe_genera, collapse = '|'),data_formatted$labels))
+                         data_formatted$labels %in% tribe_genera)
+  length(in_formatted) >0
   if(length(in_formatted) >0){
     data_want = data_formatted[in_formatted,]
     new_ID = paste0(tribe_info$tribe,'---', tribe_info$sub_family)
@@ -3954,7 +3958,6 @@ for(i in 1:nrow(tribe_genus_simp)){
 
     # Replace original genus-family with the new genus-subfamily.
     data_formatted[in_formatted,] = data_want
-
     # Add the new node for the subfamily.
     data_formatted[nrow(data_formatted)+1,] = new
   }
@@ -4003,24 +4006,25 @@ for(i in 1:length(subfamilies_with_tribes)){
 # asteraceae = data_simp[data_simp$family == "Asteraceae",]
 
 ## Get the genus that are linked to each sub family.
-tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
-data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
-data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
-data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
-subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
-subtribe_genus_simp <- subtribe_genus |>
-  dplyr::group_by(.data$together) |>
-  dplyr::summarise(all_genera = toString(unique(.data$genus)),
-                   no_genera = length(unique(.data$genus))
-  ) |>
-  dplyr::ungroup()
-subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
-subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
-
-# Remove those without a subfamily (we will deal with these later)
-subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
-save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
-
+# tribes_with_subtribes = data_subtribe$tribe[data_subtribe$subtribe != ""]
+# data_fam_sub = data_care[data_care$tribe %in% tribes_with_subtribes,]
+# data_fam_sub$subtribe[data_fam_sub$subtribe == ''] = 'No Subtribe'
+# data_fam_sub$together = paste0(data_fam_sub$tribe, '---', data_fam_sub$subtribe)
+# subtribe_genus = unique(data_fam_sub[c("together", 'genus')])
+# subtribe_genus_simp <- subtribe_genus |>
+#   dplyr::group_by(.data$together) |>
+#   dplyr::summarise(all_genera = toString(unique(.data$genus)),
+#                    no_genera = length(unique(.data$genus))
+#   ) |>
+#   dplyr::ungroup()
+# subtribe_genus_simp$subtribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*$')
+# subtribe_genus_simp$tribe = stringr::str_extract(subtribe_genus_simp$together, '[A-Za-z ]*')
+# 
+# # Remove those without a subfamily (we will deal with these later)
+# subtribe_genus_simp = subtribe_genus_simp[subtribe_genus_simp$subtribe != "No Subtribe",]
+# save(subtribe_genus_simp, file = 'subtribe_genus_simp.rda')
+# load('subtribe_genus_simp.rda')
+subtribe_genus_simp = BGSmartR::subtribe_genus_simp
 for(i in 1:nrow(subtribe_genus_simp)){
   # for(i in 1:30){
   subtribe_info = subtribe_genus_simp[i,]
@@ -4029,8 +4033,7 @@ for(i in 1:nrow(subtribe_genus_simp)){
   if(length(subtribe_genera) == 0){
     next
   }
-  in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) &
-                         grepl(paste0(subtribe_genera, collapse = '|'),data_formatted$labels))
+  in_formatted = which(grepl(paste0(subtribe_info$tribe, '$'),data_formatted$ID) & data_formatted$labels %in% subtribe_genera)
   if(length(in_formatted) == 0){
     next
   }
@@ -4039,11 +4042,11 @@ for(i in 1:nrow(subtribe_genus_simp)){
     new = c(new_ID, subtribe_info$subtribe, data_want$parents[1], sum(as.numeric(data_want$values)), sum(as.numeric(data_want$in_LC)))
     data_want$ID = stringr::str_replace(data_want$ID,pattern = subtribe_info$tribe, replacement = subtribe_info$subtribe)
     data_want$parents = new_ID
-    
-    
+
+
     # Replace original genus-family with the new genus-subfamily.
     data_formatted[in_formatted,] = data_want
-    
+
     # Add the new node for the subfamily.
     data_formatted[nrow(data_formatted)+1,] = new
 }
@@ -4056,32 +4059,32 @@ all_subtribes = unique(subtribe_genus_simp$subtribe)
 for(i in 1:length(tribes_with_subtribes)){
   tribe = tribes_with_subtribes[i]
   # Fine records whose parent is the familiy in question and extract the data.
-  
+
   in_formatted = which(grepl(paste0(tribe,'$'),data_formatted$ID))
   data_want = data_formatted[in_formatted,]
-  
+
   # Check if we have any records where we have genus---tribe (i.e no  tribe)
   without_subtribe = which(!data_want$labels %in% all_subtribes)
-  
+
   #If we have at least one genus-tribe we need to group these into no tribe
   if(length(without_subtribe) > 0){
     data_without_tribe = data_want[without_subtribe,]
-    
+
     new_ID = paste0('No Subtribe','---', tribe)
-    
+
     new_node = new = c(new_ID, 'No Subtribe', data_want$parents[1], sum(as.numeric(data_without_tribe$values)), sum(as.numeric(data_without_tribe$in_LC)))
-    
+
     data_without_tribe$ID = stringr::str_replace(data_without_tribe$ID,pattern = tribe, replacement = 'No Subtribe')
     data_without_tribe$parents = new_ID
-    
-    
+
+
     # Replace original genus-family with the new genus-tribe
     data_formatted[in_formatted[without_subtribe],] = data_without_tribe
-    
+
     # Add the new node for the tribe
     data_formatted[nrow(data_formatted)+1,] = new_node
   }
-  
+
 }
 
 
@@ -4147,3 +4150,5 @@ fig2
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
 ***
+
+```{r rm(data_formatted)}

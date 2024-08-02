@@ -112,7 +112,7 @@ palette = 'Oranges'
 ```{r, add logo, eval = report_kind == 'interactive'}
 htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
                alt = 'logo', 
-               style = 'position:absolute; top:0; right:0; padding:10px; width:100px; height:100px')
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
 ```
 
 ```{r, functions for turnover}
@@ -660,17 +660,19 @@ if(separate_figure_folder){
 exporting_data_store = list()
 ```
 
+###### {-}
+
 This report explores threatened species in **`r collection`**, and how the number of threatened species has varied over time.
 
 A taxa in the collection is classed as **threatened** if it is classified as either extinct, extinct in the wild, critically endangered, endangered or vulnerable by [IUCN's red list](https://www.iucnredlist.org). Since there is sometimes disagreement between accepted taxonomic names in POWO and IUCN's red list taxonomic names we use two methods to extract the IUCN's red list category. First, we match the taxonomic name in the report directly to IUCN's red list. Second, we first match to the taxonomic name in the report to POWO and use the accepted taxonomic name in POWO to match to IUCN's red list. If the two methods result in different red list categories we use the most severe category. 
 
-Note that in this document we will show the geographic area that threatened taxa in the living collection belong to. To determine the geographic distribution of items in the living collection we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions:
+<!-- Note that in this document we will show the geographic area that threatened taxa in the living collection belong to. To determine the geographic distribution of items in the living collection we enrich with information from [Plants of the World Online](https://powo.science.kew.org), by matching taxonomic names. POWO uses [TDWG geographical codes](https://www.tdwg.org/standards/wgsrpd/) (Brummitt, 2001) expressed to that system's third level. This splits the world into 369 regions. Thus, each accepted name in POWO is associated with a list of geographic regions. POWO splits the geographic regions associated with a taxa by three conditions: -->
 
-- Native / introduced,
-- Extinct / Not extinct,
-- Location is doubtful / otherwise.
+<!-- - Native / introduced, -->
+<!-- - Extinct / Not extinct, -->
+<!-- - Location is doubtful / otherwise. -->
 
-This document considers locations that are: `r location_type_text` 
+<!-- This document considers locations that are: `r location_type_text`  -->
 
 In analyses over time we use the current version of IUCN's red list retrospectively on the historic data. 
  
@@ -2055,11 +2057,11 @@ In this section, we explore the rarity of existing threatened species in the liv
 
 We group taxa by the number of collections they are found in globally. These are:
 
-- **Unique**: found in 0 or 1 collection.
-- **Very Rare**: found in 10 or less collections.
-- **Rare**: found in between 11 and 50 collections.
-- **Common**: found in between 51 and 100 collections.
-- **Very Common**: found in more than 100 collections.
+- **Unique**: plants found nowhere else (0 or 1 collection). These are names that do not match any name or match a name reported in only one collection in BGCI’s PlantSearch tool. Since it is not possible to know to which collection it belongs, BGsmartR assumes it belongs to yours and the name is in PlantSearch thanks to your input to that database. 
+- **Very Rare**: plants found in 2-10 collections.
+- **Rare**: plants found in 11-50 collections.
+- **Common**: plants found in 51-100 collections.
+- **Very Common**: plants found in more than 100 collections.
 
 `r if(report_kind == 'interactive'){"#####  Rarity of threatened species {.tabset}"}`
 
