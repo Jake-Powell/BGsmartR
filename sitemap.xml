@@ -4,6 +4,7 @@
 <url><loc>https://jakepowellcubg.github.io/BGR/articles/Matching.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/articles/enrich_data.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/articles/index.html</loc></url>
+<url><loc>https://jakepowellcubg.github.io/BGR/articles/reports_details.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/articles/value_of_items.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/authors.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/index.html</loc></url>
@@ -22,11 +23,8 @@
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_duplication_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_endemic_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_geography_report.html</loc></url>
-<url><loc>https://jakepowellcubg.github.io/BGR/reference/create_last_update_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_native_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_overview_report.html</loc></url>
-<url><loc>https://jakepowellcubg.github.io/BGR/reference/create_retrospective_interactive.html</loc></url>
-<url><loc>https://jakepowellcubg.github.io/BGR/reference/create_snapshot_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_sustainability_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_taxonomic_diversity_report.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/create_threatened_report.html</loc></url>
@@ -51,7 +49,10 @@
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/no_additional_matching.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/prepare_enrich_database.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/sanitise_name.html</loc></url>
+<url><loc>https://jakepowellcubg.github.io/BGR/reference/subfamily_genus_simp.html</loc></url>
+<url><loc>https://jakepowellcubg.github.io/BGR/reference/subtribe_genus_simp.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/taxon_type.html</loc></url>
+<url><loc>https://jakepowellcubg.github.io/BGR/reference/tribe_genus_simp.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/typo_list.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/value_of_items.html</loc></url>
 <url><loc>https://jakepowellcubg.github.io/BGR/reference/wgsrpd3_level1_simp.html</loc></url>
