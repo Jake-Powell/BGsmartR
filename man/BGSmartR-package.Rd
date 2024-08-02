@@ -6,6 +6,8 @@
 \alias{BGSmartR-package}
 \title{BGSmartR: Analyse Botanic Garden collections}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 Provides tools for matching collection records to external datasets and creating html reports.
 }
 \seealso{
