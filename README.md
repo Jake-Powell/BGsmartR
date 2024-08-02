@@ -1,4 +1,5 @@
-# BGsmartR <a href="https://jakepowellcubg.github.io/BGR/"><img src="man/figures/logo.png" align="right" height="138" /></a>
+# BGsmartR <a href="https://jakepowellcubg.github.io/BGR/"><img src="man/figures/logo.png" style="float:right; height:200px;"></a>
+
 ----
 <!-- badges: start 
    [![R-CMD-check](https://github.com/JakePowellCUBG/BGSmartR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/JakePowellCUBG/BGSmartR/actions/workflows/R-CMD-check.yaml)
