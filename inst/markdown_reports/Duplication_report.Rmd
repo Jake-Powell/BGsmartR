@@ -14,6 +14,7 @@ library(sf)
 library(here)
 library(flextable)
 library(ggrepel)
+library(downloadthis)
 
 interactive_colour <- function(n){
   color = c('#f46d43', '#50c1dc', '#848484', '#e6e6e6')
@@ -672,7 +673,7 @@ Further information about the rarity of items in the living collection can be do
 
 ```{r}
 rare_global_list_format |>
-  download_this(
+  downloadthis:download_this(
     output_name = "rare_global_list",
     output_extension = ".xlsx",
     button_label = "Download rarity information (xlsx)",
@@ -753,7 +754,7 @@ Further information (such as accession number, threatened status, etc) can be do
 
 ```{r}
 rare_global_list_format |>
-  download_this(
+  downloadthis:download_this(
     output_name = "rare_global_list",
     output_extension = ".xlsx",
     button_label = "Download rare global list (xlsx)",

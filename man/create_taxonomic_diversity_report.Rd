@@ -37,6 +37,7 @@ create_geography_report(
   collection = NULL,
   wgsrpd3 = NULL,
   wcvp = NULL,
+  detailed_IUCN_redlist = NULL,
   report_kind = "static",
   native = "Naturally occurring only",
   extinct = TRUE,
@@ -94,6 +95,8 @@ create_geography_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 
 \item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} package.}
+
+\item{detailed_IUCN_redlist}{A data frame containing the history and geography of IUCN redlist information.}
 
 \item{native}{string where 'Naturally occurring only' or 'Introduced only' reduces the locations used to determine native plants.}
 

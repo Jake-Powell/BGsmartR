@@ -1077,7 +1077,7 @@ report = report[report$AccYear > 1650 & report$AccYear<=year_cur,]
 report = report[!is.na(report$ItemStatusDate),]
 plant_existing = BGSmartR::exist_at_date(date, AccessionYear = as.character(report$AccYear),
                        ItemStatusDate = as.character(report$ItemStatusDate),
-                       ItemStatusType = as.character(report$ItemStatusType))
+                       ItemStatusType = as.character(report$ItemStatusType),post_date = '3000-01-01')
 
 # For each year get the number in each group (species and genera)
 over_time_info = lapply(plant_existing, function(x){
@@ -1153,7 +1153,7 @@ ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/','proportion_native_
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Proportion of native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
-native_data = native_data ; LC_data = LC_data ; type = 'Items' ; title = 'items'
+# native_data <<- native_data ; LC_data <<- LC_data ; typeA <<- 'Items' ; titleA <<- 'items'
 proportion_native <- function(native_data,LC_data, type, title){
   native_counts = native_data[,match(type, names(native_data))]
   total_counts = LC_data[,match(paste0(type), names(LC_data))]

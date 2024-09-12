@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules_sustainability.R
 \name{create_sustainability_report}
 \alias{create_sustainability_report}
-\title{Create collection longevity}
+\title{Create collection longevity module}
 \usage{
 create_sustainability_report(
   enriched_report,

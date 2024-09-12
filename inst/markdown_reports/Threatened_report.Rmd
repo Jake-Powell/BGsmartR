@@ -838,7 +838,7 @@ if(report_kind == 'interactive'){
 
 ```
 
-Next we split the threatened plants in the living collection into their respectively red list category.
+Next we split the threatened plants in the living collection by their IUCN red list category.
 
 
 ```{r,  Threatened, native plants in the LC - data}
@@ -1116,7 +1116,7 @@ for(i in 1:length(to_do)){
 }
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"##### Number of threatened plants over time  {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"#####  {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Number of threatened items over time in the living collection - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -1131,6 +1131,7 @@ fig <- fig |> layout(yaxis = list(title = paste0("Number of ",title)),
 fig <- fig |> layout(hovermode = 'x unified')
 return(fig)
 }
+
 fig = number_over_time(data = threatened_over_time, type = 'Items', title = 'items')
 
 if(separate_figure_folder){
@@ -1176,7 +1177,7 @@ fig
 
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
 
-`r if(do_over_time){"Next we view threatened plants in the living collection as a percentage of all plants in the living collection over time."}`
+`r if(do_over_time){"Next we view threatened plants as a percentage of all plants in the living collection over time."}`
 
 ```{r, What proportion of the living collection at `r collection` is threatened and how has this varied over time - percentage data, eval = do_over_time}
 # Do the same for the whole collection.
@@ -1257,7 +1258,7 @@ for(i in 1:length(to_do)){
 
 ```
 
-`r if(report_kind == 'interactive' & do_over_time){"#####  Proportion of threatened plants over time graphs {.tabset}"}`
+`r if(report_kind == 'interactive' & do_over_time){"#####  {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Items"}`
 ```{r  Proportion of threatened items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -1349,7 +1350,7 @@ fig
 `r if(report_kind == 'interactive' & do_over_time){"##### {-}"}`
 
 
-`r if(have_redlist & do_over_time){"Next we split the threatened plants by their IUCN designation and explore how this has changed over time"}`
+`r if(have_redlist & do_over_time){"Next we split the threatened plants by their IUCN designation and explore how this has changed over time."}`
 
 ```{r, Threatened cat plants in the LC - data over time, fig.fullwidth=FALSE, fig.dim = c(10, 6), eval = do_over_time}
 # threatenedcontains all theatened plants over the LC's history.
@@ -1481,7 +1482,7 @@ for(i in 1:length(to_do)){
 
 `r if(report_kind == 'static' & have_redlist & do_over_time){"We do this in two ways, looking at the number of plants in each threatened category ove time and the proportion if each threatened cateogory over all threatened taxa."}`
 
-`r if(report_kind == 'interactive' & have_redlist & do_over_time){"#####  Threatened plants over time graphs {.tabset}"}`
+`r if(report_kind == 'interactive' & have_redlist & do_over_time){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive' & have_redlist & do_over_time){"###### Items (Number)"}`
 ```{r  Number of threatened native items over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive' & do_over_time}
@@ -1759,7 +1760,7 @@ no_more_info = pbapply::pblapply(no_more_ids, function(x){
   endemic = info$endemic[1] ; tree = info$tree[1] ; nativeo = info$native[1]
   return(c(plant, last_seen, total_years, mess, threat, threat_cat, endemic, nativeo, tree))
 }) |> data.frame() |> t() |> data.frame()
-names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 'Total years in collection', 'In collection history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
+names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in collection', 'Presence history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
 rownames(no_more_info) = 1:nrow(no_more_info)
 no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
 no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()
@@ -1767,7 +1768,7 @@ no_more_info$`Last year in collection` = no_more_info$`Last year in collection` 
 ```
 
 
-In the living collection's history there are `r nrow(no_more_info)` threatened taxa which are no longer present. These are outlined below, ordered by how recently the taxa was present in the living collection.
+In `r collection`'s history there are `r nrow(no_more_info)` threatened taxa which are no longer present. These are outlined below, ordered by how recently the taxa was present at the living collection.
 
 ```{r,  no_more_info table}
 
@@ -2141,7 +2142,9 @@ fig = fig |>  add_trace(type="scattermapbox",
                         text = plot_int_info$hover,
                         color = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]), 
                         hoverinfo = 'text',
-                        inherit = FALSE, showlegend = FALSE) 
+                        inherit = FALSE, showlegend = FALSE,
+                        marker = list(color = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]), line = list(width = 0)),
+                        hoverlabel = list(bgcolor = I(col_rep[as.numeric(plot_int_info$rep_threatened)+1]))) 
 
 fig <- fig   |> config(modeBarButtonsToRemove = c("select2d", "lasso2d"))
 
@@ -2627,7 +2630,7 @@ if(separate_figure_folder){
 
 ***
 
-### Rarity of threatened Species 
+### Rarity of threatened species 
 
 ```{r, rarity of threatened species}
 ### How many items/accessions for each threatened taxa in the living collection.
@@ -2970,15 +2973,18 @@ p
 
 ```
 
-`r if(report_kind == 'interactive'){"#####  Provenance of threatened species in the living collection {.tabset}"}`
+`r if(report_kind == 'interactive'){"##### {.tabset}"}`
 
 `r if(report_kind == 'interactive' & do_over_time){"###### Chart"}`
 ```{r  Provenance of existing threatened items in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 5), eval = report_kind == 'interactive'}
 figs = list()
+colo = interactive_colour(4)
+names(colo) =c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+colo = colo[match(prov_items$Provenance,c('Wild', 'Wild-derived', 'Garden', 'Unknown'))]
 
 # Items
 text = paste0(prov_items$Items, ' ',prov_items$Provenance,' origin threatened items')
-fig1 <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig1 <- plot_ly(prov_items, labels = ~Provenance, values = ~Items, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = colo))
 fig1 <- fig1 |> add_pie(hole = 0.6)
 fig1 <- fig1 |> layout(title = "Items",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
@@ -2986,7 +2992,7 @@ fig1 <- fig1 |> layout(title = "Items",
 figs$items = fig1
 #Accessions
 text = paste0(prov_accessions$Accessions, ' ',prov_accessions$Provenance,' origin threatened items')
-fig2 <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = interactive_colour(4)))
+fig2 <- plot_ly(prov_accessions, labels = ~Provenance, values = ~Accessions, hoverinfo = "text",  hovertext = text, sort = FALSE, marker = list(colors = colo))
 fig2 <- fig2 |> add_pie(hole = 0.6)
 fig2 <- fig2 |> layout(title = "Accessions",
                       xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
@@ -2996,10 +3002,10 @@ figs$accessions = fig2
 # Together
 p <- plot_ly() |>
   add_pie(data = prov_items, labels = ~Provenance, values = ~Items, hole = 0.6,
-          title = "Items", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+          title = "Items", name ='', sort = FALSE, marker = list(colors = colo),
           domain = list(row = 0, column = 0)) |>
   add_pie(data = prov_accessions, labels = ~Provenance, values = ~Accessions, hole = 0.6,
-          title = "Accessions", name ='', sort = FALSE, marker = list(colors = interactive_colour(4)),
+          title = "Accessions", name ='', sort = FALSE, marker = list(colors = colo),
          domain = list(row = 0, column = 1))  |>
   layout(title = "", showlegend = TRUE,
           grid=list(rows=1, columns=2),
@@ -3107,13 +3113,15 @@ for(i in 1:length(to_do)){
 }
 ```
 
-`r if(report_kind == 'interactive'& do_over_time){"#####  Provenance of threatened species in the Living collection over time {.tabset}"}`
+`r if(report_kind == 'interactive'& do_over_time){"#####  {.tabset}"}`
 
 `r if(report_kind == 'interactive'& do_over_time){"###### Items"}`
 ```{r  Provenance of threatened items over time in the living collection - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'& do_over_time}
 wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 to_do = c('items', 'accessions')
 i=1
+colo = interactive_colour(4)
+names(colo) =c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 
 # Get the data from over_time_info.
 data_wanted = NULL
@@ -3152,7 +3160,7 @@ text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' items)
 data_wanted$text = text
 data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}',  colors = interactive_colour(4),
+               hovertemplate = '%{text}',  colors = colo,
                sort = FALSE)
 fig <- fig |> layout(yaxis = list(title = 'Percentage'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
@@ -3172,6 +3180,8 @@ if(separate_figure_folder){
 wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 to_do = c('items', 'accessions')
 i=2
+colo = interactive_colour(4)
+names(colo) =c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 
 # Get the data from over_time_info.
 data_wanted = NULL
@@ -3210,7 +3220,7 @@ text = paste0(round(data_wanted$prop,digits=2), '% (',data_wanted$Items,' access
 data_wanted$text = text
 data_wanted$Provenance = factor(data_wanted$Provenance, levels= unique(data_wanted$Provenance))
 fig <- plot_ly(data_wanted, x = ~year, y = ~prop, color = ~Provenance, type = 'bar', text = ~text,
-               hovertemplate = '%{text}', colors = interactive_colour(4),
+               hovertemplate = '%{text}', colors = colo,
                sort = FALSE)
 fig <- fig |> layout(yaxis = list(title = 'Percentage', ticksuffix  ='%'),
                      xaxis = list(title = "Year", hoverformat = 'Year: '),
@@ -3743,7 +3753,7 @@ if(export_data){
 }
 ```
 
-```{r, save excel version of data, eval = save_excel & export_data}
+```{r, save excel version of data, eval = export_data}
 library(xlsx)
 file = paste0(output_dir,'/',collection, '_threatened_data.xlsx')
 wb <- createWorkbook()

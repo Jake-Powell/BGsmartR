@@ -32,6 +32,7 @@
 #' @param endemic_species_per_region A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #' @param palette String colour palette for use in the interactive report maps.
 #' @param color_binary colours for the representation of species in maps.
+#' @param detailed_IUCN_redlist A data frame containing the history and geography of IUCN redlist information.
 #'
 #' @return html report
 #' @export
@@ -395,6 +396,7 @@ create_threatened_report <- function(enriched_report,
                                   collection = NULL,
                                   wgsrpd3 = NULL,
                                   wcvp = NULL,
+                                  detailed_IUCN_redlist = NULL,
 
                                   report_kind = 'static',
                                   coordinates = NA,
@@ -460,6 +462,8 @@ create_threatened_report <- function(enriched_report,
                                       report_kind = report_kind,
                                       coordinates = coordinates,
                                       wcvp = wcvp,
+                                      detailed_IUCN_redlist = detailed_IUCN_redlist,
+
                                       wgsrpd3 = wgsrpd3,
                                       output_file = output_file,
                                       output_dir = output_dir,
@@ -493,6 +497,8 @@ create_threatened_report <- function(enriched_report,
                                       report_kind = report_kind,
                                       coordinates = coordinates,
                                       wcvp = wcvp,
+                                      detailed_IUCN_redlist = detailed_IUCN_redlist,
+
                                       wgsrpd3 = wgsrpd3,
                                       output_file = output_file,
                                       output_dir = output_dir,
@@ -529,6 +535,8 @@ create_threatened_report <- function(enriched_report,
                                     report_kind = report_kind,
                                     coordinates = coordinates,
                                     wcvp = wcvp,
+                                    detailed_IUCN_redlist = detailed_IUCN_redlist,
+
                                     wgsrpd3 = wgsrpd3,
                                     output_file = output_file,
                                     output_dir = output_dir,

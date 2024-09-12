@@ -120,7 +120,7 @@ create_data_health_report <- function(enriched_report,
                                       scale_fill_binned = scale_fill_binned,
                                       value_on_fig = value_on_fig,
                                       earliest_allowable_record = earliest_allowable_record,
-                                      old_accession_year_codes = old_accession_year_codes,
+                                      old_accession_year_codes = old_accession_year_codes
                                       ),
                         output_file = output_file,
                         output_dir = output_dir,

@@ -2138,7 +2138,7 @@ plots_prov_all$gain_prop
 
 ### Taxonomic diversity of the collection
 
-To visualise the taxonomic diversity below we produce a sunburst chart of all species held in the collection by the number of items each species contains. The species are then grouped into genera, families, and higher levels.
+To visualise the taxonomic diversity below we produce a sunburst chart of all species held in the collection by the number of items each species contains. The species are then grouped into genera, families, and higher levels. Note that we restrict the living collection to only those that match to WCVP.
 
 ```{r, Current taxonomic diversity Sunburst (Taxonomic diversity module),  fig.fullwidth=TRUE, fig.dim = c(10, 6), eval = report_kind == 'interactive'}
 interest = report[report$ItemStatusType == 'Existing',]
@@ -2599,6 +2599,7 @@ colours = rep('white', nrow(data_formatted))
     }
   }
   
+  data_formatted$hover = paste0( data_formatted$labels, '<br>',data_formatted$values,' items')
 
  data_formatted$values = as.numeric(data_formatted$values)
  fig <- plotly::plot_ly(data_formatted,
@@ -2610,6 +2611,7 @@ colours = rep('white', nrow(data_formatted))
                              insidetextorientation='radial',
                              branchvalues = 'total',
                         marker=list(colors=colours, line = list(color = 'white')),
+                         hoverinfo = "text",  hovertext = data_formatted$hover,
                              maxdepth = 4)
  
  fig

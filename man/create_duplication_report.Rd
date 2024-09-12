@@ -2,7 +2,7 @@
 % Please edit documentation in R/modules-duplication.R
 \name{create_duplication_report}
 \alias{create_duplication_report}
-\title{Rarity and duplication module}
+\title{Create rarity and duplication module}
 \usage{
 create_duplication_report(
   enriched_report,

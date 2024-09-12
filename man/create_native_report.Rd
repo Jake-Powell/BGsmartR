@@ -76,6 +76,7 @@ create_threatened_report(
   collection = NULL,
   wgsrpd3 = NULL,
   wcvp = NULL,
+  detailed_IUCN_redlist = NULL,
   report_kind = "static",
   coordinates = NA,
   output_file = NULL,
@@ -187,6 +188,8 @@ create_trees_report(
 \item{color_binary}{colours for the representation of species in maps.}
 
 \item{palette}{String colour palette for use in the interactive report maps.}
+
+\item{detailed_IUCN_redlist}{A data frame containing the history and geography of IUCN redlist information.}
 }
 \value{
 html report

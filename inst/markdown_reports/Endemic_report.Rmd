@@ -2975,7 +2975,7 @@ if(export_data){
 }
 ```
 
-```{r, save excel version of data, eval = save_excel & export_data}
+```{r, save excel version of data, eval = export_data}
 library(xlsx)
 file = paste0(output_dir,'/',collection, '_endemic_data.xlsx')
 wb <- createWorkbook()
