@@ -673,7 +673,7 @@ Further information about the rarity of items in the living collection can be do
 
 ```{r}
 rare_global_list_format |>
-  downloadthis:download_this(
+  downloadthis::download_this(
     output_name = "rare_global_list",
     output_extension = ".xlsx",
     button_label = "Download rarity information (xlsx)",
@@ -754,7 +754,7 @@ Further information (such as accession number, threatened status, etc) can be do
 
 ```{r}
 rare_global_list_format |>
-  downloadthis:download_this(
+  downloadthis::download_this(
     output_name = "rare_global_list",
     output_extension = ".xlsx",
     button_label = "Download rare global list (xlsx)",

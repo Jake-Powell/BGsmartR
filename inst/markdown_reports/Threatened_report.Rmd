@@ -1889,7 +1889,6 @@ location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
 location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands')
 location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
 
-load('/Users/jakepowell/Cambridge/IUCN_threatened_with_history_and_geography.rda')
 threat_match_IUCN = sum(!is.na(detailied_IUCN$POWO_plant_id))
 prop_threat_match_IUCN = round(threat_match_IUCN/nrow(detailied_IUCN)*100,digits = 2)
 # number of threatened per geographic area. 
