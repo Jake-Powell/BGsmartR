@@ -9,6 +9,9 @@ create_duplication_report(
   collection = NULL,
   min_year = 1970,
   join_bigger_than = 4,
+  native = "Naturally occurring only",
+  extinct = TRUE,
+  doubtful_locations = FALSE,
   report_kind = "static",
   output_file = NULL,
   output_dir = NULL,
@@ -34,6 +37,12 @@ create_duplication_report(
 \item{min_year}{The minimum year for analyses over time.}
 
 \item{join_bigger_than}{When exploring accessions per item, etc the value at which we merge larger values for simplified pie charts. Default is 4.}
+
+\item{native}{string where 'Naturally occurring only' or 'Introduced only' reduces the locations used to determine native plants.}
+
+\item{extinct}{Flag (TRUE/FALSE) for whether to include extinct geographic locations.}
+
+\item{doubtful_locations}{Flag (TRUE/FALSE) for whether to include doubtful locations.}
 
 \item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
 

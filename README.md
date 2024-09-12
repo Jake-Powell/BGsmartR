@@ -18,3 +18,4 @@ You can install the development version of BGsmartR from
 # install.packages("devtools")
 devtools::install_github("JakePowellCUBG/BGSmartR")
 ```
+

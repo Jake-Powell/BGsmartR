@@ -8,12 +8,11 @@ Description: Provides tools for matching collection records to external datasets
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     knitr,
     rmarkdown,
     testthat (>= 3.0.0),
-    DT,
     ggplot2,
     viridis,
     rWCVPdata (>= 0.3.1)
@@ -30,7 +29,20 @@ Imports:
     rlang,
     cli,
     stringi,
-    grDevices
+    grDevices,
+    plotly,
+    DT,
+    gtsummary,
+    ggsurvfit,
+    downloadthis,
+    sf,
+    flextable,
+    ggrepel,
+    geojsonsf,
+    rjson,
+    VennDiagram,
+    cardx,
+    xlsx
 VignetteBuilder: knitr
 URL: https://jakepowellcubg.github.io/BGR/
 Remotes: 
