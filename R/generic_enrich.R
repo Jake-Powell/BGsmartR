@@ -43,16 +43,16 @@
 #' enrich_taxon_name_column = 'taxon_names',
 #' enrich_taxon_authors_column = 'taxon_authors')
 prepare_enrich_database <- function(enrich_database,
-                                        enrich_taxon_name_column = 'taxon_names',
-                                        enrich_taxon_authors_column = NA,
-                                        enrich_taxon_name_full_column = NA,
-                                        do_sanitise = TRUE,
-                                        do_taxon_length = TRUE,
-                                        do_single_entry = TRUE,
-                                        do_author_parts = TRUE,
-                                        do_add_id = TRUE,
-                                        do_sort = TRUE,
-                                        console_message = FALSE){
+                                    enrich_taxon_name_column = 'taxon_names',
+                                    enrich_taxon_authors_column = NA,
+                                    enrich_taxon_name_full_column = NA,
+                                    do_sanitise = TRUE,
+                                    do_taxon_length = TRUE,
+                                    do_single_entry = TRUE,
+                                    do_author_parts = TRUE,
+                                    do_add_id = TRUE,
+                                    do_sort = TRUE,
+                                    console_message = FALSE){
 
   ### A) Sanitising taxonomic names and authors.
   if(do_sanitise){

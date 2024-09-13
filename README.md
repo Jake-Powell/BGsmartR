@@ -16,6 +16,24 @@ You can install the development version of BGsmartR from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("JakePowellCUBG/BGSmartR")
+devtools::install_github("Jake-Powell/BGsmartR")
 ```
 
+Note that the current version of BGsmartR relies on old versions
+`gtsummary` and `downloadthis` these can be installed via the method
+below.
+
+``` r
+devtools::install_version(  
+  "downloadthis",
+  version = "0.3.0",
+  repos = "http://cran.us.r-project.org"  
+)
+
+
+devtools::install_version(  
+  "gtsummary",
+  version = "1.7.2",
+  repos = "http://cran.us.r-project.org"  
+)
+```
