@@ -10,7 +10,6 @@ match_collection_to_wcvp(
   taxon_name_column = "TaxonName",
   taxon_name_full_column = NA,
   taxon_author_column = NA,
-  enrich_taxon_authors_column = "taxon_authors_simp",
   typo_method = "All",
   do_add_split = TRUE,
   do_fix_hybrid = TRUE,
@@ -19,6 +18,7 @@ match_collection_to_wcvp(
   matching_criterion = BGSmartR::additional_wcvp_matching,
   ...,
   enrich_taxon_name_column = "taxon_name",
+  enrich_taxon_authors_column = "sanitise_author",
   enrich_display_in_message_column = "powo_id",
   enrich_plant_identifier_column = "plant_name_id"
 )
@@ -33,8 +33,6 @@ match_collection_to_wcvp(
 \item{taxon_name_full_column}{The name of the column in the \code{collection} corresponding to joined taxonomic names and authors.}
 
 \item{taxon_author_column}{The name of the column in the \code{collection} corresponding to the authors of the taxonomic names.}
-
-\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{taxon_authors_simp}.}
 
 \item{typo_method}{Either \code{'All'}, \code{'Data frame only'},\code{'Data frame + common'}, detailing the level of typo finding required.}
 
@@ -51,6 +49,8 @@ match_collection_to_wcvp(
 \item{...}{Arguments (i.e., attributes) used in the matching algorithm (passed along to nested fuctions). Examples include, \code{enrich_display_in_message_column} and \code{enrich_plant_identifier_column}.}
 
 \item{enrich_taxon_name_column}{The name of the column in the \code{iucnRedlist} corresponding to taxonomic names.Default value is \code{scientific_name}.}
+
+\item{enrich_taxon_authors_column}{The name of the column in \code{enrich_database} that corresponds to the authors of taxonomic names. Default value is \code{taxon_authors_simp}.}
 
 \item{enrich_display_in_message_column}{The name of the column in \code{iucnRedlist} that contains values to show in the matching messages. Default value is \code{taxonid}.}
 

@@ -327,10 +327,13 @@ missing_date = length(c(index_string_length_4, index_string_length_7))
 
 ```{r, Get Trends, echo = F}
 date = paste0(years, '-12-31')
-plant_existing = BGSmartR::exist_at_date(date, AccessionYear = report$AccYear,
-                       ItemStatusDate = report$ItemStatusDate,
-                       ItemStatusType = report$ItemStatusType,
-                       post_date = '3000-01-01')
+plant_existing = BGSmartR::exist_at_date(date,
+                                         AccessionYear = as.character(report$AccYear),
+                                         ItemStatusDate = as.character(report$ItemStatusDate),
+                                         ItemStatusType = as.character(report$ItemStatusType),
+                                         post_date = '3000-01-01')
+
+
 names(plant_existing) = date
 trends = pbapply::pblapply(plant_existing, function(x){
   garden_current = report[x,]
@@ -768,9 +771,9 @@ exporting_data_store$turnover_indeterminate_taxa = turnover_indetermintes
 plots = plots_turnover(turnover_indetermintes, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'indeterminate plants', data_type = data_type)
 
 existing_indeterminates_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
-                        AccessionYear = report_cur$AccYear,
-                        ItemStatusDate = report_cur$ItemStatusDate,
-                        ItemStatusType = report_cur$ItemStatusType,
+                        AccessionYear = report_cur$AccYear |> as.character(),
+                        ItemStatusDate = report_cur$ItemStatusDate |> as.character(),
+                        ItemStatusType = report_cur$ItemStatusType |> as.character(),
                         post_date = '3000-01-01')))
 collection_proportion = existing_indeterminates_each_year/ existing_each_year_LC
 
@@ -852,9 +855,9 @@ exporting_data_store$turnover_horticultural = turnover
 plots = plots_turnover(turnover, trend = trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, text = 'horticultural', data_type = data_type)
 
 existing_each_year = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0(years,'-12-31'),
-                        AccessionYear = report_cur$AccYear,
-                        ItemStatusDate = report_cur$ItemStatusDate,
-                        ItemStatusType = report_cur$ItemStatusType,
+                        AccessionYear = report_cur$AccYear |> as.character(),
+                        ItemStatusDate = report_cur$ItemStatusDate|> as.character(),
+                        ItemStatusType = report_cur$ItemStatusType|> as.character(),
                         post_date = '3000-01-01')))
 collection_proportion = existing_each_year/ existing_each_year_LC
 

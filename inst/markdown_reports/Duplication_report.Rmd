@@ -678,8 +678,8 @@ rare_global_list_format |>
     output_extension = ".xlsx",
     button_label = "Download rarity information (xlsx)",
     button_type = "default",
-    has_icon = TRUE,
-    icon = "fa fa-save",
+    has_icon = FALSE,
+    # icon = "fa fa-save",
     class = "hvr-sweep-to-left",
     self_contained =  T
   )
@@ -759,8 +759,8 @@ rare_global_list_format |>
     output_extension = ".xlsx",
     button_label = "Download rare global list (xlsx)",
     button_type = "default",
-    has_icon = TRUE,
-    icon = "fa fa-save",
+    has_icon = FALSE,
+    # icon = "fa fa-save",
     class = "hvr-sweep-to-left",
     self_contained =  T
   )

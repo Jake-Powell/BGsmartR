@@ -42,7 +42,9 @@ Imports:
     rjson,
     VennDiagram,
     cardx,
-    xlsx
+    xlsx,
+    rWCVP,
+    reshape2
 VignetteBuilder: knitr
 URL: https://jakepowellcubg.github.io/BGR/
 Remotes: 

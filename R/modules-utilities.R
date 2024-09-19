@@ -24,6 +24,9 @@
 #' ItemStatusDate = c('2004-01', '2010-03-05', '2022-04-08', '2022-08-19'),
 #' ItemStatusType = c('NotExisting','NotExisting','Existing','Existing'))
 exist_at_date <- function(date, AccessionYear, ItemStatusDate, ItemStatusType, post_date = as.character(Sys.Date())){
+  AccessionYear = AccessionYear |> as.character()
+  ItemStatusDate = ItemStatusDate|> as.character()
+  ItemStatusType = ItemStatusType|> as.character()
 
   date = as.Date(date)
   # Accession date.
