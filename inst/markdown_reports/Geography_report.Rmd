@@ -431,13 +431,16 @@ if(export_data){
   }
 
   # Reduce to only trees.
-  wcvp_geography_tree = wcvp_geography[which(wcvp_geography$id %in% (wcvp$trees |> unlist() |> as.numeric())), ]
+   if(!exists('tree_species_per_region')){
+     wcvp_geography_tree = wcvp_geography[which(wcvp_geography$id %in% (wcvp$trees |> unlist() |> as.numeric())), ]
    # if(!exists('tree_species_per_region') || is.null(tree_species_per_region)){
       no_tree_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
     sum(grepl(x, wcvp_geography_tree$codes))
   }))
   tree_species_per_region = data.frame(code = All_locations, no_tree_accepted_species_wcvp = no_tree_accepted_species_wcvp)
    # }
+   }
+  
   
   location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
   location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
@@ -1991,43 +1994,28 @@ if(!is.null(tree_species_per_region)){
   no_tree_accepted_species_wcvp = tree_species_per_region[,2][match(location_data$code,tree_species_per_region[,1])]
   location_data$no_tree_accepted_wcvp_species = no_tree_accepted_species_wcvp
 }
-
+```
+```{r, gbeffsb}
 if(!is.null(wcvp)){
-  
-  ## Which regions do we have 0 endemic items (when species exist in wcvp)
+   save(location_data, file = 'location_data.rda')
+   ## Which regions do we have 0 endemic items (when species exist in wcvp)
   missing_regions = location_data[which(location_data$no_tree_items == 0 & location_data$no_tree_accepted_wcvp_species !=0), match(c('name', 'code', 'no_tree_accepted_wcvp_species'), names(location_data))]
-  
-  if(nrow(missing_regions) > 0){
-    
-  }
   wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)]
   level_1_names = level_1$name[match(wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_1$code)]
   level_2_names = level_2$name[match(wgsrpd3$LEVEL2_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)], level_2$code)]
   missing_regions = data.frame(missing_regions$name, level_2_names, level_1_names, missing_regions$no_tree_accepted_wcvp_species)
   
-  
-  names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Trees')
-  missing_regions = missing_regions[order(missing_regions$`Number of Trees`, decreasing = T),]
-  
-  # Create a data frame of the missing trees from wcvp.
-  codes = location_data[which(location_data$no_tree_items == 0 & location_data$no_tree_accepted_wcvp_species !=0), match(c('code'), names(location_data))]
-  
-  ids = wcvp_geography$id[grep(paste0(codes, collapse = '|'),wcvp_geography$codes)]
-  ids = ids[which(ids %in% (wcvp$trees |> unlist() |> as.numeric()))]
-  wcvp_wanted = wcvp$wcvp_names[match(ids, wcvp$wcvp_names$plant_name_id),]
-  geography = wcvp_geography$codes[match(wcvp_wanted$plant_name_id, wcvp_geography$id)]
 
-  
-  texteo = rep('',nrow(wcvp_wanted))
-  for(i in 1:length(codes)){
-   texteo[grep(codes[i], geography)] = paste0(texteo[grep(codes[i], geography)],
-                                                          ', ',
-                                                          wgsrpd3$LEVEL3_NAM[match(codes[i],wgsrpd3$LEVEL3_COD)])
-  }
-  texteo = stringr::str_remove(texteo,pattern = '^, ')
-  wcvp_wanted$geography = texteo
+  names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Tree Species')
+  missing_regions = missing_regions[order(missing_regions$`Number of Tree Species`, decreasing = T),]
+  ids = wcvp_geography$id[wcvp_geography$codes %in% location_data[which(location_data$no_tree_items == 0 & location_data$no_tree_accepted_wcvp_species !=0), match(c('code'), names(location_data))]]
+
+  wcvp_wanted = wcvp$wcvp_names[wcvp$wcvp_names$plant_name_id %in% ids,]
+  wcvp_wanted$geography = location_data$name[match(wcvp_geography$codes[match(wcvp_wanted$plant_name_id, wcvp_geography$id)],location_data$code)]
   wcvp_wanted$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wanted$powo_id)
   wcvp_wanted = wcvp_wanted[c('taxon_name', 'web_link', 'geography', 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
+  
+  wcvp_wanted = wcvp_wanted[order(wcvp_wanted$geography),]
 }
 
 

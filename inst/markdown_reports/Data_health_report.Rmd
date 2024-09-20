@@ -1145,6 +1145,9 @@ hor_stack_bar_plot = plot_ly(comb_cur,
 ```{r IUCN redlisted individuals comparision}
 figs = list()
 has_redlist_cat = 'IUCNRedList' %in% names(report)
+if(has_redlist_cat){
+  if(report$IUCNRedList |> table() |> length() == 0){has_redlist_cat = F} # If column exists and all values are missing (i.e NA) set to the column not existing
+}
 ### Option 1: the original report doesn't have threatened categories of plants. (I.e no IUCNRedList) ----
 if(!has_redlist_cat){
   interest = report[c('AccNoFull', 'best_name', 'threatened_category', 'threatened')]

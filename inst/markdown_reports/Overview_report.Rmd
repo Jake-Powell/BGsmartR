@@ -440,7 +440,7 @@ taxon_name_auth[!is.na(report$POWO_plant_name_id)] = (paste0(report$POWO_taxon_n
 report$taxa_use = taxon_name_auth
 rm(taxon_name_auth)
 
-
+PlantClassification = BGSmartR::Diversity_classification$Classification
 major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes",
                                   "Bryophytes", "Hornworts", "Liverworts", "Mosses"
 )
@@ -2215,14 +2215,14 @@ combined_taxo = paste0(report_cur$use_species,'---',
                                        report_cur$major_Angiosperm_lineage,'---',
                                        report_cur$major_Land_Plants_lineage)
 
-with_issue = sum(which(grepl('---NA$',combined_taxo)))
+with_issue = length(which(grepl('---NA$',combined_taxo)))
 
 #remove those without major land plants lineage. (i.e ends in ---NA).
 if(with_issue > 0){
   combined_taxo = combined_taxo[-which(grepl('---NA$',combined_taxo))]
 }
 # Convert NA in species to Indet.
-combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+combined_taxo[which(grepl('^NA---|^---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---|^---',combined_taxo))], '^NA---|^---', 'Indet.---')
 
 table_species = table(combined_taxo)
 data = data.frame(ID = names(table_species), count = as.numeric(table_species))

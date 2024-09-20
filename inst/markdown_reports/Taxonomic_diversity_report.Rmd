@@ -270,7 +270,7 @@ if(with_issue > 0){
   combined_taxo = combined_taxo[-which(grepl('---NA$',combined_taxo))]
 }
 # Convert NA in species to Indet.
-combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+combined_taxo[which(grepl('^NA---|^---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---|^---',combined_taxo))], '^NA---|^---', 'Indet.---')
 
 table_species = table(combined_taxo)
 data = data.frame(ID = names(table_species), count = as.numeric(table_species))
@@ -777,7 +777,7 @@ if(with_issue > 0){
   combined_taxo_count = combined_taxo_count[-index_remove]
 }
 # Convert NA in species to Indet.
-combined_taxo[which(grepl('^NA---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---',combined_taxo))], '^NA---', 'Indet.---')
+combined_taxo[which(grepl('^NA---|^---',combined_taxo))] = stringr::str_replace(combined_taxo[which(grepl('^NA---|^---',combined_taxo))], '^NA---|^---', 'Indet.---')
 
 
 data = data.frame(ID = combined_taxo, count = combined_taxo_count, count_all = 1)
