@@ -11,6 +11,7 @@
 #' @param endemic_species_per_region A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #' @param accepted_species_per_region A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
 #' @param tree_species_per_region A data frame detailing the number of accepted trees (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)
+#' @param do_download A flag (TRUE/FALSE) for whether the download buttons are included.
 #' @export
 #'
 create_taxonomic_diversity_report <- function(enriched_report,
@@ -186,6 +187,7 @@ create_geography_report <- function(enriched_report,
                                     endemic_species_per_region = NULL,
                                     accepted_species_per_region = NULL,
                                     tree_species_per_region = NULL,
+                                    do_download = TRUE,
                                     reference_docx = NULL){
   # 1) Setup.
   # A) Check enriched report.
@@ -238,6 +240,7 @@ create_geography_report <- function(enriched_report,
                                       endemic_species_per_region = endemic_species_per_region,
                                       accepted_species_per_region = accepted_species_per_region,
                                       tree_species_per_region = tree_species_per_region,
+                                      do_download = do_download,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -261,6 +264,7 @@ create_geography_report <- function(enriched_report,
                                       endemic_species_per_region = endemic_species_per_region,
                                       accepted_species_per_region = accepted_species_per_region,
                                       tree_species_per_region = tree_species_per_region,
+                                      do_download = do_download,
                                       value_on_fig = value_on_fig),
                         output_file = output_file,
                         output_dir = output_dir,
@@ -286,6 +290,7 @@ create_geography_report <- function(enriched_report,
                                     endemic_species_per_region = endemic_species_per_region,
                                     accepted_species_per_region = accepted_species_per_region,
                                     tree_species_per_region = tree_species_per_region,
+                                    do_download = do_download,
                                     value_on_fig = value_on_fig),
                       output_file = output_file,
                       output_dir = output_dir,

@@ -35,11 +35,12 @@ palette = 'Oranges'
 # collection = 'CUBG'
 # coordinates = c(52.19378853629289,0.1277234065606053)
 # load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# earliest_allowable_record = 1650
+# old_accession_year_codes = c(1000)
 # 
 # native = 'Naturally occurring only'
 # extinct = TRUE
 # doubtful_locations = FALSE
-# 
 # separate_figure_folder = F
 # output_dir = getwd()
 # report_kind = 'interactive'
@@ -47,8 +48,7 @@ palette = 'Oranges'
 # value_on_fig = TRUE
 # min_year = 1970
 # data_type = 'Accessions'
-# earliest_allowable_record = 1650
-# old_accession_year_codes = c(1000)
+
 ```
 
 ```{r, add logo, eval = report_kind == 'interactive'}
@@ -898,7 +898,8 @@ In this section we look at trends across key collections in the living collectio
 We first look at the normalised trends for all key collections combined.
 
 ```{r Trends in Key Collections}
-Endemic_categories = unique(report$endemic)
+# Endemic_categories = unique(report$endemic)
+Endemic_categories = c("Endemic", "Not Endemic" )
 no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_endemic
   no_prov = as.numeric(details[match(Endemic_categories, names(details))])
@@ -906,9 +907,10 @@ no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x
   return(no_prov)
   }))))
 names(no_endemic) = Endemic_categories
-no_endemic = no_endemic[,c(2,1)]
+# no_endemic = no_endemic[,c(2,1)]
 
-native_categories = unique(report$native)
+# native_categories = unique(report$native)
+native_categories = c('Native', "Not Native")
 no_native = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_native
   no_prov = as.numeric(details[match(native_categories, names(details))])
@@ -916,9 +918,10 @@ no_native = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x)
   return(no_prov)
   }))))
 names(no_native) = native_categories
-no_native = no_native[,c(2,1)]
+# no_native = no_native[,c(2,1)]
 
-threatened_categories = unique(report$threatened)
+# threatened_categories = unique(report$threatened)
+threatened_categories = c("Threatened", "Not Threatened")
 no_threatened = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_threatened
   no_prov = as.numeric(details[match(threatened_categories, names(details))])
@@ -926,9 +929,10 @@ no_threatened = data.frame(t(data.frame(lapply(time_series_info_subsets, functio
   return(no_prov)
   }))))
 names(no_threatened) = threatened_categories
-no_threatened = no_threatened[,c(2,1)]
+# no_threatened = no_threatened[,c(2,1)]
 
-Tree_categories = unique(report$tree)
+# Tree_categories = unique(report$tree)
+Tree_categories = c("Tree", "Not Tree" )
 no_tree = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_tree
   no_prov = as.numeric(details[match(Tree_categories, names(details))])
@@ -936,7 +940,7 @@ no_tree = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   return(no_prov)
   }))))
 names(no_tree) = Tree_categories
-no_threatened = no_threatened[,c(2,1)]
+# no_threatened = no_threatened[,c(2,1)]
 
 
 int_endemic_plots = group_trend_plots_pair(years, no_endemic, "Endemic", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE, group_order = c('Endemic', 'Not Endemic') )

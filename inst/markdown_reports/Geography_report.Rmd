@@ -481,7 +481,7 @@ if(report_kind == 'interactive'){
 }
 
  index = seq(0,1,0.01)
-col_rep = rev(color_binary)
+col_rep = color_binary
 colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
 counter = 1:length(index)
 col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
@@ -668,7 +668,7 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
      locations=plot_info_species$code,
      z=as.numeric(plot_info_species$rep_species),
      colorscale=col_scale_rep,
-     reversescale = FALSE,
+     reversescale = F,
      marker=list(line=list(
      width=0.01,color ='black'),
      text = plot_info_species$hover,
@@ -988,7 +988,7 @@ if(report_kind == 'interactive'){
 
 `r if(length(no_rep) > 0){"Further information about the plants from the missing regions in the living collection can be downloaded using the button below."}`
 
-```{r link to download plants from missing regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+```{r link to download plants from missing regions, eval = report_kind == 'interactive' & length(no_rep) > 0 & do_download}
   accepted_wcvp_missing_regions |>
   download_this(
     output_name = "WCVP accepted plants from non-represented regions",
@@ -1455,7 +1455,7 @@ if(report_kind == 'interactive'){
 
 `r if(length(no_rep) > 0){"Further information about the taxa from missing endemic regions can be downloaded using the button below."}`
 
-```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive' & length(no_rep) > 0 & do_download}
   wcvp_wanted |>
   download_this(
     output_name = "WCVP endemic plants from non-represented regions",
@@ -1514,6 +1514,7 @@ threatened_per_region = unlist(lapply(location_data$code, function(code){
 }))
 location_data$threatened_per_region = threatened_per_region
   prop = round(location_data$no_threatened_species / threatened_per_region*100,digits=2)
+  prop[which(prop |> as.numeric() > 100)] = 100 # Set max to 100% even if we actually have more
   prop_true = prop
   prop_true[is.nan(prop_true)] = 'NA'
   prop[prop ==  0] = -0.01
@@ -1940,7 +1941,7 @@ if(report_kind == 'interactive'){
 
 Further information about threatened taxa from non-represented regions can be downloaded using the button below.
 
-```{r link to download plants from missing threatened regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+```{r link to download plants from missing threatened regions, eval = report_kind == 'interactive' & length(no_rep) > 0 & do_download}
   wcvp_wantedo |>
   download_this(
     output_name = "Threatened taxa (matched to WCVP accepted plants) from non-represented threatened regions",
@@ -1994,10 +1995,7 @@ if(!is.null(tree_species_per_region)){
   no_tree_accepted_species_wcvp = tree_species_per_region[,2][match(location_data$code,tree_species_per_region[,1])]
   location_data$no_tree_accepted_wcvp_species = no_tree_accepted_species_wcvp
 }
-```
-```{r, gbeffsb}
 if(!is.null(wcvp)){
-   save(location_data, file = 'location_data.rda')
    ## Which regions do we have 0 endemic items (when species exist in wcvp)
   missing_regions = location_data[which(location_data$no_tree_items == 0 & location_data$no_tree_accepted_wcvp_species !=0), match(c('name', 'code', 'no_tree_accepted_wcvp_species'), names(location_data))]
   wgsrpd3$LEVEL1_COD[match(missing_regions$code,wgsrpd3$LEVEL3_COD)]
@@ -2420,7 +2418,7 @@ if(report_kind == 'interactive'){
 
 Further information about trees from non-represented regions can be downloaded using the button below.
 
-```{r link to download plants from missing tree regions, eval = report_kind == 'interactive' & length(no_rep) > 0}
+```{r link to download plants from missing tree regions, eval = report_kind == 'interactive' & length(no_rep) > 0 & do_download}
   wcvp_wanted |>
   download_this(
     output_name = "Trees (matched to WCVP accepted plants) from non-represented tree regions",

@@ -1735,8 +1735,11 @@ df = df[which(!is.na(df$LossYear)),]
 all_ids =  df$POWO_plant_name_id |> unique()
 existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
-
-column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
+no_more_info = data.frame(1,2,3,4,5,6,7,8,0)
+names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in collection', 'Presence history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
+no_more_info = no_more_info[FALSE,]
+if(length(no_more_ids) > 0){
+  column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
   
   plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
@@ -1764,6 +1767,8 @@ names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in colle
 rownames(no_more_info) = 1:nrow(no_more_info)
 no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
 no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()
+
+}
 
 ```
 
@@ -1897,6 +1902,7 @@ threatened_per_region = unlist(lapply(location_data$code, function(code){
 }))
 location_data$threatened_per_region = threatened_per_region
   prop = round(location_data$no_threatened_species / threatened_per_region*100,digits=2)
+  prop[which(prop |> as.numeric() > 100)] = 100 # Set max to 100% even if we actually have more
   prop_true = prop
   prop_true[is.nan(prop_true)] = 'NA'
   prop[prop ==  0] = -0.01

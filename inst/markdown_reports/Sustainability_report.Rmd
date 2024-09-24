@@ -92,7 +92,7 @@ palette = 'Oranges'
 # native = 'Naturally occurring only'
 # extinct = TRUE
 # doubtful_locations = FALSE
-# 
+
 # separate_figure_folder = F
 # output_dir = getwd()
 # report_kind = 'interactive'
@@ -380,43 +380,81 @@ AA = rep(0, length(ages)) ; AA[match(all$Age, ages)] = all$Freq ; all = AA
 
 #table for cats
 threatened = table(plant_age[existing$threatened == 'Threatened']) |> as.data.frame()
-names(threatened) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+if(nrow(threatened) == 0){
+  threatened = rep(0, length(ages))
+}else{
+  names(threatened) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+  
+}
 
 tree = table(plant_age[existing$tree == 'Tree']) |> as.data.frame()
-names(tree) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+if(nrow(tree) == 0){
+  tree = rep(0, length(ages))
+}else{
+  names(tree) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+}
 
 native = table(plant_age[existing$native == 'Native']) |> as.data.frame()
-names(native) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+if(nrow(native) == 0){
+  native = rep(0, length(ages))
+}else{
+  names(native) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+}
 
 endemic = table(plant_age[existing$endemic == 'Endemic']) |> as.data.frame()
-names(endemic) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+if(nrow(endemic) == 0){
+  endemic = rep(0, length(ages))
+}else{
+  names(endemic) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+}
 
 indet = table(plant_age[grep('0', existing$taxon_type)]) |> as.data.frame()
-names(indet) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+if(nrow(indet) == 0){
+  indet = rep(0, length(ages))
+}else{
+  names(indet) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+}
 
 hort = table(plant_age[grep('5|6', existing$taxon_type)]) |> as.data.frame()
-names(hort) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+if(nrow(hort) == 0){
+  hort = rep(0, length(ages))
+}else{
+  names(hort) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+}
 
 species = table(plant_age[!grepl('0|5|6|2|3|4', existing$taxon_type)]) |> as.data.frame()
-names(species) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+if(nrow(species) == 0){
+  species = rep(0, length(ages))
+}else{
+  names(species) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+}
 
 infra = table(plant_age[!grepl('0|5|6', existing$taxon_type) & grepl('2|3|4', existing$taxon_type)]) |> as.data.frame()
-names(infra) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+if(nrow(infra) == 0){
+  infra = rep(0, length(ages))
+}else{
+  names(infra) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+  
+}
 
 prov_values = unique(report$ProvenanceCode)
 prov = lapply(prov_values, function(x){
- prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
-names(prov) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
-prov
+  prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
+  if(nrow(prov) == 0){ 
+    prov = rep(0, length(ages))
+  }else{
+    names(prov) = c('Age', 'Freq')
+    AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
+  }
+  prov
 }) |> data.frame()
 names(prov) =prov_values
 # combine
@@ -451,44 +489,83 @@ names(all) = c('Age', 'Freq')
 AA = rep(0, length(ages)) ; AA[match(all$Age, ages)] = all$Freq ; all = AA
 
 #table for cats
+#table for cats
 threatened = table(plant_age[existing$threatened == 'Threatened']) |> as.data.frame()
-names(threatened) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+if(nrow(threatened) == 0){
+  threatened = rep(0, length(ages))
+}else{
+  names(threatened) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(threatened$Age, ages)] = threatened$Freq ; threatened = AA
+  
+}
 
 tree = table(plant_age[existing$tree == 'Tree']) |> as.data.frame()
-names(tree) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+if(nrow(tree) == 0){
+  tree = rep(0, length(ages))
+}else{
+  names(tree) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(tree$Age, ages)] = tree$Freq ; tree = AA 
+}
 
 native = table(plant_age[existing$native == 'Native']) |> as.data.frame()
-names(native) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+if(nrow(native) == 0){
+  native = rep(0, length(ages))
+}else{
+  names(native) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(native$Age, ages)] = native$Freq ; native = AA
+}
 
 endemic = table(plant_age[existing$endemic == 'Endemic']) |> as.data.frame()
-names(endemic) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+if(nrow(endemic) == 0){
+  endemic = rep(0, length(ages))
+}else{
+  names(endemic) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(endemic$Age, ages)] = endemic$Freq ; endemic = AA
+}
 
 indet = table(plant_age[grep('0', existing$taxon_type)]) |> as.data.frame()
-names(indet) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+if(nrow(indet) == 0){
+  indet = rep(0, length(ages))
+}else{
+  names(indet) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(indet$Age, ages)] = indet$Freq ; indet = AA
+}
 
 hort = table(plant_age[grep('5|6', existing$taxon_type)]) |> as.data.frame()
-names(hort) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+if(nrow(hort) == 0){
+  hort = rep(0, length(ages))
+}else{
+  names(hort) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(hort$Age, ages)] = hort$Freq ; hort = AA
+}
 
 species = table(plant_age[!grepl('0|5|6|2|3|4', existing$taxon_type)]) |> as.data.frame()
-names(species) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+if(nrow(species) == 0){
+  species = rep(0, length(ages))
+}else{
+  names(species) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(species$Age, ages)] = species$Freq ; species = AA
+}
 
 infra = table(plant_age[!grepl('0|5|6', existing$taxon_type) & grepl('2|3|4', existing$taxon_type)]) |> as.data.frame()
-names(infra) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+if(nrow(infra) == 0){
+  infra = rep(0, length(ages))
+}else{
+  names(infra) = c('Age', 'Freq')
+  AA = rep(0, length(ages)) ; AA[match(infra$Age, ages)] = infra$Freq ; infra = AA
+  
+}
 
 prov_values = unique(report$ProvenanceCode)
 prov = lapply(prov_values, function(x){
- prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
-names(prov) = c('Age', 'Freq')
-AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
-prov
+  prov = table(plant_age[existing$ProvenanceCode == x]) |> as.data.frame()
+  if(nrow(prov) == 0){ 
+    prov = rep(0, length(ages))
+  }else{
+    names(prov) = c('Age', 'Freq')
+    AA = rep(0, length(ages)) ; AA[match(prov$Age, ages)] = prov$Freq ; prov = AA
+  }
+  prov
 }) |> data.frame()
 names(prov) =prov_values
 # combine
@@ -663,6 +740,7 @@ data_to_analyse = wanted_data
 
 }
 #### (END) Setup data for survival analysis ------
+
 median_vals = list() ; surv_percent_vals = list()
 ### Run survival fits across groups that we care about ------
 fit_all = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_to_analyse)
@@ -671,6 +749,7 @@ surv_percent_vals$items = fit_all |> gtsummary::tbl_survfit(times = c(5,10,20))
 
 fit_all$surv = fit_all$surv*100
 fit_all$hover = paste0('Time: ',fit_all$time |> round(2),'<br>Items survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
+
 data_acc = data_to_analyse
 data_acc$ItemStatusDate[which(data_acc$ItemStatusType == 'Existing')] = '3000-01-01'
 data_acc = data_acc[order(data_acc$ItemStatusDate,decreasing = T),]
@@ -683,51 +762,71 @@ surv_percent_vals$accessions = fit_accessions |> gtsummary::tbl_survfit(times = 
 fit_accessions$surv = fit_accessions$surv*100
 fit_accessions$hover = paste0('Time: ',fit_accessions$time |> round(2),'<br>Accessions survival Probability: ', (fit_accessions$surv) |> round(2), '% <br> 95% conf interval: (',(fit_accessions$lower*100) |> round(2),  '%, ', (fit_accessions$upper*100) |> round(2),'%)')
 
-fit_species = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(!grepl('0|2|3|4|5|6',data_to_analyse$taxon_type)),])
+d = data_to_analyse[which(!grepl('0|2|3|4|5|6',data_to_analyse$taxon_type)),]
+if(nrow(d) > 0){
+  fit_species = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = d)
 median_vals$species = fit_species |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$species = fit_species |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_species$surv = fit_species$surv*100
 fit_species$hover = paste0('Time: ',fit_species$time|> round(2),'<br>Species survival Probability: ', (fit_species$surv) |> round(2), '% <br> 95% conf interval: (',(fit_species$lower*100) |> round(2),  '%, ', (fit_species$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(!grepl('0|5|6', data_to_analyse$taxon_type) & grepl('2|3|4', data_to_analyse$taxon_type)),]
+if(nrow(d) > 0){
 fit_infra = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(!grepl('0|5|6', data_to_analyse$taxon_type) & grepl('2|3|4', data_to_analyse$taxon_type)),])
+                              data = d)
 median_vals$infra = fit_infra |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$infra = fit_infra |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_infra$surv = fit_infra$surv*100
 fit_infra$hover = paste0('Time: ',fit_infra$time|> round(2),'<br>Infraspecific survival Probability: ', (fit_infra$surv) |> round(2), '% <br> 95% conf interval: (',(fit_infra$lower*100) |> round(2),  '%, ', (fit_infra$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[grep('5|6',data_to_analyse$taxon_type),]
+if(nrow(d) > 0){
 fit_hort = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[grep('5|6',data_to_analyse$taxon_type),])
+                              data = d)
 median_vals$hort = fit_hort |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$hort = fit_hort |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_hort$surv = fit_hort$surv*100
 fit_hort$hover = paste0('Time: ',fit_hort$time|> round(2),'<br>Horticultral survival Probability: ', (fit_hort$surv) |> round(2), '% <br> 95% conf interval: (',(fit_hort$lower*100) |> round(2),  '%, ', (fit_hort$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[grep('0',data_to_analyse$taxon_type),]
+if(nrow(d) > 0){
 fit_indet = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[grep('0',data_to_analyse$taxon_type),])
+                              data = d)
 median_vals$indet = fit_indet |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$indet = fit_indet |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_indet$surv = fit_indet$surv*100
 fit_indet$hover = paste0('Time: ',fit_indet$time|> round(2),'<br>Indeterminate survival Probability: ', (fit_indet$surv) |> round(2), '% <br> 95% conf interval: (',(fit_indet$lower*100) |> round(2),  '%, ', (fit_indet$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Garden'),]
+if(nrow(d) > 0){
 fit_garden = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Garden'),])
+                              data = d)
 median_vals$garden = fit_garden |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$garden = fit_garden |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_garden$surv = fit_garden$surv*100
 fit_garden$hover = paste0('Time: ',fit_garden$time|> round(2),'<br>Garden origin survival Probability: ', (fit_garden$surv) |> round(2), '% <br> 95% conf interval: (',(fit_garden$lower*100) |> round(2),  '%, ', (fit_garden$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild'),]
+if(nrow(d) > 0){
 fit_wild = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild'),])
+                              data = d)
 median_vals$wild = fit_wild |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$wild = fit_wild |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_wild$surv = fit_wild$surv*100
 fit_wild$hover = paste0('Time: ',fit_wild$time|> round(2),'<br>Wild origin survival Probability: ', (fit_wild$surv) |> round(2), '% <br> 95% conf interval: (',(fit_wild$lower*100) |> round(2),  '%, ', (fit_wild$upper*100) |> round(2),'%)')
+}
 
-if("Wild-derived" %in% data_to_analyse$ProvenanceCode){
+
+d = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild-derived'),]
+if(nrow(d) > 0){
   fit_z = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild-derived'),])
+                              data = )
   median_vals$z = fit_z |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
     surv_percent_vals$z = fit_z |> gtsummary::tbl_survfit(times = c(5,10,20))
 
@@ -735,9 +834,10 @@ fit_z$surv = fit_z$surv*100
 fit_z$hover = paste0('Time: ',fit_z$time|> round(2),'<br>Wild-derived origin survival Probability: ', (fit_z$surv) |> round(2), '% <br> 95% conf interval: (',(fit_z$lower*100) |> round(2),  '%, ', (fit_z$upper*100) |> round(2),'%)')
 }
 
-if('Unknown' %in% data_to_analyse$ProvenanceCode){
+d = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Unknown'),]
+if(nrow(d) > 0){
   fit_unknown = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Unknown'),])
+                              data = d)
   median_vals$unknown = fit_unknown |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
   surv_percent_vals$unknown = fit_unknown |> gtsummary::tbl_survfit(times = c(5,10,20))
 
@@ -745,34 +845,45 @@ fit_unknown$surv = fit_unknown$surv*100
 fit_unknown$hover = paste0('Time: ',fit_unknown$time|> round(2),'<br>Unknown origin survival Probability: ', (fit_unknown$surv) |> round(2), '% <br> 95% conf interval: (',(fit_unknown$lower*100) |> round(2),  '%, ', (fit_unknown$upper*100) |> round(2),'%)')
 }
 
+d = data_to_analyse[which(data_to_analyse$native == 'Native'),]
+if(nrow(d) > 0){
 fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                data = data_to_analyse[which(data_to_analyse$native == 'Native'),])
+                                data = d)
 median_vals$native = fit_native |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$native = fit_native |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_native$surv = fit_native$surv*100
 fit_native$hover = paste0('Time: ',fit_native$time|> round(2),'<br>Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),]
+if(nrow(d) > 0){
 fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                 data = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),])
+                                 data = d)
 median_vals$endemic = fit_endemic |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$endemic = fit_endemic |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_endemic$surv = fit_endemic$surv*100
 fit_endemic$hover = paste0('Time: ',fit_endemic$time|> round(2),'<br>Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),]
+if(nrow(d) > 0){
 fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                    data = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),])
+                                    data = d)
 median_vals$threatened = fit_threatened |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$threatened = fit_threatened |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_threatened$surv = fit_threatened$surv*100
 fit_threatened$hover = paste0('Time: ',fit_threatened$time|> round(2),'<br>Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
+}
 
+d = data_to_analyse[which(data_to_analyse$tree == 'Tree'),]
+if(nrow(d) > 0){
 fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$tree == 'Tree'),])
+                              data = d)
 median_vals$tree = fit_tree |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
 surv_percent_vals$tree = fit_tree |> gtsummary::tbl_survfit(times = c(5,10,20))
 fit_tree$surv = fit_tree$surv*100
 fit_tree$hover = paste0('Time: ',fit_tree$time|> round(2),'<br>Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
-
+}
 
 
 
@@ -837,15 +948,20 @@ fig
 colors = scales::brewer_pal(palette = palette, direction = 1)(4)
 
 fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_species$time, y = fit_species$surv, name = 'Species', hoverinfo = "text",  hovertext = fit_species$hover, line = list(color = colors[1]))
-fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+if(exists("fit_infra")){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_infra$time, y = fit_infra$surv, name = 'Infraspecific', hoverinfo = "text",  hovertext = fit_infra$hover, line = list(color = colors[2]))
+}
 
+if(exists("fit_hort")){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_hort$time, y = fit_hort$surv, name = 'Horticultral', hoverinfo = "text",  hovertext = fit_hort$hover, line = list(color = colors[3]))
+}
 
+if(exists("fit_indet")){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_indet$time, y = fit_indet$surv, name = 'Indeterminate', hoverinfo = "text",  hovertext = fit_indet$hover, line = list(color = colors[4]))
-
+}
 
 fig <- fig |> layout(title = "",
                      hovermode = 'xt unified',
@@ -877,10 +993,17 @@ fig
 colors = interactive_colour(4)
 names(colors) = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
 
-fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_garden$time, y = fit_garden$surv, name = 'Garden', hoverinfo = "text",  hovertext = fit_garden$hover, line = list(color = colors[['Garden']]) )
+fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines')
 
+if(exists("fit_garden")){
+fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+            x = fit_garden$time, y = fit_garden$surv, name = 'Wild', hoverinfo = "text",  hovertext = fit_garden$hover, line = list(color = colors[['Garden']]))
+}
+
+if(exists("fit_wild")){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_wild$time, y = fit_wild$surv, name = 'Wild', hoverinfo = "text",  hovertext = fit_wild$hover, line = list(color = colors[['Wild']]))
+}
 
 if(exists('fit_z')){
   fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
@@ -921,17 +1044,26 @@ fig
 colors = scales::brewer_pal(palette = palette, direction = 1)(5)
 
 fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'All', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]), visable = FALSE )
+
+if(exists('fit_native')){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_native$time, y = fit_native$surv, name = 'Native', hoverinfo = "text",  hovertext = fit_native$hover, line = list(color = colors[2]))
+}
 
+if(exists('fit_endemic')){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_endemic$time, y = fit_endemic$surv, name = 'Endemic', hoverinfo = "text",  hovertext = fit_endemic$hover, line = list(color = colors[3]))
+}
 
+if(exists('fit_threatened')){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_threatened$time, y = fit_threatened$surv, name = 'Threatened', hoverinfo = "text",  hovertext = fit_threatened$hover, line = list(color = colors[4]))
+}
 
+if(exists('fit_tree')){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_tree$time, y = fit_tree$surv, name = 'Tree', hoverinfo = "text",  hovertext = fit_tree$hover, line = list(color = colors[5]))
+}
 
 fig <- fig |> layout(title = "",
                      hovermode = 'xt unified',

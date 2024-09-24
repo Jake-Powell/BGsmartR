@@ -94,6 +94,9 @@ palette = 'Oranges'
 # join_bigger_than = 4
 # export_data  =T
 # save_excel = T
+# native = 'Naturally occurring only'
+# extinct = TRUE
+# doubtful_locations = FALSE
 bru_codes = NA
 ```
 
@@ -918,6 +921,9 @@ names(Local_accession_taxa) = c("Number of Accessions in LC", "Number of species
 ## Create number of taxa against number of accessions for each key collection and all. 
 counter <- 1
 figs_acc = lapply(accession_taxa_all_type, function(accession_taxa){
+  if(nrow(accession_taxa) == 0){
+    return(NULL)
+  }
   accession_taxa$text = paste0(accession_taxa$no_species, ' Taxa in the LC have ', accession_taxa$total_accessions, ' accessions')
 fig <- plot_ly(accession_taxa,
                x = ~total_accessions,
@@ -1044,6 +1050,9 @@ names(Local_item_taxa) = c("Number of items in LC", "Number of species in LC", "
 ## Create number of taxa against number of items for each key collection and all. 
 counter <- 1
 figs_items = lapply(item_taxa_all_type, function(item_taxa){
+  if(nrow(item_taxa) == 0){
+    return(NULL)
+  }
   item_taxa$text = paste0(item_taxa$no_species, ' Taxa in the LC have ', item_taxa$total_items, ' items')
 fig <- plot_ly(item_taxa,
                x = ~total_items,
@@ -1369,6 +1378,7 @@ names(Local_item_taxa) = c("Number of items in LC", "Number of species in LC", "
 ## Create number of taxa against number of items for each key collection and all. 
 counter <- 1
 figs_items = lapply(item_taxa_all_type, function(item_taxa){
+  if(nrow(item_taxa) == 0){return(NULL)}
   item_taxa$text = paste0(item_taxa$no_species, ' Taxa in the LC have ', item_taxa$total_items, ' items')
 fig <- plot_ly(item_taxa,
                x = ~total_items,
@@ -1575,6 +1585,9 @@ accession_size_info = report |> dplyr::group_by(AccNoFull) |>
                    )
 columns = c('all','threatened','endemic', 'native','tree')
 items_per_acc_over_time = lapply(columns, function(column){
+  if(all(accession_size_info[[column]] == 0)){
+    return(NULL)
+  }
   item_dists = lapply(years, function(year){
     item_per_access = accession_size_info[[column]][accession_size_info$year == year]
     item_per_access = item_per_access[which(item_per_access !=0)]
@@ -1601,6 +1614,7 @@ names(items_per_acc_over_time) = columns
 figs = lapply(columns, function(column){
   d = items_per_acc_over_time[[column]]
   d$no_accessions = as.numeric(d$no_accessions)
+  if(d$no_accessions |> length() == 0){return(NULL)}
   d$total_items = factor(d$total_items, levels = c( "1",   "2",   "3", "4",  "> 4" ))
   d$text = paste0(round(d$no_accessions,digits = 2), ' accessions have ', d$total_items, ' items')
 

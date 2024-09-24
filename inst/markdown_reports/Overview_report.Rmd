@@ -1330,7 +1330,8 @@ int_plots$proportion
 #### For key collections 
 
 ```{r, Change over number time key-collections together (Trends module), fig.fullwidth=TRUE, fig.dim = c(10, 4)}
-Endemic_categories = unique(interest$endemic)
+# Endemic_categories = unique(interest$endemic)
+Endemic_categories = c("Endemic", "Not Endemic")   
 no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_endemic
   no_prov = as.numeric(details[match(Endemic_categories, names(details))])
@@ -1338,9 +1339,10 @@ no_endemic = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x
   return(no_prov)
   }))))
 names(no_endemic) = Endemic_categories
-no_endemic = no_endemic[,c(2,1)]
+# no_endemic = no_endemic[,c(2,1)]
 
-native_categories = unique(interest$native)
+# native_categories = unique(interest$native)
+native_categories = c("Native", "Not Native")
 no_native = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_native
   no_prov = as.numeric(details[match(native_categories, names(details))])
@@ -1348,9 +1350,10 @@ no_native = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x)
   return(no_prov)
   }))))
 names(no_native) = native_categories
-no_native = no_native[,c(2,1)]
+# no_native = no_native[,c(2,1)]
 
-threatened_categories = unique(interest$threatened)
+# threatened_categories = unique(interest$threatened)
+threatened_categories = c("Threatened", "Not Threatened")
 no_threatened = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_threatened
   no_prov = as.numeric(details[match(threatened_categories, names(details))])
@@ -1358,9 +1361,10 @@ no_threatened = data.frame(t(data.frame(lapply(time_series_info_subsets, functio
   return(no_prov)
   }))))
 names(no_threatened) = threatened_categories
-no_threatened = no_threatened[,c(2,1)]
+# no_threatened = no_threatened[,c(2,1)]
 
-Tree_categories = unique(interest$tree)
+# Tree_categories = unique(interest$tree)
+Tree_categories = c("Tree", "Not Tree" )
 no_tree = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_tree
   no_prov = as.numeric(details[match(Tree_categories, names(details))])
@@ -1368,7 +1372,7 @@ no_tree = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   return(no_prov)
   }))))
 names(no_tree) = Tree_categories
-no_threatened = no_threatened[,c(2,1)]
+# no_threatened = no_threatened[,c(2,1)]
 
 combined_data = data.frame(Threatened = no_threatened$Threatened,
                            Endemic = no_endemic$Endemic,
@@ -2706,40 +2710,61 @@ fit_all = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1, data = data_
 fit_all$surv = fit_all$surv*100
 fit_all$hover = paste0('Time: ',fit_all$time |> round(2),'<br>Collection survival Probability: ', (fit_all$surv) |> round(2), '% <br> 95% conf interval: (',(fit_all$lower*100) |> round(2),  '%, ', (fit_all$upper*100) |> round(2),'%)')
 
-fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                data = data_to_analyse[which(data_to_analyse$native == 'Native'),])
+d = data_to_analyse[which(data_to_analyse$native == 'Native'),]
+if(nrow(d) > 0){
+  fit_native= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                data = d)
 fit_native$surv = fit_native$surv*100
 fit_native$hover = paste0('Time: ',fit_native$time|> round(2),'<br>Native survival Probability: ', (fit_native$surv) |> round(2), '% <br> 95% conf interval: (',(fit_native$lower*100) |> round(2),  '%, ', (fit_native$upper*100) |> round(2),'%)')
+}
 
-fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                 data = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),])
+d = data_to_analyse[which(data_to_analyse$endemic == 'Endemic'),]
+if(nrow(d) > 0){
+  fit_endemic= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                 data = d)
 fit_endemic$surv = fit_endemic$surv*100
 fit_endemic$hover = paste0('Time: ',fit_endemic$time|> round(2),'<br>Endemic survival Probability: ', (fit_endemic$surv) |> round(2), '% <br> 95% conf interval: (',(fit_endemic$lower*100) |> round(2),  '%, ', (fit_endemic$upper*100) |> round(2),'%)')
+}
 
-fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                                    data = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),])
+d = data_to_analyse[which(data_to_analyse$threatened == 'Threatened'),]
+if(nrow(d) > 0){
+  fit_threatened= ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                                    data = d)
 fit_threatened$surv = fit_threatened$surv*100
 fit_threatened$hover = paste0('Time: ',fit_threatened$time|> round(2),'<br>Threatened survival Probability: ', (fit_threatened$surv) |> round(2), '% <br> 95% conf interval: (',(fit_threatened$lower*100) |> round(2),  '%, ', (fit_threatened$upper*100) |> round(2),'%)')
+  
+}
 
-fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = data_to_analyse[which(data_to_analyse$tree == 'Tree'),])
+d = data_to_analyse[which(data_to_analyse$tree == 'Tree'),]
+if(nrow(d) > 0){
+  fit_tree = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
+                              data = d)
 fit_tree$surv = fit_tree$surv*100
 fit_tree$hover = paste0('Time: ',fit_tree$time|> round(2),'<br>Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
+}
 
 colors = scales::brewer_pal(palette = palette, direction = 1)(5)
 
 fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'All', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]) )
-fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+if(exists('fit_native')){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_native$time, y = fit_native$surv, name = 'Native', hoverinfo = "text",  hovertext = fit_native$hover, line = list(color = colors[2]))
+}
 
-fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+if(exists('fit_endemic')){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_endemic$time, y = fit_endemic$surv, name = 'Endemic', hoverinfo = "text",  hovertext = fit_endemic$hover, line = list(color = colors[3]))
+}
 
-fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
+if(exists('fit_threatened')){
+  fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_threatened$time, y = fit_threatened$surv, name = 'Threatened', hoverinfo = "text",  hovertext = fit_threatened$hover, line = list(color = colors[4]))
+}
 
+if(exists('fit_tree')){
 fig = fig |> add_trace(inherit = FALSE, type = 'scatter', mode = 'lines',
             x = fit_tree$time, y = fit_tree$surv, name = 'Tree', hoverinfo = "text",  hovertext = fit_tree$hover, line = list(color = colors[5]))
+}
 
 fig <- fig |> layout(title = "",
                      hovermode = 'xt unified',
