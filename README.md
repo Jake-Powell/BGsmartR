@@ -20,8 +20,8 @@ devtools::install_github("Jake-Powell/BGsmartR")
 ```
 
 Note that the current version of BGsmartR relies on old versions
-`gtsummary` and `downloadthis` these can be installed via the method
-below.
+`gtsummary` and `downloadthis` (for report creating) these can be
+installed via the method below.
 
 ``` r
 devtools::install_version(  
