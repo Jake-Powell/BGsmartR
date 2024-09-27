@@ -369,8 +369,7 @@ rm(endemic)
 
 #Extract endemic information from report
 tree = rep('Not Tree', nrow(report))
-tree_index = which(report$Enrich_is_tree)
-tree[tree_index] = 'Tree'
+tree[report$Enrich_is_tree] = 'Tree'
 report$tree = tree
 rm(tree)
 
@@ -556,7 +555,7 @@ interest = report[report$ItemStatusType == 'Existing',]
 
 interest = interest[!interest$taxon_type |> is.na(),]
 tree = rep('Not tree',nrow(interest))
-tree[which(interest$Enrich_is_tree)] = 'Tree'
+tree[which(interest$Enrich_is_tree |> as.logical())] = 'Tree'
 interest$tree = tree
 type  = rep(NA, nrow(interest))
 type[grepl('1', interest$taxon_type)] = 'Species'

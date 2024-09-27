@@ -293,8 +293,7 @@ rm(nativeo)
 
 # Extract tree
 tree = rep('Not Tree', nrow(report))
-tree_index = which(report$Enrich_is_tree)
-tree[tree_index] = 'Tree'
+tree[report$Enrich_is_tree] = 'Tree'
 report$tree = tree
 rm(tree)
 

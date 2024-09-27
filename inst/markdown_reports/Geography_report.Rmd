@@ -81,9 +81,9 @@ palette = 'Oranges'
 # load('/Users/jakepowell/Cambridge/Enriched_reports_Jake/CUBG_June2023_enriched_report.rda')
 # coordinates = c(52.193403, 0.128305)
 # collection = 'CUBG'
-# separate_figure_folder = FALSE
 # output_dir = '/Users/jakepowell/Desktop'
 # load('/Users/jakepowell/Cambridge/Geography Module/wgsrpd3.rda')
+# separate_figure_folder = FALSE
 # report_kind = 'interactive'
 # native = 'Naturally occurring only'
 # extinct = TRUE
@@ -304,7 +304,7 @@ no_endemic = unlist(lapply(All_locations, function(x){
 }))
 
 #Get the number of trees for each location.
-tree_info = wanted_info[which(wanted_info$Enrich_is_tree),]
+tree_info = wanted_info[which(wanted_info$Enrich_is_tree |> as.logical()),]
 no_tree = unlist(lapply(All_locations, function(x){
   sum(grepl(x, tree_info$geography_codes))
 }))
@@ -1962,7 +1962,7 @@ Further information about threatened taxa from non-represented regions can be do
 ## Trees
 
 ```{r Tree Species map -  data}
-tree = enriched_report[which(enriched_report$Enrich_is_tree),]
+tree = enriched_report[which(enriched_report$Enrich_is_tree |> as.logical()),]
 # Get all BRU level 3 location codes.
 All_locations = wgsrpd3$LEVEL3_COD
 

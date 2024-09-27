@@ -826,7 +826,7 @@ fit_wild$hover = paste0('Time: ',fit_wild$time|> round(2),'<br>Wild origin survi
 d = data_to_analyse[which(data_to_analyse$ProvenanceCode == 'Wild-derived'),]
 if(nrow(d) > 0){
   fit_z = ggsurvfit::survfit2(survival::Surv(time, Alive_dead) ~ 1,
-                              data = )
+                              data = d)
   median_vals$z = fit_z |> gtsummary::tbl_survfit(probs = c(0.5),  label_header = "**Median survival (95% CI)**")
     surv_percent_vals$z = fit_z |> gtsummary::tbl_survfit(times = c(5,10,20))
 
@@ -1286,10 +1286,11 @@ df = report[!is.na(report$POWO_plant_name_id),]
 all_ids =  df$POWO_plant_name_id |> unique()
 existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
-
-column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
+do_no_more_ids = TRUE
+if(length(no_more_ids)> 0){
+  column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
-  
+  x <<- x
   plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
   info = df[df$POWO_plant_name_id == x, column_interest]
   last_seen = max(info$LossYear) ; first_seen = min(info$AccYear)
@@ -1315,13 +1316,18 @@ names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 
 rownames(no_more_info) = 1:nrow(no_more_info)
 no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
 no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()
+}
+if(length(no_more_ids) == 0){no_more_info = data.frame() ; do_no_more_ids = FALSE}
+
 ```
 
 :::: {.blackbox data-latex=""}
 
-To download all plants (found within POWO) that are no longer found in the collection together with their history in the collection use the button below
+`r if(do_no_more_ids){"To download all plants (found within POWO) that are no longer found in the collection together with their history in the collection use the button below"}`
 
-```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive'}
+`r if(!do_no_more_ids){"All plants that are found in the collection. "}`
+
+```{r link to download plants from missing endemic regions, eval = report_kind == 'interactive' & do_no_more_ids}
   no_more_info |>
   download_this(
     output_name = "collection_history_of_plants_no_longer_present_WCVP",

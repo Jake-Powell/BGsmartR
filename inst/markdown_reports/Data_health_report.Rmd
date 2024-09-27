@@ -1006,7 +1006,7 @@ Below we show the proportion of the collection that are in the categories above.
 ```{r, percent enrich info}
 interest = report[report$ItemStatusType == 'Existing',]
 tree = rep('Not tree',nrow(interest))
-tree[which(interest$Enrich_is_tree)] = 'Tree'
+tree[which(interest$Enrich_is_tree |> as.logical())] = 'Tree'
 interest$tree = tree
 type  = rep(NA, nrow(interest))
 type[grepl('1', interest$taxon_type)] = 'Species'

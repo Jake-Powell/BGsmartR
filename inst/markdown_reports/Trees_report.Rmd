@@ -597,11 +597,13 @@ rm(endemic)
 
 #Extract endemic information from enriched_report
 tree = rep('Not tree', nrow(enriched_report))
-tree_index = which(enriched_report$Enrich_is_tree)
-tree[tree_index] = 'Tree'
+tree[report$Enrich_is_tree] = 'Tree'
 enriched_report$tree = tree
 rm(tree)
 
+if(sum(tree == 'Tree') == 0){
+  stop('You have no trees.')
+}
 # Extract threatened. 
 threat_cat = c('VU','EN','CR','EW','EX')
 threatened = rep('Not Threatened', nrow(enriched_report))
@@ -670,7 +672,7 @@ A taxon in the collection is classed as a **tree** if it's genus species pair is
 <!-- This document considers locations that are: `r location_type_text`  -->
  
 ```{r get tree only information}
-Tree = enriched_report[which(enriched_report$Enrich_is_tree),]
+Tree = enriched_report[which(enriched_report$Enrich_is_tree |> as.logical()),]
 
 # Tree must match to POWO so no naming issues.
 Tree_existing = Tree[Tree$ItemStatusType == 'Existing',] 
