@@ -597,13 +597,13 @@ rm(endemic)
 
 #Extract endemic information from enriched_report
 tree = rep('Not tree', nrow(enriched_report))
-tree[report$Enrich_is_tree] = 'Tree'
+tree[enriched_report$Enrich_is_tree] = 'Tree'
 enriched_report$tree = tree
-rm(tree)
-
 if(sum(tree == 'Tree') == 0){
   stop('You have no trees.')
 }
+rm(tree)
+
 # Extract threatened. 
 threat_cat = c('VU','EN','CR','EW','EX')
 threatened = rep('Not Threatened', nrow(enriched_report))
@@ -1615,6 +1615,11 @@ Tree_accessions_per_taxa_table_simp = table(Tree_accessions_per_taxa_simp)
 
 duplication_items = data.frame(Tree_items_per_taxa_table_simp)
 names(duplication_items) = c('Duplication', 'Items')
+if(nrow(duplication_items) != 5){
+  no_gap = data.frame(Duplication = c(1,2,3,4,'>4'), Items = rep(0,5))
+no_gap$Items[match(duplication_items$Duplication|> as.vector(), no_gap$Duplication)] = duplication_items$Items
+duplication_items = no_gap
+}
 
 duplication_items$percent = paste0(round(duplication_items$Items / sum(duplication_items$Items)*100,digits = 1),'%')
 duplication_items <- duplication_items %>% 
@@ -1625,6 +1630,11 @@ duplication_items <- duplication_items %>%
 
 duplication_accessions = data.frame(Tree_accessions_per_taxa_table_simp)
 names(duplication_accessions) = c('Duplication', 'Accessions')
+if(nrow(duplication_accessions) != 5){
+  no_gap = data.frame(Duplication = c(1,2,3,4,'>4'), Accessions = rep(0,5))
+no_gap$Accessions[match(duplication_accessions$Duplication|> as.vector(), no_gap$Duplication)] = duplication_accessions$Accessions
+duplication_accessions = no_gap
+}
 # duplication_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(duplication_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
 duplication_accessions$percent = paste0(round(duplication_accessions$Accessions / sum(duplication_accessions$Accessions)*100,digits = 1),'%')
 duplication_accessions <- duplication_accessions %>% 
