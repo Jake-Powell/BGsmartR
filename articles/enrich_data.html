@@ -334,7 +334,7 @@ obtain a key/token to be able to use the API (<a href="https://apiv3.iucnredlist
 <span></span>
 <span><span class="co"># 2) Use `rl_sp` function to get all records from red list</span></span>
 <span><span class="co"># (code taken from the documentation)</span></span>
-<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">rredlist</span><span class="fu">::</span><span class="fu"><a href="https://docs.ropensci.org/rredlist/reference/rl_sp.html" class="external-link">rl_sp</a></span><span class="op">(</span>all <span class="op">=</span> <span class="cn">TRUE</span>, key<span class="op">=</span><span class="va">key</span><span class="op">)</span></span>
+<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">rredlist</span><span class="fu">::</span><span class="fu">rl_sp</span><span class="op">(</span>all <span class="op">=</span> <span class="cn">TRUE</span>, key<span class="op">=</span><span class="va">key</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"[["</span>, <span class="fl">1</span>, <span class="st">"count"</span><span class="op">)</span></span>
 <span><span class="va">all_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"[["</span>, <span class="st">"result"</span><span class="op">)</span><span class="op">)</span></span>
@@ -354,7 +354,7 @@ red list’s website, such as the <code>category</code>,
 does not include information such as the published_year,
 assessment_date, criteria, etc.</p>
 <p>If this additional information is wanted loop over all the taxonomic
-names found above with the function <code><a href="https://docs.ropensci.org/rredlist/reference/rl_search.html" class="external-link">rredlist::rl_search()</a></code>
+names found above with the function <code>rredlist::rl_search()</code>
 which will retrieve extra information. Note that this approach is very
 slow (If there is a better way to do this please let us know).</p>
 <p>To enrich to only IUCN red list information we can run</p>
