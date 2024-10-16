@@ -103,7 +103,6 @@ palette = 'Oranges'
 # native = 'Naturally occurring only'
 # extinct = TRUE
 # doubtful_locations = FALSE
-# output_dir =  '/Users/jakepowell/Desktop/module_native_example'
 ```
 
 ```{r, add logo, eval = report_kind == 'interactive'}
@@ -2869,13 +2868,20 @@ if(report_kind == 'interactive'){
 
 ```
 
-:::: {.blackbox data-latex=""}
-
-For further information you can download the endemic/threatened native plants using the button below. 
-
-```{r link to download  threatened/endemic native plants, eval = report_kind == 'interactive'}
+```{r check for data to save}
 data_save = data
-data_save = data_save[data_save$endemic | data_save$threatened,]
+data_save = data_save[which(data_save$endemic | data_save$threatened),]
+
+do_data_save = nrow(data_save)>0
+```
+
+
+`r if(do_data_save){':::: {.blackbox data-latex=""}'}`
+
+`r if(do_data_save){"For further information you can download the endemic/threatened native plants using the button below."}`
+
+```{r link to download  threatened/endemic native plants, eval = report_kind == 'interactive' & do_data_save}
+
 data_save = data_save[order(data_save$taxa),]
 
 endemic_val = rep('No', nrow(data_save))
@@ -2888,6 +2894,7 @@ data_save$threatened = threat_val
 data_save = data_save[,c(6,2:5)]
 names(data_save) = c("Accession + Item Number", "Taxonomic Name", "ItemStatusDate","Is endemic?", "Is Threatened?")
 
+
 data_save |>
   download_this(
     output_name = "Endemic or threatened Native plants in the LC",
@@ -2899,9 +2906,13 @@ data_save |>
     class = "hvr-sweep-to-left",
     self_contained =  T
   )
+
 ```
 
-::::
+`r if(do_data_save){'::::'}`
+
+
+
 ***
 
 #### Threatened native plants by risk level
@@ -4151,3 +4162,4 @@ fig2
 ***
 
 ```{r rm(data_formatted)}
+```
