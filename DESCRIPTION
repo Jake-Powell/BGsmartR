@@ -23,7 +23,6 @@ LazyData: true
 Imports: 
     pbapply,
     stringr,
-    taxize,
     dplyr,
     utils,
     rlang,
