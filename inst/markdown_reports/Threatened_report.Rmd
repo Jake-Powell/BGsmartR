@@ -685,8 +685,18 @@ A taxa in the collection is classed as **threatened** if it is classified as eit
 
 In analyses over time we use the current version of IUCN's red list retrospectively on the historic data. 
  
-```{r get threatened only information}
+```{r check for threatened, warning=NA}
 threatened = enriched_report[which(enriched_report$threatened == 'Threatened'),]
+no_threatened = nrow(threatened) == 0
+if(no_threatened){
+  warning('There are no threatened plants!')
+}
+```
+
+`r if(no_threatened){"There are no threatened plants."}`
+`r if(no_threatened){knitr::knit_exit()}`
+
+```{r,  get threatened only information}
 max_year = format(Sys.Date(), '%Y') |> as.numeric()
 
 # threatened must match to POWO so no naming issues.
@@ -1731,11 +1741,11 @@ fig
 
 df = report[which(!is.na(report$POWO_plant_name_id)),]
 df = df[which(df$threatened == "Threatened"),]
-df = df[which(!is.na(df$LossYear)),]
+# df = df[which(!is.na(df$LossYear)),]
 
 
 all_ids =  df$POWO_plant_name_id |> unique()
-existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
+existing_ids = df$POWO_plant_name_id[which(df$ItemStatusType == 'Existing')] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
 no_more_info = data.frame(1,2,3,4,5,6,7,8,0)
 names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in collection', 'Presence history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
@@ -1743,10 +1753,9 @@ no_more_info = no_more_info[FALSE,]
 if(length(no_more_ids) > 0){
   column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
-  
   plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
   info = df[df$POWO_plant_name_id == x, column_interest]
-  last_seen = max(info$LossYear) ; first_seen = min(info$AccYear)
+  last_seen = max(info$LossYear, na.rm = T) ; first_seen = min(info$AccYear,na.rm = T)
   all_years = first_seen:last_seen
   seen_years = apply(info, 1, function(x){x[1]:x[2]}) |> unlist() |> unique() |> sort()
   has_year = all_years %in% seen_years
