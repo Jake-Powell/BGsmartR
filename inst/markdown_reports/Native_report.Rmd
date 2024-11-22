@@ -2802,7 +2802,7 @@ ggplot2::ggsave(filename = paste0(figures_dir, '/','Native_threatened_endemic_Ve
 
 `r if(need_venn){"For these native and endemic/threatened plants we produce a table below detailing how many items of each species are in the collection together with the accession number and when each item was last checked."}`
 
-```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, ft.keepnext = FALSE, eval = need_venn}
+```{r, Among the native plants in a LC, how many of them are endemic or redlisted - get important taxa, ft.keepnext = FALSE, eval = TRUE}
 if('ItemAccNoFull' %in% names(LC_native_exisiting)){
   acc_item = LC_native_exisiting$ItemAccNoFull
 }else{

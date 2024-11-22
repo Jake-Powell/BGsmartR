@@ -2783,7 +2783,7 @@ hline <- function(y = 0, color = rgb(0,0,0,alpha=0.4)) {
   )
 }
 fig = fig |>
-  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_threatened$time) *0.8, y = 50,
+  layout(shapes = list(hline(50))) |> add_text(showlegend = FALSE, x = max(fit_all$time) *0.8, y = 50,
            text = c("median survival"))
 fig
 
