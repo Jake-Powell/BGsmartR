@@ -760,6 +760,20 @@ no_native_species = length(unique(paste0(native_wcvp$genus, ' ', native_wcvp$spe
 
 # Get the existing native plants from the LC to the location. 
 LC_native = enriched_report[enriched_report$POWO_plant_name_id %in% native_plant_ids,]
+```
+
+```{r, check if we have any native plants, warning=NA}
+no_native_plants = nrow(LC_native) == 0
+if(no_native_plants){
+  warning('There are no native plants!')
+}
+```
+
+`r if(no_native_plants){"There are no native plants."}`
+`r if(no_native_plants){knitr::knit_exit()}`
+
+```{r, How many native species are in the LC - data part 2}
+
 LC_native_exisiting = LC_native[LC_native$ItemStatusType == 'Existing',]
 
 no_native_items_LC = nrow(LC_native_exisiting)

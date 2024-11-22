@@ -661,9 +661,18 @@ A taxa in the collection is classed as **endemic** if it is native to a single B
 
 <!-- This document considers locations that are: `r location_type_text`  -->
  
-```{r get endemic only information}
+```{r do we have any endemic plants, warning=NA}
 endemic = enriched_report[enriched_report$endemic == 'Endemic',]
+no_endemic_plants = nrow(endemic) == 0
+if(no_endemic_plants){
+  warning('There are no endemic plants!')
+}
+```
 
+`r if(no_endemic_plants){"There are no endemic plants."}`
+`r if(no_endemic_plants){knitr::knit_exit()}`
+
+```{r get endemic only information}
 # Endemic must match to POWO so no naming issues.
 endemic_existing = endemic[endemic$ItemStatusType == 'Existing',] 
 no_endemic_items_existing = nrow(endemic_existing)

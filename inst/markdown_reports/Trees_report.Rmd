@@ -599,9 +599,6 @@ rm(endemic)
 tree = rep('Not tree', nrow(enriched_report))
 tree[enriched_report$Enrich_is_tree] = 'Tree'
 enriched_report$tree = tree
-if(sum(tree == 'Tree') == 0){
-  stop('You have no trees.')
-}
 rm(tree)
 
 # Extract threatened. 
@@ -673,7 +670,19 @@ A taxon in the collection is classed as a **tree** if it's genus species pair is
  
 ```{r get tree only information}
 Tree = enriched_report[which(enriched_report$Enrich_is_tree |> as.logical()),]
+```
 
+```{r, check if we have any trees, warning=NA}
+no_tree_plants = nrow(Tree) == 0
+if(no_tree_plants){
+  warning('There are no trees!')
+}
+```
+
+`r if(no_tree_plants){"There are no trees."}`
+`r if(no_tree_plants){knitr::knit_exit()}`
+
+```{r get tree only information part 2}
 # Tree must match to POWO so no naming issues.
 Tree_existing = Tree[Tree$ItemStatusType == 'Existing',] 
 no_Tree_items_existing = nrow(Tree_existing)
