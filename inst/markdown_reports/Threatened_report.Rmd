@@ -1039,9 +1039,9 @@ threatened_existing_species = threatened_existing[match(unique(threatened_existi
 cat_species = table(threatened_existing_species$threatened_category)
 cat_species = cat_species[match(threatened_categories, names(cat_species))]
 
-threatened_existing_taxa = threatened_existing[match(unique(threatened_existing$best_name),
-                                                               threatened_existing$best_name),]
-cat_taxa = table(threatened_existing_acc$threatened_category)
+threatened_existing_taxa = threatened_existing[match(unique(paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_author)),
+                                                            paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_author)),]
+cat_taxa = table(threatened_existing_taxa$threatened_category)
 cat_taxa = cat_taxa[match(threatened_categories, names(cat_taxa))]
 
 cat_items = as.numeric(cat_items) ; cat_items[is.na(cat_items)] = 0
