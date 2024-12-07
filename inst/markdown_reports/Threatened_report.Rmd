@@ -1740,6 +1740,8 @@ fig
 ```{r, get WCVP plants that were in the LC but no more}
 
 df = report[which(!is.na(report$POWO_plant_name_id)),]
+df = df[which(df$ItemStatusType%in% c("NotExisting", "Existing")),]
+
 df = df[which(df$threatened == "Threatened"),]
 df$AccYear = df$AccYear |> as.numeric()
 # df = df[which(!is.na(df$LossYear)),]
