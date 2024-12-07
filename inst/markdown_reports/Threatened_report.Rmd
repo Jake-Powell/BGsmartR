@@ -1741,8 +1741,8 @@ fig
 
 df = report[which(!is.na(report$POWO_plant_name_id)),]
 df = df[which(df$threatened == "Threatened"),]
+df$AccYear = df$AccYear |> as.numeric()
 # df = df[which(!is.na(df$LossYear)),]
-
 
 all_ids =  df$POWO_plant_name_id |> unique()
 existing_ids = df$POWO_plant_name_id[which(df$ItemStatusType == 'Existing')] |> unique()
@@ -1753,7 +1753,7 @@ no_more_info = no_more_info[FALSE,]
 if(length(no_more_ids) > 0){
   column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
-  plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
+  plant = df[which(df$POWO_plant_name_id == x), match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
   info = df[df$POWO_plant_name_id == x, column_interest]
   last_seen = max(info$LossYear, na.rm = T) ; first_seen = min(info$AccYear,na.rm = T)
   all_years = first_seen:last_seen

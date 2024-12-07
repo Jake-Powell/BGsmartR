@@ -1283,6 +1283,8 @@ loss_unique_taxa_without_cult_indet$percentage
 
 ```{r, get WCVP plants that were in the LC but no more}
 df = report[!is.na(report$POWO_plant_name_id),]
+df$AccYear = df$AccYear |> as.numeric()
+
 all_ids =  df$POWO_plant_name_id |> unique()
 existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
