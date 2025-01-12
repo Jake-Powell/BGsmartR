@@ -92,8 +92,8 @@ palette = 'Oranges'
 # value_on_fig = TRUE
 # min_year = 1970
 # join_bigger_than = 4
-# export_data  =T
-# save_excel = T
+# export_data  =F
+# save_excel = F
 # native = 'Naturally occurring only'
 # extinct = TRUE
 # doubtful_locations = FALSE
@@ -756,7 +756,7 @@ In the living collection there are `r no_unique +  no_unique_not_in_BGCI` taxa t
 
 Further information (such as accession number, threatened status, etc) can be downloaded below
 
-```{r}
+```{r, download button for rare global list}
 rare_global_list_format |>
   downloadthis::download_this(
     output_name = "rare_global_list",
@@ -773,7 +773,7 @@ rare_global_list_format |>
 ::::
 
 
-```{r}
+```{r, eval = F}
 count_per_taxa <- interest |>
   dplyr::group_by(.data$best_name) |>
   dplyr::summarise(Accessions = length(unique(.data$AccNoFull)),
@@ -962,6 +962,7 @@ plot_data = lapply(accession_taxa_all_type, function(d){
 partA = d[match(c(1,2,3,4),d$total_accessions),]
 four_plus = sum(d$no_species[as.numeric(d$total_accessions)>4])
 data_supp = rbind(partA, c('>4',four_plus))
+data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
 data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
 data_supp$type = names(accession_taxa_all_type)[counter]
 counter <<- counter+1
@@ -1091,6 +1092,7 @@ plot_data = lapply(item_taxa_all_type, function(d){
 partA = d[match(c(1,2,3,4),d$total_items),]
 four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
 data_supp = rbind(partA, c('>4',four_plus))
+data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
 data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
 data_supp$type = names(item_taxa_all_type)[counter]
 counter <<- counter+1
@@ -1417,6 +1419,7 @@ plot_data = lapply(item_taxa_all_type, function(d){
 partA = d[match(c(1,2,3,4),d$total_items),]
 four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
 data_supp = rbind(partA, c('>4',four_plus))
+data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
 data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
 data_supp$type = names(item_taxa_all_type)[counter]
 counter <<- counter+1
