@@ -957,18 +957,21 @@ fig
 })
 
 ## Create horizontal stacked bar for key collection and all in one plot. 
-counter <- 1
-plot_data = lapply(accession_taxa_all_type, function(d){
-partA = d[match(c(1,2,3,4),d$total_accessions),]
-four_plus = sum(d$no_species[as.numeric(d$total_accessions)>4])
-data_supp = rbind(partA, c('>4',four_plus))
-data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
-data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
-data_supp$type = names(accession_taxa_all_type)[counter]
-counter <<- counter+1
-
-data_supp
+plot_data = lapply(1:length(accession_taxa_all_type), function(index){
+  d = accession_taxa_all_type[[index]]
+  partA = d[match(c(1,2,3,4),d$total_accessions),]
+  four_plus = sum(d$no_species[as.numeric(d$total_accessions)>4])
+  data_supp = rbind(partA, c('>4',four_plus))
+  to_remove = which(data_supp$no_species == 0 | is.na(data_supp$no_species))
+  if(length(to_remove) > 0) data_supp = data_supp[-to_remove,]
+  data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+  if(nrow(data_supp) == 0){
+    return(NULL)
+  } 
+  data_supp$type = names(accession_taxa_all_type)[index]
+  data_supp
 })
+
 plot_data = do.call('rbind',plot_data)
 plot_data$total_accessions = factor(plot_data$total_accessions, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
@@ -1087,18 +1090,21 @@ fig
 })
 
 ## Create horizontal stacked bar for key collection and all in one plot. 
-counter <- 1
-plot_data = lapply(item_taxa_all_type, function(d){
-partA = d[match(c(1,2,3,4),d$total_items),]
-four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
-data_supp = rbind(partA, c('>4',four_plus))
-data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
-data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
-data_supp$type = names(item_taxa_all_type)[counter]
-counter <<- counter+1
-
-data_supp
+plot_data = lapply(1:length(item_taxa_all_type), function(index){
+  d = item_taxa_all_type[[index]]
+  partA = d[match(c(1,2,3,4),d$total_items),]
+  four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
+  data_supp = rbind(partA, c('>4',four_plus))
+  to_remove = which(data_supp$no_species == 0 | is.na(data_supp$no_species))
+  if(length(to_remove) > 0) data_supp = data_supp[-to_remove,]
+  data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+  if(nrow(data_supp) == 0){
+    return(NULL)
+  } 
+  data_supp$type = names(accession_taxa_all_type)[index]
+  data_supp
 })
+
 plot_data = do.call('rbind',plot_data)
 plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
@@ -1414,18 +1420,21 @@ fig
 })
 
 ## Create horizontal stacked bar for key collection and all in one plot. 
-counter <- 1
-plot_data = lapply(item_taxa_all_type, function(d){
-partA = d[match(c(1,2,3,4),d$total_items),]
-four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
-data_supp = rbind(partA, c('>4',four_plus))
-data_supp = data_supp[-which(data_supp$no_species == 0 | is.na(data_supp$no_species)),]
-data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
-data_supp$type = names(item_taxa_all_type)[counter]
-counter <<- counter+1
-
-data_supp
+plot_data = lapply(1:length(item_taxa_all_type), function(index){
+  d = item_taxa_all_type[[index]]
+  partA = d[match(c(1,2,3,4),d$total_items),]
+  four_plus = sum(d$no_species[as.numeric(d$total_items)>4])
+  data_supp = rbind(partA, c('>4',four_plus))
+  to_remove = which(data_supp$no_species == 0 | is.na(data_supp$no_species))
+  if(length(to_remove) > 0) data_supp = data_supp[-to_remove,]
+  data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+  if(nrow(data_supp) == 0){
+    return(NULL)
+  } 
+  data_supp$type = names(accession_taxa_all_type)[index]
+  data_supp
 })
+
 plot_data = do.call('rbind',plot_data)
 plot_data$total_items = factor(plot_data$total_items, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
@@ -1548,17 +1557,21 @@ fig
 })
 
 ## Create horizontal stacked bar for key collection and all in one plot. 
-counter <- 1
-plot_data = lapply(individal_taxa_all_type, function(d){
-partA = d[match(c(1,2,3,4),d$total_individals),]
-four_plus = sum(d$no_species[as.numeric(d$total_individals)>4])
-data_supp = rbind(partA, c('>4',four_plus))
-data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
-data_supp$type = names(individal_taxa_all_type)[counter]
-counter <<- counter+1
-
-data_supp
+plot_data = lapply(1:length(individal_taxa_all_type), function(index){
+  d = individal_taxa_all_type[[index]]
+  partA = d[match(c(1,2,3,4),d$total_individals),]
+  four_plus = sum(d$no_species[as.numeric(d$total_individals)>4])
+  data_supp = rbind(partA, c('>4',four_plus))
+  to_remove = which(data_supp$no_species == 0 | is.na(data_supp$no_species))
+  if(length(to_remove) > 0) data_supp = data_supp[-to_remove,]
+  data_supp$percent = round(as.numeric(data_supp$no_species)/sum(as.numeric(data_supp$no_species))*100,digits=2)
+  if(nrow(data_supp) == 0){
+    return(NULL)
+  } 
+  data_supp$type = names(accession_taxa_all_type)[index]
+  data_supp
 })
+
 plot_data = do.call('rbind',plot_data)
 plot_data$total_individals = factor(plot_data$total_individals, levels = c(1,2,3,4,'>4'))
 plot_data$type = stringr::str_to_title(plot_data$type)
