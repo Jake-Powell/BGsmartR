@@ -1751,6 +1751,7 @@ Use the button below to download individuals in the collection that have not bee
 <!-- Unknown provenance, only show if there are currently unknown provenance existing in the collection-->
 ```{r, unknown prov}
 interest = report_original 
+interest$ProvenanceCode[is.na(interest$ProvenanceCode)] = 'Unknown'
 interest_existing = interest[interest$ItemStatusType == 'Existing',]
 
 no_unknown = sum(interest_existing$ProvenanceCode == 'Unknown',na.rm = T)
