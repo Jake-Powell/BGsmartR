@@ -624,6 +624,7 @@ enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+enriched_report$ProvenanceCode[is.na(enriched_report$ProvenanceCode)] = 'Unknown'
 
 # Extract tree.
 tree =rep('Not Tree', nrow(enriched_report))

@@ -392,6 +392,7 @@ report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
 report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
 report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
 report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+if(any(is.na(report$ProvenanceCode))) report$ProvenanceCode[is.na(report$ProvenanceCode)] = 'NA'
 
 # Create a sanitised taxonomic name.
 report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
@@ -1635,13 +1636,14 @@ table_data_form = table_data |> DT::datatable(extensions = 'Buttons',
 
 ### Find provenance issues
 interest = report$ProvenanceCode[report$ItemStatusType == 'Existing']
+interest[is.na(interest)] = 'NA'
 unique_prov = unique(interest)
-prov_issue = unique_prov[!unique_prov %in% c("Unknown", "Garden", "Wild", "Wild-derived")]
+prov_issue = interest[!interest %in% c("Unknown", "Garden", "Wild", "Wild-derived")]
 
 prov_issue_flag = ifelse(length(prov_issue)>0, TRUE,FALSE)
 
 if(prov_issue_flag){
-  table_prov_issue = prov_issue |> table()
+  table_prov_issue = prov_issue |> table() |> data.frame()
   names(table_prov_issue) = c('Provenance', 'Number of Individuals')
   table_prov_issue = table_prov_issue |>DT::datatable(rownames = FALSE,
                  options = list(scrollX = TRUE,
@@ -1751,7 +1753,7 @@ Use the button below to download individuals in the collection that have not bee
 interest = report_original 
 interest_existing = interest[interest$ItemStatusType == 'Existing',]
 
-no_unknown = sum(interest_existing$ProvenanceCode == 'Unknown')
+no_unknown = sum(interest_existing$ProvenanceCode == 'Unknown',na.rm = T)
 
 if(no_unknown > 0){
   

@@ -623,6 +623,7 @@ enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'G'] = 'Garden'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'U'] = 'Unknown'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'W'] = 'Wild'
 enriched_report$ProvenanceCode[enriched_report$ProvenanceCode == 'Z'] = 'Wild-derived'
+enriched_report$ProvenanceCode[is.na(enriched_report$ProvenanceCode)] = 'Unknown'
 
 # Create a sanitised taxonomic name.
 enriched_report$good_name = paste0(enriched_report$sanitised_taxon, ' ', enriched_report$extracted_author)
