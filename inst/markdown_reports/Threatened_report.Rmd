@@ -102,7 +102,7 @@ palette = 'Oranges'
 # separate_figure_folder = FALSE
 # value_on_fig = TRUE
 # report_kind = 'static'
-# color_binary = c('darkgray','darkgreen')
+# # color_binary = c('darkgray','darkgreen')
 # palette = 'Greens'
 # endemic_species_per_region = NULL
 # output_dir =getwd()
@@ -3675,14 +3675,14 @@ fig
 ```{r, survival analysis - median survival tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
 # 
-
+library(gtsummary)
 table_data2 = fit |> 
   gtsummary::tbl_survfit(
     probs = c(0.5),
     label_header = "**Median survival (95% CI)**")
 
 table_data2 = table_data2$table_body
-table_data2 = table_data2[,-c(1:4)]
+table_data2 = table_data2[,-c(1:3)]
 table_data2 = table_data2[-1,]
 names(table_data2) = c('Characteristic', 'Median survival + 95% CI (Years)')
 
@@ -3705,13 +3705,14 @@ if(report_kind == 'interactive'){
 ```{r, survival analysis - tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
 # 
+fit <<- fit
 table_data = fit |> 
   gtsummary::tbl_survfit(
     times = c(2,5,10,25,50,100),
     label_header = "{time}-year survival (95% CI)")
 
 table_data = table_data$table_body
-  table_data = table_data[,-c(1:4)]
+  table_data = table_data[,-c(1:3)]
   table_data = table_data[-1,]
   names(table_data) = c('Status', '2-year survival (95% CI)',
                         '5-year survival (95% CI)',
@@ -3730,7 +3731,7 @@ table_data = table_data$table_body
     label_header = "**Median survival (95% CI)**")
 
 table_data2 = table_data2$table_body
-  table_data2 = table_data2[,-c(1:4)]
+  table_data2 = table_data2[,-c(1:3)]
   table_data2 = table_data2[-1,]
   names(table_data2) = c('Characteristic', 'Median survival (95% CI)')
   

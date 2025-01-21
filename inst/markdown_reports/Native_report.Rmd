@@ -2639,6 +2639,7 @@ fig
 ```{r, survival analysis - median survival tables, echo = FALSE, message=FALSE, eval = do_survival}
 # We can also get survival probabilities in a table
 # 
+library(gtsummary) # Have to load library otherwise tbl_survfit fails.
 
 table_data2 = fit |> 
   gtsummary::tbl_survfit(
@@ -2646,7 +2647,7 @@ table_data2 = fit |>
     label_header = "**Median survival (95% CI)**")
 
 table_data2 = table_data2$table_body
-table_data2 = table_data2[,-c(1:4)]
+table_data2 = table_data2[,-c(1:3)]
 table_data2 = table_data2[-1,]
 names(table_data2) = c('Characteristic', 'Median survival + 95% CI (Years)')
 table_data2$Characteristic[table_data2$Characteristic == 'Not Native'] = 'Non-native'
@@ -2672,7 +2673,7 @@ table_data = fit |>
     label_header = "{time}-year survival (95% CI)")
 
 table_data = table_data$table_body
-  table_data = table_data[,-c(1:4)]
+  table_data = table_data[,-c(1:3)]
   table_data = table_data[-1,]
   names(table_data) = c('Status', '2-year survival (95% CI)',
                         '5-year survival (95% CI)',
@@ -2691,7 +2692,7 @@ table_data = table_data$table_body
     label_header = "**Median survival (95% CI)**")
 
 table_data2 = table_data2$table_body
-  table_data2 = table_data2[,-c(1:4)]
+  table_data2 = table_data2[,-c(1:3)]
   table_data2 = table_data2[-1,]
   names(table_data2) = c('Characteristic', 'Median survival (95% CI)')
   
