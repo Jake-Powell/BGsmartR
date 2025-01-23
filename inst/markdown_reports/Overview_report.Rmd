@@ -2913,6 +2913,113 @@ hor_stack_bar_plot = plot_ly(comb_cur,
 hor_stack_bar_plot
 ```
 
+The Venn diagram below shows the duplication of provenance (e.g. taxa where both wild and garden provenance accessions exist in the collection) for taxa held in the collection. 
+
+```{r, Provenance of threatened plants in the living collection,  results='hide',fig.keep='all', message=FALSE}
+# Select wanted data and add needed columns
+interest = report[report$ItemStatusType == 'Existing',]
+interest = interest[!interest$taxon_type |> is.na(),]
+
+# threatened_existing the data of existing threatened plants in the living collection. 
+wanted_order = c('Wild', 'Wild-derived', 'Garden', 'Unknown')
+prov_items = data.frame(table(interest$ProvenanceCode))
+rows = match(wanted_order, prov_items[,1])
+other = which(!prov_items[,1] %in% wanted_order)
+o = c(rows,other)
+o = o[!is.na(o)]
+prov_items = prov_items[o,]
+names(prov_items) = c('Provenance', 'Items')
+# prov_items$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_items$Provenance, c('G', 'U', 'W', 'Z'))]  
+prov_items$percent = paste0(round(prov_items$Items / sum(prov_items$Items)*100,digits = 1),'%')
+prov_items <- prov_items %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Items))), 
+                pos = Items/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Items/2, pos))
+
+
+prov_accessions = data.frame(table(interest$ProvenanceCode[match(unique(interest$AccNoFull), interest$AccNoFull)]))
+rows = match(wanted_order, prov_accessions[,1])
+other = which(!prov_accessions[,1] %in% wanted_order)
+o = c(rows,other)
+o = o[!is.na(o)]
+prov_accessions = prov_accessions[o,]
+names(prov_accessions) = c('Provenance', 'Accessions')
+# prov_accessions$Provenance  = c('Garden', 'Unknown', 'Wild', 'Wild-dervived')[match(prov_accessions$Provenance, c('G', 'U', 'W', 'Z'))]
+prov_accessions$percent = paste0(round(prov_accessions$Accessions / sum(prov_accessions$Accessions)*100,digits = 1),'%')
+prov_accessions <- prov_accessions %>% 
+  dplyr::mutate(csum = rev(cumsum(rev(Accessions))), 
+                pos = Accessions/2 + dplyr::lead(csum, 1),
+                pos = dplyr::if_else(is.na(pos), Accessions/2, pos))
+
+flex_data = data.frame(prov_items$Provenance,
+                       prov_items$Items, 
+                       paste0(round(prov_items$Items/sum(prov_items$Items)*100,digits=2),'%'),
+                       prov_accessions$Accessions,
+                       paste0(round(prov_accessions$Accessions/sum(prov_accessions$Accessions)*100,digits=2),'%'))
+names(flex_data) = c('Provenance', 'Number of items', 'Proportion of items', 'Number of accessions', 'Proportion of accessions')
+
+if(export_data){
+  exporting_data_store$Provenance_of_existing_threatened_plants_in_the_LC = flex_data
+}
+
+### Create provenance by taxa to see if any have multiple provenance codes. 
+taxa_prov_og = interest |>
+  dplyr::group_by(best_name) |>
+  summarise(wild_items = sum(.data$ProvenanceCode == 'Wild'),
+            z_items = sum(.data$ProvenanceCode == "Wild-derived"),
+            garden_items = sum(.data$ProvenanceCode == 'Garden'),
+            unknown_items = sum(.data$ProvenanceCode == 'Unknown'),
+            original_name = toString(.data$TaxonNameFull |> unique())
+            )
+
+taxa_prov = taxa_prov_og[,c(1:5)] |> as.data.frame()
+for(i in 2:5){taxa_prov[,i] = taxa_prov[,i] |> as.numeric()}
+
+wild_taxa = taxa_prov$best_name[taxa_prov$wild_items > 0]
+z_taxa = taxa_prov$best_name[taxa_prov$z_items > 0]
+g_taxa = taxa_prov$best_name[taxa_prov$garden_items > 0]
+u_taxa = taxa_prov$best_name[taxa_prov$unknown_items > 0]
+x = list() ; category.names = NULL ; colours = NULL
+if(length(wild_taxa) > 0 ){x$w = wild_taxa ; category.names = c(category.names, "Wild") ; colours = c(colours, interactive_colour(4)[c(1)])}
+if(length(u_taxa) > 0 ){x$u = u_taxa ; category.names = c(category.names, "Unknown") ; colours = c(colours, interactive_colour(4)[c(4)])}
+if(length(z_taxa) > 0 ){x$z = z_taxa ; category.names = c(category.names, "Wild-derived"); colours = c(colours, interactive_colour(4)[c(2)])}
+if(length(g_taxa) > 0 ){x$g = g_taxa ; category.names = c(category.names, "Garden"); colours = c(colours, interactive_colour(4)[c(3)])}
+library(VennDiagram)
+venn_diag = venn.diagram(x, filename = NULL,
+                         category.names = category.names,
+                         fill =colours,
+                         disable.logging = TRUE,
+                         main.fontfamily = "arial",
+                         main.fontface = "sans")
+
+
+# Make a data.frame of the overlapping taxa for a download.
+taxa_prov_og$no_val =  lapply(taxa_prov_og[,-6] |> as.data.frame() |> t() |> as.data.frame(),function(x){
+  sum(as.numeric(x[-1]) != 0)
+}) |> unlist()
+
+taxa_prov = taxa_prov_og[taxa_prov_og$no_val > 1,]
+taxa_prov = taxa_prov[,-7]
+taxa_prov =taxa_prov[,c(1,6,2,3,4,5)]
+names(taxa_prov) = c("Best name found by BGSmartR",
+                     "Original Taxonomic name/s",
+                     "Number of Wild Origin Items",
+                     "Number of Wild-derived Origin Items",
+                     "Number of Garden Origin Items",
+                     "Number of Unknown Origin Items")
+
+
+### (END) Create provenance by taxa to see if any have multiple provenance codes. 
+
+```
+
+
+```{r, draw provenace by taxa (venn), results='hide',fig.keep='all', message=FALSE, fig.dim=c(4,4), fig.align = 'center', eval = report_kind == 'interactive' }
+grid.newpage()
+grid.draw(venn_diag)
+```
+
+
 
 ### Important accessions
 
@@ -2965,3 +3072,4 @@ export_df |>
   )
 ```
 ::::
+
