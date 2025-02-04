@@ -62,6 +62,7 @@
 <span>  value_on_fig <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  earliest_allowable_record <span class="op">=</span> <span class="fl">1700</span>,</span>
 <span>  old_accession_year_codes <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  min_year <span class="op">=</span> <span class="fl">1970</span>,</span>
 <span>  scale_colour_continuous <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="va"><a href="https://ggplot2.tidyverse.org/reference/scale_viridis.html" class="external-link">scale_colour_viridis_c</a></span>,</span>
 <span>  scale_colour_discrete <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="va"><a href="https://ggplot2.tidyverse.org/reference/scale_viridis.html" class="external-link">scale_colour_viridis_d</a></span>,</span>
 <span>  scale_colour_binned <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="va"><a href="https://ggplot2.tidyverse.org/reference/scale_viridis.html" class="external-link">scale_colour_viridis_b</a></span>,</span>
@@ -146,6 +147,10 @@
 
 <dt id="arg-old-accession-year-codes">old_accession_year_codes<a class="anchor" aria-label="anchor" href="#arg-old-accession-year-codes"></a></dt>
 <dd><p>Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on <code>earliest_allowable_record</code>.</p></dd>
+
+
+<dt id="arg-min-year">min_year<a class="anchor" aria-label="anchor" href="#arg-min-year"></a></dt>
+<dd><p>The minimum year for analyses over time.</p></dd>
 
 
 <dt id="arg-scale-colour-continuous-scale-colour-discrete-scale-colour-binned-scale-fill-continuous-scale-fill-discrete-scale-fill-binned">scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned<a class="anchor" aria-label="anchor" href="#arg-scale-colour-continuous-scale-colour-discrete-scale-colour-binned-scale-fill-continuous-scale-fill-discrete-scale-fill-binned"></a></dt>
