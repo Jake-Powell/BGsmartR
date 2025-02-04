@@ -23,6 +23,7 @@ create_sustainability_report(
   value_on_fig = FALSE,
   earliest_allowable_record = 1700,
   old_accession_year_codes = NULL,
+  min_year = 1970,
   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
   scale_colour_binned = ggplot2::scale_colour_viridis_b,
@@ -68,6 +69,8 @@ create_sustainability_report(
 \item{earliest_allowable_record}{Number, corresponding to the minimum allowable year in the "AccYear" column.}
 
 \item{old_accession_year_codes}{Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on \code{earliest_allowable_record}.}
+
+\item{min_year}{The minimum year for analyses over time.}
 
 \item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
 

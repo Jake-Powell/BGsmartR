@@ -52,6 +52,7 @@ create_geography_report(
   endemic_species_per_region = NULL,
   accepted_species_per_region = NULL,
   tree_species_per_region = NULL,
+  do_download = TRUE,
   reference_docx = NULL
 )
 }
@@ -109,6 +110,8 @@ create_geography_report(
 \item{accepted_species_per_region}{A data frame detailing the number of accepted species (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
 
 \item{tree_species_per_region}{A data frame detailing the number of accepted trees (unique records in WCVP, including subspecies, etc) found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
+
+\item{do_download}{A flag (TRUE/FALSE) for whether the download buttons are included.}
 }
 \description{
 \strong{Taxonomic Diversity}:Taxonomic presentation and composition in a collection. \strong{Geography}: Geographic representation of a collection.

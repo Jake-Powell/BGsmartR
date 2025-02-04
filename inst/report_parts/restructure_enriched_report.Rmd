@@ -1,0 +1,143 @@
+<!-- Edit and add columns to the enriched report, in particular:
+- if required columns are missing add defaults
+- Create `report` used in the interactive reports via plots etc.
+-->
+```{r, Extracting information from enriched report}
+# Add required columns if missing.
+needed_columns = c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType')
+if(!'AccNoFull' %in% names(enriched_report)){
+  enriched_report$AccNoFull = 1:nrow(enriched_report)
+}
+if(!'Family' %in% names(enriched_report)){
+  enriched_report$Family =rep(NA, nrow(enriched_report))
+}
+if(!'Genus' %in% names(enriched_report)){
+  enriched_report$Genus = rep(NA, nrow(enriched_report))
+}
+if(!'GenusSpecies' %in% names(enriched_report)){
+  enriched_report$GenusSpecies = rep(NA, nrow(enriched_report))
+}
+if(!'AccYear' %in% names(enriched_report)){
+  enriched_report$AccYear = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusDate' %in% names(enriched_report)){
+  enriched_report$ItemStatusDate = rep(0, nrow(enriched_report))
+}
+if(!'ItemStatusType' %in% names(enriched_report)){
+  enriched_report$ItemStatusType = rep('Existing', nrow(enriched_report))
+}
+
+do_coord = !is.na(coordinates[1])
+# Set report to only the existing items.
+report = enriched_report
+
+#Extract endemic information from report
+endemic = rep('Not Endemic', nrow(report))
+endemic_index = which(stringr::str_length(report$geography_codes) == 3)
+endemic[endemic_index] = 'Endemic'
+report$endemic = endemic
+rm(endemic)
+
+#Extract endemic information from report
+tree = rep('Not Tree', nrow(report))
+tree[report$Enrich_is_tree] = 'Tree'
+report$tree = tree
+rm(tree)
+
+# Add native column.
+nativeo = rep('Non-native', nrow(report))
+native_index = which(grepl(location_code, report$geography_codes))
+nativeo[native_index] = 'Native'
+report$native = nativeo
+rm(nativeo)
+
+# Extract threatened. 
+threat_cat = c('VU','EN','CR','EW','EX')
+threatened = rep('Not Threatened', nrow(report))
+threatened[which(report$redList_category %in% threat_cat)] = 'Threatened'
+threatened[which(report$POWO_Red_category %in% threat_cat)] = 'Threatened'
+report$threatened = threatened
+rm(threatened)
+
+# Extract threatened category. 
+threatened_category = rep(NA, nrow(report))
+for(i in 1:length(threat_cat)){
+ threatened_category[which(report$redList_category == threat_cat[i])] = threat_cat[i]
+ threatened_category[which(report$POWO_Red_category == threat_cat[i])] = threat_cat[i]
+}
+report$threatened_category = threatened_category
+rm(threatened_category)
+
+# Convert Provenance code to text.
+report$ProvenanceCode[report$ProvenanceCode == 'G'] = 'Garden'
+report$ProvenanceCode[report$ProvenanceCode == 'U'] = 'Unknown'
+report$ProvenanceCode[report$ProvenanceCode == 'W'] = 'Wild'
+report$ProvenanceCode[report$ProvenanceCode == 'Z'] = 'Wild-derived'
+
+# Create a sanitised taxonomic name from the name in the original report.
+report$good_name = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+
+# Create the matched best POWO name where it exists, if it doesn't set to 'good_name'.
+best_name = paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors)
+best_name[which(best_name == 'NA NA')] = report$good_name[which(best_name == 'NA NA')]
+report$best_name = best_name
+
+# Get the best family (use powo match o/w original)
+family = report$POWO_family
+family[is.na(family)] = report$Family[is.na(family)]
+report$family_use = family
+rm(family)
+
+# Combine powo genus and original genus
+genera = report$POWO_genus
+genera[is.na(genera)] = report$Genus[is.na(genera)]
+report$genera_use = genera
+rm(genera)
+
+# Get genus species pair.
+POWO_GenusSpecies = rep(NA, nrow(report))
+POWO_GenusSpecies[!is.na(report$POWO_plant_name_id)] = paste0(report$POWO_genus[!is.na(report$POWO_plant_name_id)],
+                                                              ' ',
+                                                              report$POWO_species[!is.na(report$POWO_plant_name_id)])
+species_data = data.frame(original = report$GenusSpecies, POWO = POWO_GenusSpecies, infra = report$taxon_type)
+use_genus_species = species_data$POWO
+use_genus_species[is.na(use_genus_species)] = species_data$original[is.na(use_genus_species)]
+report$genus_species_use= use_genus_species
+
+# Get best taxonomic name.
+taxon_name_auth = paste0(report$sanitised_taxon, ' ', report$extracted_author)
+taxon_name_auth[!is.na(report$POWO_plant_name_id)] = (paste0(report$POWO_taxon_name, ' ', report$POWO_taxon_authors))[!is.na(report$POWO_plant_name_id)]
+report$taxa_use = taxon_name_auth
+rm(taxon_name_auth)
+
+PlantClassification = BGSmartR::Diversity_classification$Classification
+major_groups = c("Angiosperms", "Ferns", "Gymnosperms", "Lycophytes",
+                                  "Bryophytes", "Hornworts", "Liverworts", "Mosses"
+)
+Angiosperm_groups = c('Eudicots', 'Monocots')
+Eudicot_groups = c('Asterids', 'Rosids')
+fam_major_groups = lapply(major_groups, function(group){
+ PlantClassification$family[PlantClassification$`major Land Plants lineage` == group]
+})
+names(fam_major_groups) = major_groups
+fam_Angiosperm_groups = lapply(Angiosperm_groups, function(group){
+PlantClassification$family[PlantClassification$`major Angiosperm lineage` == group]
+})
+names(fam_Angiosperm_groups) = Angiosperm_groups
+fam_Eudicot_groups = lapply(Eudicot_groups, function(group){
+PlantClassification$family[PlantClassification$`major Eudicot lineage` == group]
+})
+names(fam_Eudicot_groups) = Eudicot_groups
+families_of_groups = c(fam_major_groups, fam_Angiosperm_groups, fam_Eudicot_groups)
+
+to_do = c("Bryophytes", "Ferns", "Gymnosperms", "Lycophytes", 'Eudicots', 'Monocots')
+taxo_group = rep('Other',nrow(report))
+for(i in 1:length(to_do)){
+  taxo_group[report$family_use %in% families_of_groups[[to_do[i] ]] ] = to_do[i]
+}
+report$taxo_group = taxo_group
+
+
+report_original = report
+```
+

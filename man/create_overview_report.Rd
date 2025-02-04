@@ -15,6 +15,7 @@ create_overview_report(
   output_dir = NULL,
   export_data = FALSE,
   separate_figure_folder = TRUE,
+  min_year = 1970,
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
@@ -52,6 +53,8 @@ create_overview_report(
 \item{export_data}{Flag (TRUE/FALSE) for whether to create a \code{.rda} and \code{.xlsx} files containing the data used to create the figures in the plot.}
 
 \item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
+
+\item{min_year}{The minimum year for analyses over time.}
 
 \item{native}{string where 'Naturally occurring only' or 'Introduced only' reduces the locations used to determine native plants.}
 

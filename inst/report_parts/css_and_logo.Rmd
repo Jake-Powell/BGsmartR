@@ -1,0 +1,230 @@
+<!-- Load R packages and create color_binary and palette if they do not exist -->
+```{r, load libraries and setup}
+library(plotly)
+library(htmltools)
+library(sf)
+library(here)
+library(flextable)
+library(ggrepel)
+library(downloadthis)
+library(ggplot2)
+library(webshot)
+if(is.null(webshot:::find_phantom())){webshot::install_phantomjs()}
+
+if(!exists('separate_figure_folder')) separate_figure_folder = FALSE
+if(!exists('color_binary')) color_binary <- rev(c('#f46d43', '#848484'))
+if(!exists('palette')) palette = 'Oranges'
+if(!exists('ggtheme')) ggtheme = NULL
+if(!exists('report_kind')) report_kind = 'interactive'
+if(!exists('native')) native = 'Naturally occurring only'
+if(!exists('extinct')) extinct = TRUE
+if(!exists('doubtful_locations')) doubtful_locations = FALSE
+```
+
+<!-- Run the css code needed for the download boxes -->
+```{css, run css, echo = FALSE}
+/* from https://ianlunn.github.io/Hover/ */
+.hvr-sweep-to-left {
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-transform: perspective(1px) translateZ(0);
+  transform: perspective(1px) translateZ(0);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0);
+  position: relative;
+  -webkit-transition-property: color;
+  transition-property: color;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+}
+.hvr-sweep-to-left:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #f46d43;
+  -webkit-transform: scaleX(0);
+  transform: scaleX(0);
+  -webkit-transform-origin: 100% 50%;
+  transform-origin: 100% 50%;
+  -webkit-transition-property: transform;
+  transition-property: transform;
+  -webkit-transition-duration: 0.3s;
+  transition-duration: 0.3s;
+  -webkit-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.hvr-sweep-to-left:hover, .hvr-sweep-to-left:focus, .hvr-sweep-to-left:active {
+  color: white;
+}
+.hvr-sweep-to-left:hover:before, .hvr-sweep-to-left:focus:before, .hvr-sweep-to-left:active:before {
+  -webkit-transform: scaleX(1);
+  transform: scaleX(1);
+}
+
+.blackbox {
+  padding: 1em;
+  background: #FDAE6B;
+  border: 2px solid #e6e6e6;
+  border-radius: 10px;
+}
+.center {
+  text-align: center;
+}
+```
+
+<!-- Update the ggplot2 global theme settings. Not sure if these are still used anywhere. If ggplot is entirely removed then this can be deleted.  -->
+```{r theme_ggplot2}
+# Changing the default theme
+if(is.null(ggtheme)){
+   ggtheme <- function(base_size = 16) {
+      ggplot2::theme_bw(base_size = base_size) %+replace%
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = rel(1), face = "bold", margin = margin(0,0,5,0), hjust = 0),
+          panel.grid.minor = ggplot2::element_blank(),
+          panel.background = element_rect(fill = 'transparent', color = NA),
+          panel.border = ggplot2::element_blank(),
+          axis.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          axis.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          axis.line = ggplot2::element_line(color = "black"),
+          legend.title = ggplot2::element_text(size = rel(0.85), face = "bold"),
+          legend.text = ggplot2::element_text(size = rel(0.70), face = "bold"),
+          legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
+          legend.key.size = ggplot2::unit(1.5, "lines"),
+          legend.background = ggplot2::element_rect(fill = "transparent", colour = NA),
+          strip.background = ggplot2::element_rect(fill = "#17252D", color = "#17252D"),
+          strip.text = ggplot2::element_text(size = rel(0.85), face = "bold", color = "white", margin = margin(5,0,5,0))
+        )
+    }
+}
+theme_set(ggtheme())
+update_geom_defaults("line", list(size = 2))
+
+# Set the colour scale for the plots
+scale_colour_continuous <- scale_colour_continuous
+scale_colour_discrete   <- scale_colour_discrete
+scale_colour_binned     <- scale_colour_binned
+scale_fill_continuous <- scale_fill_continuous
+scale_fill_discrete <- scale_fill_discrete
+scale_fill_binned <- scale_fill_binned
+```
+
+<!-- Javascript code for the plotly objects -->
+```{r, onRender text}
+bar_col = interactive_colour(1) ; bar_col_alpha = BGSmartR::add_alpha(bar_col, 0.7)
+
+render_barplot = paste0("
+    function(el) { 
+    console.log(el)
+      el.on('plotly_hover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '", bar_col ,"';
+    
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+      el.on('plotly_unhover', function(data){
+  var pn='',
+      tn='',
+      colors=[];
+  for(var i=0; i < data.points.length; i++){
+    pn = data.points[i].pointNumber;
+    tn = data.points[i].curveNumber;
+    colors = data.points[i].data.marker.color;
+  };
+  colors[pn] = '", bar_col_alpha ,"';
+  var update = {'marker':{color: colors}};
+  Plotly.restyle(el.id, update, [tn]);
+});
+    }
+  ")
+
+icon_svg_path = "M15.608,6.262h-2.338v0.935h2.338c0.516,0,0.934,0.418,0.934,0.935v8.879c0,0.517-0.418,0.935-0.934,0.935H4.392c-0.516,0-0.935-0.418-0.935-0.935V8.131c0-0.516,0.419-0.935,0.935-0.935h2.336V6.262H4.392c-1.032,0-1.869,0.837-1.869,1.869v8.879c0,1.031,0.837,1.869,1.869,1.869h11.216c1.031,0,1.869-0.838,1.869-1.869V8.131C17.478,7.099,16.64,6.262,15.608,6.262z M9.513,11.973c0.017,0.082,0.047,0.162,0.109,0.226c0.104,0.106,0.243,0.143,0.378,0.126c0.135,0.017,0.274-0.02,0.377-0.126c0.064-0.065,0.097-0.147,0.115-0.231l1.708-1.751c0.178-0.183,0.178-0.479,0-0.662c-0.178-0.182-0.467-0.182-0.645,0l-1.101,1.129V1.588c0-0.258-0.204-0.467-0.456-0.467c-0.252,0-0.456,0.209-0.456,0.467v9.094L8.443,9.553c-0.178-0.182-0.467-0.182-0.645,0c-0.178,0.184-0.178,0.479,0,0.662L9.513,11.973z"
+
+dl_button <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].x + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].y + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
+
+dl_button_map <- list(
+    name = "Download data",
+    icon = list(
+        path = icon_svg_path,
+        transform = "scale(0.84) translate(-1, -1)"
+        ),
+    click = htmlwidgets::JS("
+          function(gd) {
+            var text = '';
+            for(var i = 0; i < gd.data.length; i++){
+              text += gd.layout.xaxis.title.text + gd.data[i].name + ',' + gd.data[i].z + '\\n';
+              text += gd.layout.yaxis.title.text + gd.data[i].name + ',' + gd.data[i].hovertext + '\\n';
+            };
+            var blob = new Blob([text], {type: 'text/plain'});
+            var a = document.createElement('a');
+            const object_URL = URL.createObjectURL(blob);
+            a.href = object_URL;
+            a.download = 'data.csv';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(object_URL);
+          }
+   ")
+)
+```
+
+<!-- Add the logo to the report -->
+```{r, add logo, eval = report_kind == 'interactive'}
+htmltools::img(src = knitr::image_uri(paste0(system.file(package = "BGSmartR"), "/logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px; width:87.8px; height:100px')
+```
+
+<!-- Check for missing values in the enriched report used in the creation of the report and add text to the report informing the user of the missing information. -->
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"*** \n **Warning!**\n\n This enriched report contains missing 'original' columns needed to perform the analyses in this report. Default values have been created. In particular, the following were missing "}`
+
+`r if(!'AccNoFull' %in% names(enriched_report)){"- AccNoFull: Each item is assumed to be a unique accession.\n"}`
+`r if(!'Family' %in% names(enriched_report)){"- Family: Only families found by matching to POWO will be used (No non-vascular families). \n"}`
+`r if(!'Genus' %in% names(enriched_report)){"- Genus: Only genera found by matching to POWO will be used."}`
+`r if(!'GenusSpecies' %in% names(enriched_report)){"- GenusSpecies: Only species found in POWO will be used."}`
+`r if(!'AccYear' %in% names(enriched_report)){"- AccYear: All Accession years set to missing. \n"}`
+`r if(!'ItemStatusDate' %in% names(enriched_report)){"- ItemStatusDate: All set to missing. \n"}`
+`r if(!'ItemStatusType' %in% names(enriched_report)){"- ItemStatusType: All set to exisiting. \n"}`
+
+`r if(any(!c('AccNoFull', 'Family', 'Genus', 'GenusSpecies', 'AccYear', 'ItemStatusDate', 'ItemStatusType') %in% names(enriched_report))){"***"}`
+
+<!-- Create output figure folder if `separate_figure_folder` is true. -->
+```{r}
+if(separate_figure_folder){
+  figures_dir = paste0(output_dir,'/',collection,'_Figures')
+  dir.create(figures_dir,showWarnings = FALSE)
+}
+```

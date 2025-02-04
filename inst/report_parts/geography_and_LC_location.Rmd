@@ -1,0 +1,86 @@
+<!-- Add column to enriched report detailing the geographic codes for each plant according to the settings of native, extinct and doubtful -->
+```{r, Add combined geography column to enriched report}
+geography_data = enriched_report[,grepl('_area_code_l3', names(enriched_report))]
+want = c('000','010','001','011','100','110','101')
+
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+ want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+ want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+ want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+ want = want[!grepl('001|011|101',want)]
+}
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(want,collapse='|'), names(geography_data))]
+
+if(length(want) > 1){
+ level3codes =do.call("paste", c(geography_data, sep = ", "))
+ level3codes = stringr::str_remove(level3codes, ', NA$')
+ level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+ level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
+
+enriched_report$geography_codes = level3codes
+```
+
+<!-- Create `location_type_text` informing of the selected geographic parameters. -->
+```{r, Get location_type_text}
+location_type_text = ''
+if(native == 'Naturally occurring only'){
+ location_type_text = paste0(location_type_text, 'naturally occuring only,', collapse = ' ')  
+}else if(native == 'Introduced only'){
+  location_type_text = paste0(location_type_text, 'introduced only,', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, 'Either naturally occurring or introduced,', collapse = ' ')  
+}
+if(extinct){
+   location_type_text = paste0(location_type_text, ' allowing extinct regions and', collapse = ' ')  
+}else{
+  location_type_text = paste0(location_type_text, ' not including extinct regions and', collapse = ' ')  
+}
+if(doubtful_locations){
+   location_type_text = paste0(location_type_text, ' allowing doubtful regions.', collapse = ' ')  
+ 
+}else{
+  location_type_text = paste0(location_type_text, ' not allowing doubtful regions.', collapse = ' ')  
+}
+```
+
+<!-- Find which geographic region the LC belongs to -->
+```{r, Find LC location}
+coord_contained = TRUE
+# Extract the location of the collection.
+pnts <- data.frame( x = coordinates[2], y = coordinates[1])
+
+# create a points collection
+pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
+                                     function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
+
+pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
+tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
+
+intersect = as.vector(st_intersects(tt1_trans, pnts_trans, sparse = FALSE))
+collection_geog_details = wgsrpd3[which(intersect),-5]
+location_name = collection_geog_details$LEVEL3_NAM
+location_code = collection_geog_details$LEVEL3_COD
+
+if(length(location_name) == 0){
+  coord_contained = FALSE
+  # Try and find the nearest polygon.
+  collection_geog_details  =  wgsrpd3[which.min(as.vector(sf::st_distance(tt1_trans, pnts_trans))),-5]
+  location_name = collection_geog_details$LEVEL3_NAM
+  location_code = collection_geog_details$LEVEL3_COD
+}
+ collection_geog_details_og = collection_geog_details
+```
