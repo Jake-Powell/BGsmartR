@@ -1,0 +1,101 @@
+<!-- Prepare `report_trend`, to be used whenever using trend data. Uses the restructured data `report` to create `report_trend.`
+-->
+```{r, Prepare trend data subsection}
+if(!exists('min_year')) min_year = 1970
+
+# Decide if trend analysis is possible.
+do_over_time = TRUE
+if(all(is.na(report$ItemStatusDate))){
+  do_over_time = FALSE
+}
+if(all(is.na(report$ItemStatusType))){
+  do_over_time = FALSE
+}
+if(all(is.na(report$AccYear))){
+  do_over_time = FALSE
+}
+
+## Data for trends
+max_year = as.numeric(format(Sys.Date(),'%Y'))
+years = min_year:max_year
+date = paste0(years, '-12-31')
+
+# Setup report_trend for trend analysis.
+report_trend = report
+report_trend <<- report_trend
+# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+if(!is.null(old_accession_year_codes)){
+  has_old_accessions_code = which(report_trend$AccYear %in% old_accession_year_codes)
+  no_old_accessions = length(has_old_accessions_code)
+  report_trend$AccYear[has_old_accessions_code] = earliest_allowable_record
+}
+to_keep = which(as.numeric(report_trend$AccYear) >= earliest_allowable_record  & as.numeric(report_trend$AccYear) <= max_year)
+still_issue = nrow(report_trend) - length(to_keep)
+report_trend = report_trend[to_keep,]
+
+# Remove records whose ItemStatusDate is NA. 
+report_trend = report_trend[which(!is.na(report_trend$ItemStatusDate)),]
+
+### Find the number of items/accessions where we have to do some fixing to the most recent status update.
+post_date = report_trend$ItemStatusDate
+index_string_length_4 = which(stringr::str_length(post_date) == 4)
+index_string_length_7 = which(stringr::str_length(post_date) == 7)
+missing_date = length(c(index_string_length_4, index_string_length_7))
+
+plant_existing = BGSmartR::exist_at_date(date, AccessionYear = report_trend$AccYear,
+                       ItemStatusDate = report_trend$ItemStatusDate,
+                       ItemStatusType = report_trend$ItemStatusType,
+                       post_date = '3000-01-01')
+
+# Extract the number of 'Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families' in the LC each year.
+time_series_info = pbapply::pblapply(plant_existing, function(x){
+  garden_current = report_trend[x,]
+  
+  # Number of families.
+  families = garden_current$family_use |> unique() ; families = families[!is.na(families)]
+  no_families = families |> length()
+  # families = data.frame(original = garden_current$Family, POWO = garden_current$POWO_family)
+  # use_family = families$POWO
+  # use_family[is.na(use_family)] = families$original[is.na(use_family)]
+  # family = unique(use_family)
+  # no_families <- length(family)
+
+  # Number of genera.
+  genera = garden_current$genera_use |> unique() ; genera = genera[!is.na(genera)]
+  no_genera = genera |> length()
+  # genus = data.frame(original = garden_current$Genus, POWO = garden_current$POWO_genus)
+  # use_genus = genus$POWO
+  # use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+  # no_genera <- length(unique(use_genus))
+
+
+   #No species (#remove cultivars, indeterminate taxa, hybrids )
+   
+  POWO_GenusSpecies = rep(NA, nrow(garden_current))
+  POWO_GenusSpecies[!is.na(garden_current$POWO_plant_name_id)] = paste0(garden_current$POWO_genus[!is.na(garden_current$POWO_plant_name_id)], ' ', garden_current$POWO_species[!is.na(garden_current$POWO_plant_name_id)])
+  species_data = data.frame(original = garden_current$GenusSpecies, POWO = POWO_GenusSpecies, infra = garden_current$taxon_type)
+  species_only = species_data[!grepl('5|6|0',species_data$infra),]
+  species_only = species_only[!is.na(species_only$infra),]
+  use_species = species_only$POWO
+  use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
+  no_species = length(unique(use_species))
+  
+  # Number of Taxa.
+    taxa = data.frame(sanitsed_name = paste0(garden_current$sanitised_taxon, ' ', garden_current$extracted_author), powo_name = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors))
+    taxa$powo_name[taxa$powo_name == 'NA NA'] = NA
+  use_taxa = taxa$powo_name
+  use_taxa[is.na(use_taxa)] = taxa$sanitsed_name[is.na(use_taxa)]
+  no_taxa <- length(unique(use_taxa))
+
+  # Number of accessions.
+  unique_accessions = unique(garden_current$AccNoFull)
+  unique_accessions = unique_accessions[!is.na(unique_accessions)]
+  no_accessions = length(unique_accessions)
+  
+  # Number of items
+  no_items = nrow(garden_current)
+  
+  return(c(no_items, no_accessions, no_taxa, no_species, no_genera, no_families))
+}) |> data.frame() |> t() |> data.frame()
+names(time_series_info) = c('Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families')
+```

@@ -51,6 +51,7 @@ In this section we look into the composition of the collection across various me
 
 ```{r, Size of the collection, fig.fullwidth=TRUE, fig.dim = c(10, 4)}
 interest = report[which(report$ItemStatusType == 'Existing'),]
+interest <<- interest
 no_items = nrow(interest)
 no_accessions = length(unique(interest$AccNoFull)[!is.na(unique(interest$AccNoFull))])
 species = unique(interest$genus_species_use[!grepl('5|6|0',interest$taxon_type)])
@@ -184,7 +185,7 @@ info = pbapply::pblapply(quant, function(q){
   }else if(nrow(table_counts) %in% c(3,4)){
     table_counts$colors = interactive_colour(nrow(table_counts))
   }else{
-    table_counts$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts))
+    table_counts$colors = scales::brewer_pal(palette = colour_palette, direction = 1)(nrow(table_counts))
   }
   
   table_counts_POWO = interest_POWO |> dplyr::count(across(q))
@@ -195,7 +196,7 @@ info = pbapply::pblapply(quant, function(q){
   }else if(nrow(table_counts_POWO) %in% c(3,4)){
     table_counts_POWO$colors = interactive_colour(nrow(table_counts_POWO))
   }else{
-    table_counts_POWO$colors = scales::brewer_pal(palette = palette, direction = 1)(nrow(table_counts_POWO))
+    table_counts_POWO$colors = scales::brewer_pal(palette = colour_palette, direction = 1)(nrow(table_counts_POWO))
   }
   
   comb = rbind(table_counts, table_counts_POWO)
@@ -221,7 +222,7 @@ comb$hover = paste0(comb$percent |> round(1), '% (', comb$n,' accessions) ', com
         
 
 # Manual fix colours
-colo = scales::brewer_pal(palette = palette, direction = 1)(5) |> rev()
+colo = scales::brewer_pal(palette = colour_palette, direction = 1)(5) |> rev()
 comb$color[which(comb$category == 'Unique')]   =colo[1]
 comb$color[which(comb$category == 'Very Rare')]   =colo[2]
 comb$color[which(comb$category == 'Rare')]   = colo[3]  
@@ -508,7 +509,7 @@ colours = c(rep(col_rep[1],51), rep(col_rep[2],50))
 counter = 1:length(index)
 col_scale_rep = lapply(counter, function(i){return(c(index[i], colours[i]))})
 
-colours_cont = scales::brewer_pal(palette = palette, direction = 1)(7)
+colours_cont = scales::brewer_pal(palette = colour_palette, direction = 1)(7)
 ramp <- scales::colour_ramp(colours_cont)
 colos = ramp(seq(0, 1, length = 1001))
 
@@ -597,162 +598,78 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
 
 ### Change over time of the collection
 
+<!-- Create time_series_info with the trend data. -->
+```{r, restructure enriched report, child= paste0(system.file(package = "BGSmartR"), "/report_parts/prepare_trend_data.Rmd")}
+```
+
 ```{r extract change over time}
-interest = report
-max_year = as.numeric(format(Sys.Date(),'%Y'))
-# Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
-if(!is.null(old_accession_year_codes)){
-  has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
-  no_old_accessions = length(has_old_accessions_code)
-  interest$AccYear[has_old_accessions_code] = earliest_allowable_record
-}
-to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
-still_issue = nrow(interest) - length(to_keep)
-interest = interest[to_keep,]
-#### Needed functions
-group_trend_plots <- function(years, data, name, report_kind, separate_figure_folder, data_type, split = FALSE){
-  data_prop = data /rowSums(data)*100
-  tt = data.frame(year = years, data)
-  names(tt) = c('year', names(data))
-  dd = reshape(tt, idvar = "year", varying = list(2:ncol(tt)),
-      v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
-  dd$group = factor(dd$group, levels = unique(dd$group))
-  
-  tt_prop = data.frame(year = years, data_prop)
-  names(tt_prop) = c('year', names(data))
-  dd_prop = reshape(tt_prop, idvar = "year", varying = list(2:ncol(tt)),
-    v.names = "count", timevar = "group", times = names(tt)[-1], direction = "long")
-  dd_prop$group = factor(dd_prop$group, levels = unique(dd_prop$group))
-  
-    if(report_kind == 'static'){
-      p1 = ggplot(dd, aes(x=year, y = count, group = group, color = group)) +
-        geom_line(linewidth  =1.1 ) + 
-        guides(color=guide_legend(title=paste0(name))) + 
-        labs(title="",
-            x ="Year",
-            y = stringr::str_wrap(paste0("Number of ", data_type |> tolower()),width = 18)) +
-             scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
-        theme(legend.position="bottom")
-
- 
-       p2 = ggplot(dd_prop, aes(fill=group, y=count, x=year)) + 
-        geom_bar(position="stack", stat="identity", width = 1) +
-         scale_x_continuous(expand = c(0, 0)) +
-         scale_y_continuous(expand = c(0, 0)) +
-        labs(title="",
-          x ="Year",
-          y = "Percentage (%)") +
-        guides(fill=guide_legend(title=paste0('Provenance')))
-      
-       p = ggpubr::ggarrange(p1, p2, labels = c("A", "B"),
-          common.legend = TRUE, legend = "bottom", ncol = 1, nrow = 2, align = 'v')
-       
-   if(separate_figure_folder){
-     ggplot2::ggsave(plot = p, filename = paste0(figures_dir, '/', name, '_trend.pdf'),device = 'pdf', scale = 1)
-   }
-    if(split){
-      return(list(number = p1, proportion = p2))
-    }else{
-         return(p)
-
-    }
-    }
-    if(report_kind == 'interactive'){
-
-    # fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', line = list(color = interactive_colour(length(unique(dd$group)))))
-    fig <- plot_ly(dd, x = ~year, y = ~count, color = ~group, type = 'scatter', mode = 'lines', colors = interactive_colour(length(unique(dd$group))))
-
-    fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type |> tolower(),"")),
-                       xaxis = list(title = "Year"))
-    fig <- fig |> layout(hovermode = 'x unified')
-    
-    if(separate_figure_folder){
-      htmlwidgets::saveWidget(fig, file = paste0(figures_dir,'/',name,'_trend.html'),selfcontained = T)
-    }
-    
-    
-    dd_prop = data.frame(dd_prop, total = dd$count)
-    
-    fig2 <- plot_ly(dd_prop, x = ~year, y = ~count, color = ~group, type = 'bar',
-                    hovertext = paste0(dd_prop$group,": ", round(dd_prop$count,digits = 1),'% (', dd_prop$total,')'),
-                    hoverinfo = "x+text",
-                    colors = interactive_colour(length(unique(dd$group))))
-    
-    
-    fig2 <- fig2 |> layout(yaxis = list(title = paste0("Percentage")),
-                       xaxis = list(title = "Year"))
-    fig2 <- fig2 |> layout(hovermode = 'x unified',
-                           barmode = 'stack',
-                           bargap =0,
-                           legend = list(traceorder = 'normal'),
-                           yaxis = list(ticksuffix = '%'))
-    fig2
-    
-      if(separate_figure_folder){
-      htmlwidgets::saveWidget(fig2, file = paste0(figures_dir,'/',name,'_proportional_trend.html'),selfcontained = T)
-    }
-    }
-  
-  return(list(number = fig, proportion = fig2))
-}
-
-
-#### Extract the data
-years = min_year:max_year
-date = paste0(years, '-12-31')
-
-
-plant_existing = BGSmartR::exist_at_date(date, AccessionYear = interest$AccYear,
-                       ItemStatusDate = interest$ItemStatusDate,
-                       ItemStatusType = interest$ItemStatusType,post_date = '3000-01-01')
-
-# Extract the number of 'Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families' in the LC each year.
-time_series_info = pbapply::pblapply(plant_existing, function(x){
-  garden_current = report[x,]
-  
-  # Number of families.
-  families = data.frame(original = garden_current$Family, POWO = garden_current$POWO_family)
-  use_family = families$POWO
-  use_family[is.na(use_family)] = families$original[is.na(use_family)]
-  family = unique(use_family)
-  no_families <- length(family)
-
-  # Number of genera.
-  genus = data.frame(original = garden_current$Genus, POWO = garden_current$POWO_genus)
-  use_genus = genus$POWO
-  use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
-  no_genera <- length(unique(use_genus))
-
-
-   #No species (#remove cultivars, indeterminate taxa, hybrids )
-  POWO_GenusSpecies = rep(NA, nrow(garden_current))
-  POWO_GenusSpecies[!is.na(garden_current$POWO_plant_name_id)] = paste0(garden_current$POWO_genus[!is.na(garden_current$POWO_plant_name_id)], ' ', garden_current$POWO_species[!is.na(garden_current$POWO_plant_name_id)])
-  species_data = data.frame(original = garden_current$GenusSpecies, POWO = POWO_GenusSpecies, infra = garden_current$taxon_type)
-  species_only = species_data[!grepl('5|6|0',species_data$infra),]
-  species_only = species_only[!is.na(species_only$infra),]
-  use_species = species_only$POWO
-  use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
-  no_species = length(unique(use_species))
-  
-  # Number of Taxa.
-    taxa = data.frame(sanitsed_name = paste0(garden_current$sanitised_taxon, ' ', garden_current$extracted_author), powo_name = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors))
-    taxa$powo_name[taxa$powo_name == 'NA NA'] = NA
-  use_taxa = taxa$powo_name
-  use_taxa[is.na(use_taxa)] = taxa$sanitsed_name[is.na(use_taxa)]
-  no_taxa <- length(unique(use_taxa))
-
-  # Number of accessions.
-  unique_accessions = unique(garden_current$AccNoFull)
-  unique_accessions = unique_accessions[!is.na(unique_accessions)]
-  no_accessions = length(unique_accessions)
-  
-  # Number of items
-  no_items = nrow(garden_current)
-  
-  return(c(no_items, no_accessions, no_taxa, no_species, no_genera, no_families))
-}) |> data.frame() |> t() |> data.frame()
-names(time_series_info) = c('Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families')
+# interest = report
+# max_year = as.numeric(format(Sys.Date(),'%Y'))
+# # Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
+# if(!is.null(old_accession_year_codes)){
+#   has_old_accessions_code = which(interest$AccYear %in% old_accession_year_codes)
+#   no_old_accessions = length(has_old_accessions_code)
+#   interest$AccYear[has_old_accessions_code] = earliest_allowable_record
+# }
+# to_keep = which(as.numeric(interest$AccYear) >= earliest_allowable_record  & as.numeric(interest$AccYear) <= max_year)
+# still_issue = nrow(interest) - length(to_keep)
+# interest = interest[to_keep,]
+# 
+# #### Extract the data
+# years = min_year:max_year
+# date = paste0(years, '-12-31')
+# 
+# 
+# plant_existing = BGSmartR::exist_at_date(date, AccessionYear = interest$AccYear,
+#                        ItemStatusDate = interest$ItemStatusDate,
+#                        ItemStatusType = interest$ItemStatusType,post_date = '3000-01-01')
+# 
+# # Extract the number of 'Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families' in the LC each year.
+# time_series_info = pbapply::pblapply(plant_existing, function(x){
+#   garden_current = report[x,]
+#   
+#   # Number of families.
+#   families = data.frame(original = garden_current$Family, POWO = garden_current$POWO_family)
+#   use_family = families$POWO
+#   use_family[is.na(use_family)] = families$original[is.na(use_family)]
+#   family = unique(use_family)
+#   no_families <- length(family)
+# 
+#   # Number of genera.
+#   genus = data.frame(original = garden_current$Genus, POWO = garden_current$POWO_genus)
+#   use_genus = genus$POWO
+#   use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
+#   no_genera <- length(unique(use_genus))
+# 
+# 
+#    #No species (#remove cultivars, indeterminate taxa, hybrids )
+#   POWO_GenusSpecies = rep(NA, nrow(garden_current))
+#   POWO_GenusSpecies[!is.na(garden_current$POWO_plant_name_id)] = paste0(garden_current$POWO_genus[!is.na(garden_current$POWO_plant_name_id)], ' ', garden_current$POWO_species[!is.na(garden_current$POWO_plant_name_id)])
+#   species_data = data.frame(original = garden_current$GenusSpecies, POWO = POWO_GenusSpecies, infra = garden_current$taxon_type)
+#   species_only = species_data[!grepl('5|6|0',species_data$infra),]
+#   species_only = species_only[!is.na(species_only$infra),]
+#   use_species = species_only$POWO
+#   use_species[is.na(use_species)] = species_only$original[is.na(use_species)]
+#   no_species = length(unique(use_species))
+#   
+#   # Number of Taxa.
+#     taxa = data.frame(sanitsed_name = paste0(garden_current$sanitised_taxon, ' ', garden_current$extracted_author), powo_name = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors))
+#     taxa$powo_name[taxa$powo_name == 'NA NA'] = NA
+#   use_taxa = taxa$powo_name
+#   use_taxa[is.na(use_taxa)] = taxa$sanitsed_name[is.na(use_taxa)]
+#   no_taxa <- length(unique(use_taxa))
+# 
+#   # Number of accessions.
+#   unique_accessions = unique(garden_current$AccNoFull)
+#   unique_accessions = unique_accessions[!is.na(unique_accessions)]
+#   no_accessions = length(unique_accessions)
+#   
+#   # Number of items
+#   no_items = nrow(garden_current)
+#   
+#   return(c(no_items, no_accessions, no_taxa, no_species, no_genera, no_families))
+# }) |> data.frame() |> t() |> data.frame()
+# names(time_series_info) = c('Items', 'Accessions', 'Taxa', 'Species', 'Genera', 'Families')
 
 
 
@@ -819,7 +736,7 @@ time_series_info_normalised = data.frame(years = years, time_series_info, time_s
 data_names = names(time_series_info_normalised)
 
 to_plot = c("Items", "Accessions", "Taxa", "Species", "Genera", "Families")
-colours = scales::brewer_pal(palette = palette, direction = 1)(length(to_plot))
+colours = scales::brewer_pal(palette = colour_palette, direction = 1)(length(to_plot))
 fig <- plot_ly(time_series_info_normalised, x = ~years)
 fig <- fig %>%  add_trace(x = ~years, y = min(time_series_info_normalised[,8:13]), hoverinfo='text', type = 'scatter', text = ~years,
             mode = 'markers', marker=list(size=0, color='white'),
@@ -1018,7 +935,7 @@ int_plots$proportion
 ### Turnover of the collection
 
 ```{r, Get Trends, echo = F}
-interest = report
+interest = report_original
 LossYear = rep(NA,nrow(interest))
 ItemStatusYear = as.numeric(stringr::str_extract(interest$ItemStatusDate,pattern = '[0-9]{4}'))
 LossYear[interest$ItemStatusType == 'NotExisting'] = ItemStatusYear[interest$ItemStatusType == 'NotExisting']
@@ -1390,7 +1307,8 @@ existing_each_year_LC = as.numeric(colSums(BGSmartR::exist_at_date(date = paste0
                         ItemStatusType = as.character(report$ItemStatusType),
                         post_date = '3000-01-01')))
 
-overall_trend = existing_each_year_LC
+overall_trend = time_series_info$Accessions
+# overall_trend = existing_each_year_LC
 overall_turnover = turnover_items(interest)
 plots = plots_turnover(turnover = overall_turnover, trend = overall_trend, report_kind = 'interactive', separate_figure_folder = separate_figure_folder, data_type = 'accessions')
 ```
@@ -2151,7 +2069,7 @@ for(i in 1:length(tribes_with_subtribes)){
 
 colours = rep('white', nrow(data_formatted))
   first_level_index = grep('--Collection$',data_formatted$ID)
-  colo = scales::brewer_pal(palette = palette, direction = 1)(length(first_level_index)) |> rev()
+  colo = scales::brewer_pal(palette = colour_palette, direction = 1)(length(first_level_index)) |> rev()
   colours[first_level_index] = colo 
   for(i in 1:length(colo)){
     col = colo[i]
@@ -2303,7 +2221,7 @@ fit_tree$surv = fit_tree$surv*100
 fit_tree$hover = paste0('Time: ',fit_tree$time|> round(2),'<br>Tree survival Probability: ', (fit_tree$surv) |> round(2), '% <br> 95% conf interval: (',(fit_tree$lower*100) |> round(2),  '%, ', (fit_tree$upper*100) |> round(2),'%)')
 }
 
-colors = scales::brewer_pal(palette = palette, direction = 1)(5)
+colors = scales::brewer_pal(palette = colour_palette, direction = 1)(5)
 
 fig = plot_ly(data = data.frame(), type = 'scatter', mode = 'lines', x = fit_all$time, y = fit_all$surv, name = 'All', hoverinfo = "text",  hovertext = fit_all$hover, line = list(color = colors[1]) )
 if(exists('fit_native')){
@@ -2621,7 +2539,7 @@ names(export_df) = c('Accession number', 'Original taxonomic name and author', '
 library(VennDiagram)
 venn_diag = venn.diagram(wanted, filename = NULL,
                          category.names = c('Wild', 'Threatened', 'Endemic'),
-                         fill =scales::brewer_pal(palette = palette, direction = 1)(3),
+                         fill =scales::brewer_pal(palette = colour_palette, direction = 1)(3),
                          disable.logging = TRUE,
                          main.fontfamily = "arial",
                          main.fontface = "sans",

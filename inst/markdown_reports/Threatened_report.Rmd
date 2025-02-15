@@ -101,12 +101,12 @@ palette = 'Oranges'
 # ggtheme = NULL
 # separate_figure_folder = FALSE
 # value_on_fig = TRUE
-# report_kind = 'static'
+# report_kind = 'interactive'
 # # color_binary = c('darkgray','darkgreen')
 # palette = 'Greens'
 # endemic_species_per_region = NULL
 # output_dir =getwd()
-# old_accession_year_codes = 1000
+# old_accession_year_codes = NULL
 # earliest_allowable_record = 1846
 ```
 
@@ -688,10 +688,23 @@ In analyses over time we use the current version of IUCN's red list retrospectiv
  
 ```{r check for threatened, warning=NA}
 threatened = enriched_report[which(enriched_report$threatened == 'Threatened'),]
+
 no_threatened = nrow(threatened) == 0
 if(no_threatened){
   warning('There are no threatened plants!')
 }
+
+# Create cleaned Genus Species (Note here that we must match to either POWO or redlist to be classed as threatened therefore we don't need to use the name from the report)
+GenusSpecies = rep(NA,nrow(threatened))
+GenusSpecies[!is.na(threatened$POWO_genus)] = paste0(threatened$POWO_genus[!is.na(threatened$POWO_genus)], ' ', threatened$POWO_species[!is.na(threatened$POWO_genus)] )
+GenusSpecies[is.na(GenusSpecies)] = threatened$redList_match_taxon_name[is.na(GenusSpecies)] |> stringr::str_split(' ') |> lapply(function(x){paste0(x[1], ' ', x[2])}) |> unlist()
+threatened$BestGenusSpecies = GenusSpecies
+
+# Create Full name for the taxa of threatened species.
+FullName = rep(NA,nrow(threatened))
+FullName[!is.na(threatened$POWO_genus)] = paste0(threatened$POWO_taxon_name[!is.na(threatened$POWO_genus)], ' ', threatened$POWO_taxon_authors[!is.na(threatened$POWO_genus)])
+FullName[is.na(FullName)] = paste0(threatened$redList_match_taxon_name[is.na(FullName)], ' ', threatened$redList_match_authors[is.na(FullName)])
+threatened$FullName = FullName
 ```
 
 `r if(no_threatened){"There are no threatened plants."}`
@@ -700,12 +713,12 @@ if(no_threatened){
 ```{r,  get threatened only information}
 max_year = format(Sys.Date(), '%Y') |> as.numeric()
 
-# threatened must match to POWO so no naming issues.
+# threatened including non-POWO matches.
 threatened_existing = threatened[which(threatened$ItemStatusType == 'Existing'),] 
 no_threatened_items_existing = nrow(threatened_existing)
 no_threatened_accessions_existing = length(unique(threatened_existing$AccNoFull))
-no_threatened_species_existing = length(unique(paste0(threatened_existing$POWO_genus, ' ', threatened_existing$POWO_species)))
-no_threatened_taxa_existing = length(unique(paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_authors)))
+no_threatened_species_existing = threatened_existing$BestGenusSpecies |> unique() |> length()
+no_threatened_taxa_existing =  threatened_existing$FullName |> unique() |> length() 
 
 to_keep = which(as.numeric(threatened$AccYear) >= earliest_allowable_record  & as.numeric(threatened$AccYear) <= max_year)
 still_issue = nrow(threatened) - length(to_keep)
@@ -754,8 +767,8 @@ over_time_info = lapply(threatened_existing_each_year, function(x){
   # Get the values of interest.
   no_items = nrow(garden_current)
   no_accessions = length(unique(garden_current$AccNoFull))
-  no_taxa = length(unique(garden_current$TaxonNameFull))
-  no_species = length(unique(paste0(garden_current$POWO_taxon_name, garden_current$POWO_taxon_authors)[!is.na(garden_current$POWO_plant_name_id)]))
+  no_taxa = garden_current$FullName |> unique() |> length()
+  no_species = garden_current$BestGenusSpecies |> unique() |> length()
   
   return(c(no_items, no_accessions, no_taxa, no_species))
 }) |>
@@ -787,8 +800,8 @@ over_time_info = lapply(plant_existing, function(x){
   # Get the values of interest.
   no_items = nrow(garden_current)
   no_accessions = length(unique(garden_current$AccNoFull))
-  no_taxa = length(unique(garden_current$TaxonNameFull))
-  no_species = length(unique(paste0(garden_current$POWO_taxon_name, garden_current$POWO_taxon_authors)[!is.na(garden_current$POWO_plant_name_id)]))
+  no_taxa = length(unique(paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)))
+  no_species = length(unique(paste0(garden_current$POWO_genus, garden_current$POWO_species)[!is.na(garden_current$POWO_plant_name_id)]))
   
   return(c(no_items, no_accessions, no_taxa, no_species))
 }) |>
@@ -810,11 +823,16 @@ threatened_accessions = threatened_accessions[match(unique(threatened_accessions
 powo_name = paste0(threatened_accessions$POWO_taxon_name, ' ', threatened_accessions$POWO_taxon_authors)
 powo_name[powo_name == 'NA NA'] = NA
 threatened_accessions$powo_name = powo_name
-threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens'), names(threatened_accessions))]
-names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in')
+# threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens'), names(threatened_accessions))]
+# names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in')
+# dir.create(output_dir,showWarnings = F,recursive = T)
+# writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
+
+
+threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens', 'PLantSearchToPOWO_no_gardens'), names(threatened_accessions))]
+names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in (By original name)', 'Number of Global Collections Held in (by POWO name)')
 dir.create(output_dir,showWarnings = F,recursive = T)
 writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
-
 
 ```
 
@@ -1030,18 +1048,18 @@ threatened_existing_acc = threatened_existing[match(unique(threatened_existing$A
 cat_acc = table(threatened_existing_acc$threatened_category)
 cat_acc = cat_acc[match(threatened_categories, names(cat_acc))]
 
-best_GenusSpecies = threatened_existing$GenusSpecies
-best_GenusSpecies[!is.na(threatened_existing$POWO_taxon_name)] = paste0(threatened_existing$POWO_genus[!is.na(threatened_existing$POWO_taxon_name)],
-                                                                        ' ',                                                                      threatened_existing$POWO_species[!is.na(threatened_existing$POWO_taxon_name)] )
-threatened_existing$best_GenusSpecies = best_GenusSpecies
+# best_GenusSpecies = threatened_existing$GenusSpecies
+# best_GenusSpecies[!is.na(threatened_existing$POWO_taxon_name)] = paste0(threatened_existing$POWO_genus[!is.na(threatened_existing$POWO_taxon_name)],
+#                                                                         ' ',                                                                      threatened_existing$POWO_species[!is.na(threatened_existing$POWO_taxon_name)] )
+# threatened_existing$best_GenusSpecies = best_GenusSpecies
 
-threatened_existing_species = threatened_existing[match(unique(threatened_existing$best_GenusSpecies),
-                                                               threatened_existing$best_GenusSpecies),]
+threatened_existing_species = threatened_existing[match(unique(threatened_existing$BestGenusSpecies),
+                                                               threatened_existing$BestGenusSpecies),]
 cat_species = table(threatened_existing_species$threatened_category)
 cat_species = cat_species[match(threatened_categories, names(cat_species))]
 
-threatened_existing_taxa = threatened_existing[match(unique(paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_author)),
-                                                            paste0(threatened_existing$POWO_taxon_name, ' ', threatened_existing$POWO_taxon_author)),]
+threatened_existing_taxa = threatened_existing[match(unique(threatened_existing$FullName),
+                                                            threatened_existing$FullName),]
 cat_taxa = table(threatened_existing_taxa$threatened_category)
 cat_taxa = cat_taxa[match(threatened_categories, names(cat_taxa))]
 
@@ -1391,7 +1409,7 @@ over_time_info = lapply(threatened_existing_each_year, function(x){
   
   names(redlistcat_accessions) = c('RedListCategory', 'Accessions')
   
-  taxa = paste0(garden_current$POWO_taxon_name, ' ', garden_current$POWO_taxon_authors)
+  taxa = garden_current$FullName
   redlistcat_taxa = data.frame(table(garden_current$redlist_used[match(unique(taxa), taxa)]))
   if(ncol(redlistcat_taxa) != 2){redlistcat_taxa = data.frame(matrix(ncol = 2, nrow = 0))}
   
