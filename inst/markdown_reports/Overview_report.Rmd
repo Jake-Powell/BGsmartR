@@ -25,7 +25,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # value_on_fig = TRUE
 ```
 
-<!-- Run css_and_logo.Rmd script, inital setup and checking for issues with the enriched report  -->
+<!-- Run css_and_logo.Rmd script, initial setup and checking for issues with the enriched report  -->
 ```{r, setup + css + logo,  child= paste0(system.file(package = "BGSmartR"), "/report_parts/css_and_logo.Rmd")}
 ```
 

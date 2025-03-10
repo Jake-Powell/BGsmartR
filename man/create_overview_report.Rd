@@ -77,5 +77,15 @@ create_overview_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-The most relevant plots illustrating the general quality of a collection
+The most relevant plots illustrating the general quality of a collection. This include sections on:
+\itemize{
+\item Composition of the collection,
+\item Geographic coverage of the collection,
+\item Change over time of the collection,
+\item Turnover of the collection,
+\item Taxonomic diversity of the collection,
+\item Survival in the collection,
+\item Provenance in the collection and,
+\item Important accessions.
+}
 }

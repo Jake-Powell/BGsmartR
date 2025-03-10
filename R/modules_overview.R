@@ -2,7 +2,15 @@
 #' Create overview module
 #'
 #'@description
-#'The most relevant plots illustrating the general quality of a collection
+#'The most relevant plots illustrating the general quality of a collection. This include sections on:
+#'  - Composition of the collection,
+#'  - Geographic coverage of the collection,
+#'  - Change over time of the collection,
+#'  - Turnover of the collection,
+#'  - Taxonomic diversity of the collection,
+#'  - Survival in the collection,
+#'  - Provenance in the collection and,
+#'  - Important accessions.
 #'
 #'
 #'@inheritParams create_native_report
@@ -13,32 +21,32 @@
 #' @export
 #'
 create_overview_report <- function(enriched_report,
-                                      collection = NULL,
-                                      wgsrpd3 = NULL,
-                                      PlantClassification_filepath = NULL,
-                                      report_kind = 'static',
-                                      coordinates = NA,
-                                      output_file = NULL,
-                                      output_dir = NULL,
-                                      export_data = FALSE,
-                                      separate_figure_folder = TRUE,
-                                      min_year = 1970,
-                                      native = 'Naturally occurring only',
-                                      extinct = TRUE,
-                                      doubtful_locations = FALSE,
-                                      table_font_size = 10,
-                                      ggtheme = NULL,
-                                      value_on_fig = FALSE,
+                                   collection = NULL,
+                                   wgsrpd3 = NULL,
+                                   PlantClassification_filepath = NULL,
+                                   report_kind = 'static',
+                                   coordinates = NA,
+                                   output_file = NULL,
+                                   output_dir = NULL,
+                                   export_data = FALSE,
+                                   separate_figure_folder = TRUE,
+                                   min_year = 1970,
+                                   native = 'Naturally occurring only',
+                                   extinct = TRUE,
+                                   doubtful_locations = FALSE,
+                                   table_font_size = 10,
+                                   ggtheme = NULL,
+                                   value_on_fig = FALSE,
                                    earliest_allowable_record = 1700,
                                    old_accession_year_codes = NULL,
 
-                                      scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-                                      scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-                                      scale_colour_binned = ggplot2::scale_colour_viridis_b,
-                                      scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-                                      scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-                                      scale_fill_binned = ggplot2::scale_fill_viridis_b,
-                                      reference_docx = NULL
+                                   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
+                                   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
+                                   scale_colour_binned = ggplot2::scale_colour_viridis_b,
+                                   scale_fill_continuous = ggplot2::scale_fill_viridis_c,
+                                   scale_fill_discrete = ggplot2::scale_fill_viridis_d,
+                                   scale_fill_binned = ggplot2::scale_fill_viridis_b,
+                                   reference_docx = NULL
 ){
   # 1) Setup.
   # A) Check inputs.

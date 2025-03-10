@@ -67,6 +67,10 @@ pnts <- data.frame( x = coordinates[2], y = coordinates[1])
 pnts_sf <- do.call("st_sfc",c(lapply(1:nrow(pnts), 
                                      function(i) {sf::st_point(as.numeric(pnts[i, ]))}), list("crs" = 4326))) 
 
+if(!exists('wgsrpd3')){
+  wgsrpd3 = BGSmartR::wgsrpd3_level3_simp
+}
+
 pnts_trans <- st_transform(pnts_sf, 2163) # apply transformation to pnts sf
 tt1_trans <- st_transform(wgsrpd3, 2163)      # apply transformation to polygons sf
 

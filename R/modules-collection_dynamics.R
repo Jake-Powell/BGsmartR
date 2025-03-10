@@ -3,7 +3,7 @@
 #' Create collection dynamics module
 #'
 #'@description
-#'**Trends**: Evolution over time of the capacity and diversity of a collection. **Turnover**: Dynamics of the gained and lost plants every year.
+#'**Trends**: Evolution over time of the capacity and diversity of a collection. **Turnover**: Dynamics of the gained and lost plants each year.
 #'
 #'
 #' @inheritParams create_native_report
@@ -17,20 +17,16 @@
 create_trends_report <- function(enriched_report,
                                    collection = NULL,
                                    min_year = 1970,
-
                                    coordinates = NULL,
                                    native = 'Naturally occurring only',
                                    extinct = TRUE,
                                    doubtful_locations = FALSE,
                                    wgsrpd3 = NULL,
-
-                                   report_kind = 'static',
+                                   report_kind = 'interactive',
                                    data_type = 'Accessions',
                                    earliest_allowable_record = 1700,
                                    old_accession_year_codes = NULL,
-                                   do_geography_trend = TRUE,
-
-
+                                   do_geography_trend = FALSE,
                                    output_file = NULL,
                                    output_dir = NULL,
                                    export_data = FALSE,
@@ -201,7 +197,7 @@ create_turnover_report <- function(enriched_report,
                                  doubtful_locations = FALSE,
                                  wgsrpd3 = NULL,
 
-                                 report_kind = 'static',
+                                 report_kind = 'interactive',
                                  data_type = 'Accessions',
                                  earliest_allowable_record = 1700,
                                  old_accession_year_codes = NULL,

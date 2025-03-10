@@ -14,11 +14,11 @@ create_trends_report(
   extinct = TRUE,
   doubtful_locations = FALSE,
   wgsrpd3 = NULL,
-  report_kind = "static",
+  report_kind = "interactive",
   data_type = "Accessions",
   earliest_allowable_record = 1700,
   old_accession_year_codes = NULL,
-  do_geography_trend = TRUE,
+  do_geography_trend = FALSE,
   output_file = NULL,
   output_dir = NULL,
   export_data = FALSE,
@@ -46,7 +46,7 @@ create_turnover_report(
   extinct = TRUE,
   doubtful_locations = FALSE,
   wgsrpd3 = NULL,
-  report_kind = "static",
+  report_kind = "interactive",
   data_type = "Accessions",
   earliest_allowable_record = 1700,
   old_accession_year_codes = NULL,
@@ -119,5 +119,5 @@ create_turnover_report(
 \item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
-\strong{Trends}: Evolution over time of the capacity and diversity of a collection. \strong{Turnover}: Dynamics of the gained and lost plants every year.
+\strong{Trends}: Evolution over time of the capacity and diversity of a collection. \strong{Turnover}: Dynamics of the gained and lost plants each year.
 }

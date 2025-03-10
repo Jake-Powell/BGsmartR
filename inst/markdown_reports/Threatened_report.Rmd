@@ -713,6 +713,8 @@ threatened$FullName = FullName
 ```{r,  get threatened only information}
 max_year = format(Sys.Date(), '%Y') |> as.numeric()
 
+enriched_report2 <<- enriched_report
+threatened2 <<- threatened
 # threatened including non-POWO matches.
 threatened_existing = threatened[which(threatened$ItemStatusType == 'Existing'),] 
 no_threatened_items_existing = nrow(threatened_existing)
@@ -823,16 +825,16 @@ threatened_accessions = threatened_accessions[match(unique(threatened_accessions
 powo_name = paste0(threatened_accessions$POWO_taxon_name, ' ', threatened_accessions$POWO_taxon_authors)
 powo_name[powo_name == 'NA NA'] = NA
 threatened_accessions$powo_name = powo_name
-# threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens'), names(threatened_accessions))]
-# names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in')
-# dir.create(output_dir,showWarnings = F,recursive = T)
-# writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
-
-
-threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens', 'PLantSearchToPOWO_no_gardens'), names(threatened_accessions))]
-names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in (By original name)', 'Number of Global Collections Held in (by POWO name)')
+threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens'), names(threatened_accessions))]
+names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in')
 dir.create(output_dir,showWarnings = F,recursive = T)
 writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
+
+
+# threatened_accessions = threatened_accessions[,match(c('AccNoFull', 'TaxonNameFull', 'powo_name', 'threatened', 'threatened_category', 'endemic', 'geography_codes', 'ProvenanceCode', 'no_gardens', 'PLantSearchToPOWO_no_gardens'), names(threatened_accessions))]
+# names(threatened_accessions) = c('Accession Number', 'Original Taxonomic Name and Author', 'POWO Taxonomic Name and Author', 'Threatened', 'Red list category', 'endemic', 'Geographic codes..', 'Provenance', 'Number of Global Collections Held in (By original name)', 'Number of Global Collections Held in (by POWO name)')
+# dir.create(output_dir,showWarnings = F,recursive = T)
+# writexl::write_xlsx(threatened_accessions, path =paste0(output_dir,'/',collection,'_threatened_accessions_list.xlsx'))
 
 ```
 
@@ -1773,12 +1775,25 @@ names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in colle
 no_more_info = no_more_info[FALSE,]
 if(length(no_more_ids) > 0){
   column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
+  
+  
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
   plant = df[which(df$POWO_plant_name_id == x), match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
   info = df[df$POWO_plant_name_id == x, column_interest]
+  
+  if(all(is.na(info$LossYear) )){
+    threat = info$threatened[1] ; threat_cat = info$threatened_category[1]
+  endemic = info$endemic[1] ; tree = info$tree[1] ; nativeo = info$native[1]
+    return(c(plant, NA, NA, NA, threat, threat_cat, endemic, nativeo, tree))
+  }
+  
   last_seen = max(info$LossYear, na.rm = T) ; first_seen = min(info$AccYear,na.rm = T)
   all_years = first_seen:last_seen
-  seen_years = apply(info, 1, function(x){x[1]:x[2]}) |> unlist() |> unique() |> sort()
+  seen_years = apply(info, 1, function(x){
+    y = x[1:2] 
+    if (any(is.na(y))){return(NULL)}
+    return(x[1]:x[2])
+    }) |> unlist() |> unique() |> sort()
   has_year = all_years %in% seen_years
   total_years = sum(has_year)
   consec = split(which(has_year),cumsum(c(1,diff(which(has_year))!=1)))

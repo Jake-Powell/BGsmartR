@@ -2,7 +2,7 @@
 % Please edit documentation in R/report_functions.R
 \name{group_trend_plots}
 \alias{group_trend_plots}
-\title{PLot multiple trend lines.}
+\title{PLlot multiple trend lines.}
 \usage{
 group_trend_plots(
   years,
@@ -32,6 +32,9 @@ group_trend_plots(
 
 \item{group_order}{group_order}
 }
+\value{
+plot
+}
 \description{
-PLot multiple trend lines.
+PLlot multiple trend lines.
 }

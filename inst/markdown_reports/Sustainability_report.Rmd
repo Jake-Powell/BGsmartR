@@ -1286,23 +1286,41 @@ loss_unique_taxa_without_cult_indet$percentage
 `r if(report_kind == 'interactive'){"##### {-}"}`
 
 ```{r, get WCVP plants that were in the LC but no more}
-df = report[!is.na(report$POWO_plant_name_id),]
-df$AccYear = df$AccYear |> as.numeric()
+do_no_more_ids = TRUE
+df = report[which(!is.na(report$POWO_plant_name_id)),]
 df = df[which(df$ItemStatusType%in% c("NotExisting", "Existing")),]
 
+df = df[which(df$threatened == "Threatened"),]
+df$AccYear = df$AccYear |> as.numeric()
+# df = df[which(!is.na(df$LossYear)),]
+
 all_ids =  df$POWO_plant_name_id |> unique()
-existing_ids = df$POWO_plant_name_id[df$ItemStatusType == 'Existing'] |> unique()
+existing_ids = df$POWO_plant_name_id[which(df$ItemStatusType == 'Existing')] |> unique()
 no_more_ids = all_ids[!all_ids %in% existing_ids]
-do_no_more_ids = TRUE
-if(length(no_more_ids)> 0){
+no_more_info = data.frame(1,2,3,4,5,6,7,8,0)
+names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in collection', 'Presence history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
+no_more_info = no_more_info[FALSE,]
+if(length(no_more_ids) > 0){
   column_interest = match(c('AccYear', 'LossYear', 'threatened', 'threatened_category', 'endemic', 'tree', 'native'), names(df))
+  
+  
 no_more_info = pbapply::pblapply(no_more_ids, function(x){
-  x <<- x
-  plant = df[df$POWO_plant_name_id == x, match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
+  plant = df[which(df$POWO_plant_name_id == x), match(c("POWO_taxon_name", "POWO_taxon_authors"), names(df))][1,] |> paste0(collapse = ' ')
   info = df[df$POWO_plant_name_id == x, column_interest]
-  last_seen = max(info$LossYear) ; first_seen = min(info$AccYear)
+  
+  if(all(is.na(info$LossYear) )){
+    threat = info$threatened[1] ; threat_cat = info$threatened_category[1]
+  endemic = info$endemic[1] ; tree = info$tree[1] ; nativeo = info$native[1]
+    return(c(plant, NA, NA, NA, threat, threat_cat, endemic, nativeo, tree))
+  }
+  
+  last_seen = max(info$LossYear, na.rm = T) ; first_seen = min(info$AccYear,na.rm = T)
   all_years = first_seen:last_seen
-  seen_years = apply(info, 1, function(x){x[1]:x[2]}) |> unlist() |> unique() |> sort()
+  seen_years = apply(info, 1, function(x){
+    y = x[1:2] 
+    if (any(is.na(y))){return(NULL)}
+    return(x[1]:x[2])
+    }) |> unlist() |> unique() |> sort()
   has_year = all_years %in% seen_years
   total_years = sum(has_year)
   consec = split(which(has_year),cumsum(c(1,diff(which(has_year))!=1)))
@@ -1319,10 +1337,11 @@ no_more_info = pbapply::pblapply(no_more_ids, function(x){
   endemic = info$endemic[1] ; tree = info$tree[1] ; nativeo = info$native[1]
   return(c(plant, last_seen, total_years, mess, threat, threat_cat, endemic, nativeo, tree))
 }) |> data.frame() |> t() |> data.frame()
-names(no_more_info) = c('Taxonomic name and author', 'Last year in collection', 'Total years in collection', 'In collection history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
+names(no_more_info) = c('Taxa', 'Last year in collection', 'Total years in collection', 'Presence history', 'Threatened', 'Threatened category', 'Endemic', 'Naive', 'Tree')
 rownames(no_more_info) = 1:nrow(no_more_info)
 no_more_info$`Total years in collection` = no_more_info$`Total years in collection` |> as.numeric()
 no_more_info$`Last year in collection` = no_more_info$`Last year in collection` |> as.numeric()
+
 }
 if(length(no_more_ids) == 0){no_more_info = data.frame() ; do_no_more_ids = FALSE}
 

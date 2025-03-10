@@ -33,6 +33,9 @@ group_trend_plots_pair(
 
 \item{group_order}{group_order}
 }
+\value{
+plot
+}
 \description{
 Plot a pair of trend lines.
 }
