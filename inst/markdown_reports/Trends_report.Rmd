@@ -485,17 +485,17 @@ names(no_tree) = Tree_categories
 
 
 int_endemic_plots = group_trend_plots_pair(years, no_endemic, "Endemic", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE, group_order = c('Endemic', 'Not Endemic'),
-                                           color_binary = color_binary)
+                                           color_binary = c('#f46d43', '#848484'))
   
 int_native_plots = group_trend_plots_pair(years, no_native, "native", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type,  split = TRUE,
-                                          color_binary = color_binary)
+                                          color_binary = c('#f46d43', '#848484'))
     
 int_threatened_plots = group_trend_plots_pair(years, no_threatened, "threatened", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, split = TRUE,
                                          group_order = c('Threatened', 'Not Threatened'),
-                                         color_binary = color_binary)
+                                         color_binary = c('#f46d43', '#848484'))
 
 int_tree_plots = group_trend_plots_pair(years, no_tree, "Tree", report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = data_type, group_order = c('Tree', 'Not Tree'),
-                                        color_binary = color_binary)
+                                        color_binary = c('#f46d43', '#848484'))
 
 
 ```
@@ -546,7 +546,8 @@ data_names = names(time_series_info_normalised)
 
 
 to_plot = c('Threatened', "Endemic", "Native", 'Tree')
-colours = interactive_colour(length(to_plot))
+# colours = interactive_colour(length(to_plot))
+colours = c('#f46d43', "#FDAE6B", '#848484', '#e6e6e6')
 fig <- plot_ly(time_series_info_normalised, x = ~years)
 fig <- fig %>%  add_trace(x = ~years, y = min(time_series_info_normalised[,which(grepl('Norm',names(time_series_info_normalised)))]), hoverinfo='text', type = 'scatter', text = ~years,
             mode = 'markers', marker=list(size=0, color='white'),

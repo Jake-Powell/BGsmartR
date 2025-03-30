@@ -274,14 +274,15 @@ turnover_items <- function(report,...){
   return(combined)
 }
 
-plots_turnover <- function(turnover, trend, report_kind, text = '', separate_figure_folder, data_type = 'items'){
-    dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
-    names(dataA) = LETTERS[1:3]
-    dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
-    names(dataB) = LETTERS[1:3]
-    items_data = rbind(dataA, dataB)
+plots_turnover <- function(turnover, trend, report_kind, text = '', separate_figure_folder, data_type = 'items', colors = c('#f46d43', '#848484')){
+  years = turnover$Year
+  dataA = data.frame(turnover[,c(1,3)], rep('Lost', nrow(turnover)))
+  names(dataA) = LETTERS[1:3]
+  dataB = data.frame(turnover[,c(1,2)], rep('Gain', nrow(turnover)))
+  names(dataB) = LETTERS[1:3]
+  items_data = rbind(dataA, dataB)
   if(report_kind == 'static'){
-
+    
     p = ggplot(data=items_data, aes(x=A, y=B, group=C)) +
       geom_line(aes(color=C)) +
       # theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank(), axis.line = element_line(colour = "black")) +
@@ -330,7 +331,6 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
   if(report_kind == 'interactive'){
     # gain_loss plot
-    colors = color_binary |> rev()
     fig <- plot_ly(items_data, x = ~A, y = ~B, color = ~C, colors = colors, type = 'scatter', mode = 'lines+markers')
     fig <- fig |> layout(yaxis = list(title = paste0("Number of ",data_type,"")),
                          xaxis = list(title = "Year"))
@@ -342,13 +342,12 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
     fig1 = fig
     
     # net plot
-    colors = color_binary |> rev()
-    color <- ifelse(turnover$net_items < 0, colors[1], colors[2])
+    color <- ifelse(turnover$net_items < 0, 'B', 'A')
     texto = paste0('Net: ', turnover$net_items, '<br>',
                    'Gain: ', turnover$gain_items, '<br>',
                    'Loss: ', turnover$loss_items, '<br>'
     )
-    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
+    fig = plot_ly(turnover, x = ~Year, y = ~net_items, type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = colors, showlegend = FALSE)
     fig <- fig |> layout(yaxis = list(title = paste0("Net number of ",data_type,"")),
                          xaxis = list(title = "Year"))
     fig <- fig |> layout(hovermode = 'x unified')
@@ -375,11 +374,11 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
       side = "right",
       title = paste0("Total ", tolower(data_type)))
     
-      fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = rev(colors), showlegend = FALSE)
-     
+    fig <- fig %>% add_trace(x = years, y = turnover$net_items, name = "Net", type = 'bar', hoverinfo = "x+text",  hovertext = texto, color = color, colors = colors, showlegend = FALSE)
+    
     fig <- fig %>% add_trace(x = years, y = trend, name = "Total", mode = "lines+markers", type = "scatter", line = list(color = 'black'), marker = list(color = 'black'),yaxis = "y2")
     
-  
+    
     # Set figure title, x and y-axes titles
     fig <- fig |> layout(
       title = "", yaxis2 = ay,
@@ -397,13 +396,13 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
                zerolinewidth = 2,
                gridcolor = 'ffff',
                showgrid = FALSE),
-              yaxis = list(
-                zeroline = TRUE,
-                zerolinecolor = '#f0f0f0',
-                zerolinewidth = 1,
-                gridcolor = '#f0f0f0',
-                griddash = 'solid',
-                gridwidth = 1,showgrid = T),
+             yaxis = list(
+               zeroline = TRUE,
+               zerolinecolor = '#f0f0f0',
+               zerolinewidth = 1,
+               gridcolor = '#f0f0f0',
+               griddash = 'solid',
+               gridwidth = 1,showgrid = T),
              margin = list(t = 10, l = 20, r = 70, b = 20, pad = 4),
              autosize = T
       )
@@ -415,6 +414,7 @@ plots_turnover <- function(turnover, trend, report_kind, text = '', separate_fig
   }
 }
 
+
 proportional_plots_turnover <- function(turnover,
                                         overall_turnover,
                                         collection_proportion,
@@ -422,7 +422,8 @@ proportional_plots_turnover <- function(turnover,
                                         report_kind,
                                         text = '',
                                         data_type = 'items',
-                                        quantity = ''){
+                                        quantity = '',
+                                        colors = rev(c('#f46d43', '#848484'))){
   if(report_kind == 'static'){
     # Gain
     plot_data = data.frame(year = turnover[,1],
@@ -480,7 +481,7 @@ proportional_plots_turnover <- function(turnover,
     plot_data_gain = plot_data
     fig = plot_ly(plot_data, x = ~year, y = ~prop_specific, type = 'bar',
                   name = paste0('New Accessions'),
-                  marker = list(color = color_binary[2]),
+                  marker = list(color = colors[2]),
                   hovertemplate = paste("%{y:.2f}% of new accessions <extra></extra>")
                   )
                   
@@ -516,7 +517,7 @@ proportional_plots_turnover <- function(turnover,
                   y = ~prop_specific,
                   type = 'bar',
                   name = paste0('Lost Accessions'),
-                  marker = list(color = color_binary[1]),
+                  marker = list(color = colors[1]),
                   hovertemplate = paste("%{y:.2f}% of lost accessions <extra></extra>"))
     fig <- fig |> layout(yaxis = list(title = paste0("Percentage")),
                          xaxis = list(title = "Year"))
@@ -568,6 +569,7 @@ In the Net graphs we overlap the graphs with the relevant overall trend to be ab
 overall_trend = existing_each_year_LC
 overall_turnover = turnover_items(report)
 exporting_data_store$overall_turnover = overall_turnover
+  
 plots = plots_turnover(turnover = overall_turnover, trend = overall_trend, report_kind = report_kind, separate_figure_folder = separate_figure_folder, data_type = tolower(data_type))
 if(report_kind == 'static'){
   plots$gain_loss = plots$gain_loss + ggtitle(paste0('Turnover of ',tolower(data_type),' in the LC'))
@@ -590,11 +592,6 @@ plots$net
 ```{r  Net turnover of accessions over time in the LC - interactive, fig.fullwidth=TRUE, fig.dim = c(10, 4), eval = report_kind == 'interactive'}
 plots$trend_and_net
 
-# fig <- subplot(plots$trend, plots$net, plots$gain_loss,
-#                nrows = 3,
-#                shareX = TRUE,
-#                heights = c(0.2, 0.4,0.4)) |> layout(showlegend = FALSE)
-# htmlwidgets::saveWidget(widget = fig,file = 'stacked_turnover_overall.html')
 ```
 
 `r if(report_kind == 'interactive'){"###### Gain/Loss"}`
@@ -652,7 +649,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover_indetermint
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Indeterminate Taxa',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_indeterminate_taxa_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_indeterminate_taxa_loss = plots_proportional$data_loss
 }
@@ -736,7 +734,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Horticultral Taxa',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_horticultural_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_horticultural_loss = plots_proportional$data_loss
 }
@@ -820,7 +819,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Biological Taxa',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_biological_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_biological_loss = plots_proportional$data_loss
 }
@@ -909,7 +909,8 @@ plots_proportional_unknown = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Unknown Origin',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_unknown_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_unknown_provenance_loss = plots_proportional$data_loss
 }
@@ -941,7 +942,8 @@ plots_proportional_garden = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Garden Origin',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_garden_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_garden_provenance_loss = plots_proportional$data_loss
 }
@@ -973,7 +975,8 @@ plots_proportional_wild_derived = proportional_plots_turnover(turnover = turnove
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Wild-derived',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_wild_derived_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_wild_derived_provenance_loss = plots_proportional$data_loss
 }
@@ -1005,13 +1008,15 @@ plots_proportional_wild = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Wild Origin',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_wild_provenance_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_wild_provenance_loss = plots_proportional$data_loss
 }
 ```
 
 ```{r, provenance together}
+exporting_data_store <<- exporting_data_store
 ordered_provenance = c('Wild','Wild-derived', 'Garden', 'Unknown')
 unk = if(do_unknown) exporting_data_store$turnover_provenance_unknown$gain_items else NA
 gar = if(do_garden) exporting_data_store$turnover_provenance_garden$gain_items else NA
@@ -1422,7 +1427,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Threatened',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_threatened_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_threatened_loss = plots_proportional$data_loss
 }
@@ -1508,7 +1514,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Endemic',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_endemic_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_endemic_loss = plots_proportional$data_loss
 }
@@ -1595,7 +1602,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Native',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_native_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_native_loss = plots_proportional$data_loss
 }
@@ -1681,7 +1689,8 @@ plots_proportional = proportional_plots_turnover(turnover = turnover,
                                                  report_kind = report_kind,
                                                  separate_figure_folder = separate_figure_folder,
                                                  text = 'Tree',
-                                                 data_type = data_type)
+                                                 data_type = data_type,
+                                                 colors = c('#848484', '#f46d43'))
 exporting_data_store$proportional_turnover_tree_gain = plots_proportional$data_gain
 exporting_data_store$proportional_turnover_tree_loss = plots_proportional$data_loss
 }

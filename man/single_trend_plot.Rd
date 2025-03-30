@@ -17,6 +17,9 @@ single_trend_plot(years, values, name, report_kind, separate_figure_folder)
 
 \item{separate_figure_folder}{separate_figure_folder}
 }
+\value{
+graph
+}
 \description{
 PLot a single trend over time
 }

@@ -13,7 +13,7 @@ group_trend_plots_pair(
   data_type,
   split = FALSE,
   group_order = NULL,
-  color_binary
+  color_binary = interactive_colour(4, type = "trend")
 )
 }
 \arguments{

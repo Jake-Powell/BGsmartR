@@ -4,7 +4,7 @@
 \alias{interactive_colour}
 \title{Chart colours for reports}
 \usage{
-interactive_colour(n)
+interactive_colour(n, type = "other")
 }
 \arguments{
 \item{n}{number of colours (allowable values = 1,2,3,4)}

@@ -59,7 +59,7 @@ create_turnover_report(
   table_font_size = 10,
   ggtheme = NULL,
   value_on_fig = FALSE,
-  interactive_colour = viridis::viridis,
+  interactive_colour = BGSmartR::interactive_colour,
   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
   scale_colour_binned = ggplot2::scale_colour_viridis_b,
