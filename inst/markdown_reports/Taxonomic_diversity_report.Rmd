@@ -194,6 +194,7 @@ report = report[!grepl('5',report$taxon_type), ]
 
 #No families.
 # = Use POWO family if available if not use the original.
+if(!'Family' %in% names(report)) report$Family = NA
 families = data.frame(original = report$Family, POWO = report$POWO_family)
 use_family = families$POWO
 use_family[is.na(use_family)] = families$original[is.na(use_family)]
@@ -202,6 +203,7 @@ no_families <- length(unique(use_family))
 
 #No genus
 # = Use POWO genus if available if not use the original.
+if(!'Genus' %in% names(report)) report$Genus = NA
 genus = data.frame(original = report$Genus, POWO = report$POWO_genus)
 use_genus = genus$POWO
 use_genus[is.na(use_genus)] = genus$original[is.na(use_genus)]
@@ -210,6 +212,7 @@ no_genus <- length(unique(use_genus))
 
 
 #No species
+if(!'GenusSpecies' %in% names(report)) report$GenusSpecies = NA
 POWO_GenusSpecies = rep(NA, nrow(report))
 POWO_GenusSpecies[!is.na(report$POWO_plant_name_id)] = paste0(report$POWO_genus[!is.na(report$POWO_plant_name_id)],
                                                               ' ',

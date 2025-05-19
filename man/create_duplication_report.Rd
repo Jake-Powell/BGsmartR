@@ -12,21 +12,7 @@ create_duplication_report(
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
-  report_kind = "static",
-  output_file = NULL,
-  output_dir = NULL,
-  export_data = FALSE,
-  separate_figure_folder = TRUE,
-  table_font_size = 10,
-  ggtheme = NULL,
-  value_on_fig = FALSE,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  reference_docx = NULL
+  output_dir = NULL
 )
 }
 \arguments{
@@ -44,25 +30,7 @@ create_duplication_report(
 
 \item{doubtful_locations}{Flag (TRUE/FALSE) for whether to include doubtful locations.}
 
-\item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
-
-\item{output_file}{The file path of the native report.}
-
 \item{output_dir}{The output directory}
-
-\item{export_data}{Flag (TRUE/FALSE) for whether to create a \code{.rda} and \code{.xlsx} files containing the data used to create the figures in the plot.}
-
-\item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
-
-\item{table_font_size}{Font size for tables.}
-
-\item{ggtheme}{gg plot theme to be applied to all ggplots, see \code{ggthemes} package for pre-set themes.}
-
-\item{value_on_fig}{Flag (TRUE/FALSE) for whether to include values of static plots.}
-
-\item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
-
-\item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 }
 \description{
 Degree of rarity of a plant in cultivation globally and duplication of individuals per species in a collection.

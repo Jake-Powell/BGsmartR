@@ -1,0 +1,235 @@
+---
+title: "Using BGsmartR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{BGsmartR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(BGSmartR)
+```
+
+# Example
+
+In this example we go from an example collection, enriching with botanic resources and create reports using the enriched information.
+
+First let's load the collection.
+
+```{r}
+collection = BGSmartR::collection_example
+
+collection |> DT::datatable(rownames = F)
+```
+
+We see that our collection dataset has `r nrow(collection)` records and 8 columns including:
+
+- ItemAccNoFull: The Item and accession ID of the plant.
+- AccNoFull: The accession ID of the plant.
+- AccYear: The year the plant was accessioned.   
+- ProvenanceCode: The provenance of the accession.
+- TaxonName: The taxonomic name of the plant (without authority)      
+- TaxonNameFull:  The taxonomic name of the plant with authority. 
+- ItemStatusType: The status of the plant (either "Existing" or "NotExisting")
+- ItemStatusDate: The date of the last status update.
+
+These columns are fairly standard in living collection records. Further information may be contained (species, genus, family, etc) which could be used further along the pipeline when creating reports.
+
+## Enriching the collection
+
+To enrich the collection dataset we need to match records in our collection to external botanic datasets such as POWO (WCVP), WFO, IUCN RedList, etc. Herein, to perform matching we require the taxonomic name. For our dataset this is contained within `TaxonName`. Ideally, for better matching, we would also have the taxonomic authority however this is optional as the authority is not always known. 
+
+Creating these enrichment datasets can be time-consuming as they can be very large. See XX for how to create POWO,IUCN RedList enrichment datasets. 
+
+Within BGsmartR the function `enrich_collection()` can be used to enrich from WCVP, IUCN RedList and BGCI PlantSearch having used BGsmartR methods to create the enrichment databases. For other databases we can use `enrich_collection_from_enrich_database()`. Below we give examples of both.
+
+With this in mind, we load a cached WCVP extract relating to the example collection to perform enriching.
+
+```{r, eval = F, echo = F}
+# Need to create simplified wcvp so that matching can be done quickily. 
+
+load('/Users/jakepowell/Desktop/CJB/assets/wcvp_with_redlist_tree.rda') # WCVP
+wcvp = list(wcvp_names = wcvp$wcvp_names, geography = wcvp$geography)
+enrich_collection = BGSmartR::enrich_collection(collection, wcvp = wcvp)
+IDs_wanted = enrich_collection$POWO_match_detail |> stringr::str_extract_all(pattern = '[0-9\\-]{4,}') |> unlist()
+plant_IDs_wanted = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$powo_id %in% IDs_wanted]
+wcvp = list(wcvp_names =  wcvp$wcvp_names[wcvp$wcvp_names$powo_id %in% IDs_wanted,],
+             geography =  wcvp$geography[wcvp$geography$plant_name_id %in% plant_IDs_wanted,])
+  
+save(wcvp, file = '~/Cambridge/BGSmartR/vignettes/data/wcvp_getting_started.rda')           
+```
+
+```{r}
+# Load simplified POWO dataset for example.
+load('data/wcvp_getting_started.rda')
+
+# Enrich the collection with POWO (WCVP) information
+enrich_collection = BGSmartR::enrich_collection(collection,
+                                                wcvp = wcvp)
+
+```
+
+We see console messaging informing of the matching process. In total an additional 30 columns have been added to the original dataset. Below we show the information for the first two plant records (transposed for easier viewing)
+
+```{r}
+enrich_collection[1:2,] |> t() |> data.frame() |>   DT::datatable(rownames = T)
+```
+
+We see that we have information detailing the matching process, and information taken from the WCVP database. 
+
+If we further want to match the collection to BGCI GlobalTreeSeach we could do the following
+
+```{r}
+# This link may become invalid over time. See https://tools.bgci.org/global_tree_search.php for newer link if needed.
+BGCI_trees <- read.csv(url('https://tools.bgci.org/global_tree_search_trees_1_7.csv'))[,1:2]
+names(BGCI_trees) = c('taxon_names', 'taxon_author')
+BGCI_trees$is_tree = rep(T, nrow(BGCI_trees)) # Add column stating each record is a tree.
+
+# Convert ot BGsmartR format.
+BGCI_trees = BGSmartR::prepare_enrich_database(BGCI_trees,
+                                  enrich_taxon_name_column = 'taxon_names',
+                                  enrich_taxon_authors_column = 'taxon_author',
+                                  console_message = TRUE)
+
+### Enrich the collection with trees
+enrich_collection = BGSmartR::enrich_collection_from_enrich_database(
+  enrich_collection,
+  enrich_database = BGCI_trees,
+  taxon_name_column = 'TaxonName',
+  taxon_name_full_column = 'TaxonNameFull',
+  enrich_taxon_name_column = 'sanitise_name',
+  enrich_taxon_authors_column = 'sanitise_author',
+  columns_to_enrich = 'is_tree'
+  )
+```
+
+We find that `r enrich_collection$Enrich_is_tree |> sum(na.rm = T)` records are trees.
+
+```{r}
+enrich_collection$Enrich_is_tree |> table(useNA = 'always')
+```
+
+Note that this method could be improved see XX. 
+
+In summary we can use `enrich_collection()` to enrich a collection with a combination of WCVP, IUCN RedList or BGCI PlantSearch information where these databases have been created via BGSmartR. To enrich a collection with any enrichment database we can make use of `prepare_enrich_database()` to prepare the database and `enrich_collection_from_enrich_database()` to perform the enriching. 
+
+***
+
+## Creating reports
+
+Within BGsmartR we can create reports for:
+
+- Trends 
+- Turnover
+- etc
+
+To run these reports we require the collection's information to be enriched with data from POWO, IUCN RedList, BGCI GlobalTreeSearch and BGCI's PlantSearch.
+
+Within the BGsmartR package we provide an example enriched dataset in `BGSmartR::enriched_collection_example` which can be used to test the outputs of all the reports.
+
+Note that some of the reports create geographic maps of plant distributions to do this we require the geographical information contained in World Geographical Scheme for Recording Plant Distributions, this can be obtained from POWO [(link)](https://sftp.kew.org/pub/data-repositories/WCVP/?_gl=1*4lxk7b*_ga*MTQ4OTAyNzkyNy4xNzQ0MTE3NzY0*_ga_ZVV2HHW7P6*czE3NDczOTAzOTMkbzUkZzAkdDE3NDczOTAzOTMkajAkbDAkaDA.) and loaded into your environment. Or you can use the `rWCVPData` package to load the data.
+
+Moreover, to create some of the reports further information is required such as:
+
+- "wcvp" World checklist of vascular plants database formatted using BGsmartR.
+- "detailed_IUCN_redlist" IUCN redlist information with history. 
+
+```{r, eval  = F}
+enriched_report = BGSmartR::enriched_collection_example
+collection = 'My collection'
+coordinates = c(52.19376551784332, 0.12777705055343996) # set to CUBG.
+output_dir = getwd()
+wgsrpd3 = rWCVPdata::wgsrpd3
+
+
+BGSmartR::create_trends_report(enriched_report = enriched_report,
+                               collection = collection,
+                               coordinates = coordinates,
+                               wgsrpd3 = wgsrpd3,
+                               output_dir =paste0(output_dir, '/trends'),
+                               min_year = 1970)
+
+create_turnover_report(enriched_report = enriched_report,
+                       collection = collection,
+                       coordinates = coordinates,
+                       wgsrpd3 = wgsrpd3,
+                       min_year = 1970,
+                       output_dir =paste0(output_dir, '/turnover'))
+
+BGSmartR::create_geography_report(enriched_report = enriched_report,
+                                  collection = collection,
+                                  wgsrpd3 = wgsrpd3,
+                                  wcvp = wcvp,
+                                  detailed_IUCN_redlist = detailied_IUCN,
+                                  output_dir =paste0(output_dir, '/geography'),
+                                  endemic_species_per_region = endemic_species_per_region,
+                                  accepted_species_per_region = accepted_species_per_region,
+                                  tree_species_per_region = tree_species_per_region,
+                                  do_download = F)
+
+create_threatened_report(enriched_report = enriched_report,
+                                   collection = collection,
+                                   coordinates = coordinates,
+                                   wgsrpd3 = wgsrpd3,
+                                   detailed_IUCN_redlist = detailied_IUCN,
+                                   wcvp = wcvp,
+                                   output_dir =paste0(output_dir, '/threatened'))
+
+BGSmartR::create_duplication_report(enriched_report = enriched_report,
+                                    collection = collection,
+                                    output_dir =paste0(output_dir, '/duplication_rareity'))
+
+create_native_report(enriched_report = enriched_report,
+                     collection = collection,
+                     coordinates = coordinates,
+                     wgsrpd3 = wgsrpd3,
+                     wcvp = wcvp,
+                     output_dir =paste0(output_dir, '/native'))
+
+BGSmartR::create_taxonomic_diversity_report(enriched_report = enriched_report,
+                                            collection = collection,
+                                            wcvp = wcvp,
+                                            output_dir =paste0(output_dir, '/taxonomic_diversity'))
+
+BGSmartR::create_overview_report(enriched_report = enriched_report,
+                                 collection = collection,
+                                 wgsrpd3 = wgsrpd3,
+                                 coordinates = coordinates,
+                                 output_dir =paste0(output_dir, '/overview'))
+
+BGSmartR::create_data_health_report(enriched_report = enriched_report,
+                                    collection = collection,
+                                    wgsrpd3 = wgsrpd3,
+                                    coordinates = coordinates,
+                                    output_dir =paste0(output_dir, '/data_health'))
+
+BGSmartR::create_trees_report(enriched_report = enriched_report,
+                              collection = collection,
+                              coordinates = coordinates,
+                              wgsrpd3 = wgsrpd3,
+                              wcvp = wcvp,
+                              output_dir =paste0(output_dir, '/trees'))
+
+BGSmartR::create_endemic_report(enriched_report = enriched_report,
+                                collection = collection,
+                                coordinates = coordinates,
+                                wgsrpd3 = wgsrpd3,
+                                wcvp = wcvp,
+                                output_dir =paste0(output_dir, '/endemic'))
+
+BGSmartR::create_sustainability_report(enriched_report = enriched_report,
+                                       collection = collection,
+                                       wgsrpd3 = wgsrpd3,
+                                       coordinates = coordinates,
+                                       output_dir =paste0(output_dir, '/sustainability'))
+
+
+```

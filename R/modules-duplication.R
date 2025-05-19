@@ -16,22 +16,40 @@ create_duplication_report <- function(enriched_report,
                                    native = 'Naturally occurring only',
                                    extinct = TRUE,
                                    doubtful_locations = FALSE,
-                                   report_kind = 'static',
-                                   output_file = NULL,
-                                   output_dir = NULL,
-                                   export_data = FALSE,
-                                   separate_figure_folder = TRUE,
-                                   table_font_size = 10,
-                                   ggtheme = NULL,
-                                   value_on_fig = FALSE,
-                                   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-                                   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-                                   scale_colour_binned = ggplot2::scale_colour_viridis_b,
-                                   scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-                                   scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-                                   scale_fill_binned = ggplot2::scale_fill_viridis_b,
-                                   reference_docx = NULL
+                                   # report_kind = 'static',
+                                   # output_file = NULL,
+                                   output_dir = NULL
+                                   # export_data = FALSE,
+                                   # separate_figure_folder = TRUE,
+                                   # table_font_size = 10,
+                                   # ggtheme = NULL,
+                                   #value_on_fig = FALSE,
+                                   # scale_colour_continuous = ggplot2::scale_colour_viridis_c,
+                                   # scale_colour_discrete = ggplot2::scale_colour_viridis_d,
+                                   # scale_colour_binned = ggplot2::scale_colour_viridis_b,
+                                   # scale_fill_continuous = ggplot2::scale_fill_viridis_c,
+                                   # scale_fill_discrete = ggplot2::scale_fill_viridis_d,
+                                   # scale_fill_binned = ggplot2::scale_fill_viridis_b,
+                                   # reference_docx = NULL
 ){
+  interactive_colour = viridis::viridis
+  scale_colour_continuous = ggplot2::scale_colour_viridis_c
+  scale_colour_discrete = ggplot2::scale_colour_viridis_d
+  scale_colour_binned = ggplot2::scale_colour_viridis_b
+  scale_fill_continuous = ggplot2::scale_fill_viridis_c
+  scale_fill_discrete = ggplot2::scale_fill_viridis_d
+  scale_fill_binned = ggplot2::scale_fill_viridis_b
+  reference_docx = NULL
+  table_font_size = 10
+  ggtheme = NULL
+  separate_figure_folder = TRUE
+  value_on_fig = FALSE
+  export_data = FALSE
+  save_excel = FALSE
+  output_file = NULL
+  report_kind = 'interactive'
+  color_binary = c('darkgray','darkgreen')
+  palette = 'Greens'
   # 1) Setup.
   # A) Check inputs.
 

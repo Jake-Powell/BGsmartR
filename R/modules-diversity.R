@@ -22,24 +22,42 @@ create_taxonomic_diversity_report <- function(enriched_report,
                                    earliest_allowable_record = 1700,
                                    old_accession_year_codes = NULL,
 
-                                   report_kind = 'static',
-                                   output_file = NULL,
-                                   output_dir = NULL,
-                                   export_data = FALSE,
-                                   save_excel = FALSE,
-                                   separate_figure_folder = TRUE,
-                                   table_font_size = 10,
-                                   ggtheme = NULL,
-                                   value_on_fig = FALSE,
-                                   interactive_colour = viridis::viridis,
-                                   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-                                   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-                                   scale_colour_binned = ggplot2::scale_colour_viridis_b,
-                                   scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-                                   scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-                                   scale_fill_binned = ggplot2::scale_fill_viridis_b,
-                                   reference_docx = NULL
+                                   # report_kind = 'static',
+                                   # output_file = NULL,
+                                   output_dir = NULL
+                                   # export_data = FALSE,
+                                   # save_excel = FALSE,
+                                   # separate_figure_folder = TRUE,
+                                   # table_font_size = 10,
+                                   # ggtheme = NULL,
+                                   # value_on_fig = FALSE,
+                                   # interactive_colour = viridis::viridis,
+                                   # scale_colour_continuous = ggplot2::scale_colour_viridis_c,
+                                   # scale_colour_discrete = ggplot2::scale_colour_viridis_d,
+                                   # scale_colour_binned = ggplot2::scale_colour_viridis_b,
+                                   # scale_fill_continuous = ggplot2::scale_fill_viridis_c,
+                                   # scale_fill_discrete = ggplot2::scale_fill_viridis_d,
+                                   # scale_fill_binned = ggplot2::scale_fill_viridis_b,
+                                   # reference_docx = NULL
 ){
+  interactive_colour = viridis::viridis
+  scale_colour_continuous = ggplot2::scale_colour_viridis_c
+  scale_colour_discrete = ggplot2::scale_colour_viridis_d
+  scale_colour_binned = ggplot2::scale_colour_viridis_b
+  scale_fill_continuous = ggplot2::scale_fill_viridis_c
+  scale_fill_discrete = ggplot2::scale_fill_viridis_d
+  scale_fill_binned = ggplot2::scale_fill_viridis_b
+  reference_docx = NULL
+  table_font_size = 10
+  ggtheme = NULL
+  separate_figure_folder = TRUE
+  value_on_fig = FALSE
+  export_data = FALSE
+  save_excel = FALSE
+  output_file = NULL
+  report_kind = 'interactive'
+  color_binary = c('darkgray','darkgreen')
+  palette = 'Greens'
   # 1) Setup.
   # A) Check inputs.
 
@@ -173,22 +191,41 @@ create_geography_report <- function(enriched_report,
                                     wgsrpd3 = NULL,
                                     wcvp = NULL,
                                     detailed_IUCN_redlist = NULL,
-                                    report_kind = 'static',
+                                    # report_kind = 'static',
                                     native = 'Naturally occurring only',
                                     extinct = TRUE,
                                     doubtful_locations = FALSE,
-                                    export_data = FALSE,
-                                    output_file = NULL,
+                                    # export_data = FALSE,
+                                    # output_file = NULL,
                                     output_dir = NULL,
-                                    table_font_size = 10,
-                                    ggtheme = NULL,
-                                    separate_figure_folder = TRUE,
-                                    value_on_fig = FALSE,
+                                    # table_font_size = 10,
+                                    # ggtheme = NULL,
+                                    # separate_figure_folder = TRUE,
+                                    # value_on_fig = FALSE,
                                     endemic_species_per_region = NULL,
                                     accepted_species_per_region = NULL,
                                     tree_species_per_region = NULL,
-                                    do_download = TRUE,
-                                    reference_docx = NULL){
+                                    do_download = TRUE
+                                    # reference_docx = NULL
+                                    ){
+  interactive_colour = viridis::viridis
+  scale_colour_continuous = ggplot2::scale_colour_viridis_c
+  scale_colour_discrete = ggplot2::scale_colour_viridis_d
+  scale_colour_binned = ggplot2::scale_colour_viridis_b
+  scale_fill_continuous = ggplot2::scale_fill_viridis_c
+  scale_fill_discrete = ggplot2::scale_fill_viridis_d
+  scale_fill_binned = ggplot2::scale_fill_viridis_b
+  reference_docx = NULL
+  table_font_size = 10
+  ggtheme = NULL
+  separate_figure_folder = FALSE
+  value_on_fig = FALSE
+  export_data = FALSE
+  save_excel = FALSE
+  output_file = NULL
+  report_kind = 'interactive'
+  color_binary = c('darkgray','darkgreen')
+  palette = 'Greens'
   # 1) Setup.
   # A) Check enriched report.
   if(is.null(wgsrpd3)){

@@ -70,3 +70,13 @@
 #'
 #' A data frame containing sub-tribe information used for creating sunburst/treemap charts of taxonomic diversity. Source WFO.
 "subtribe_genus_simp"
+
+#' Example collection data
+#'
+#' A data frame containing a fake collection to be used in examples
+"collection_example"
+
+#' Example enriched collection data
+#'
+#' A data frame containing a fake enriched collection to be used in examples, corresponds to the data in "collection_example"
+"enriched_collection_example"

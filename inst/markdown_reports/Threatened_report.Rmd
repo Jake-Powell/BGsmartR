@@ -27,6 +27,10 @@ interactive_colour <- function(n){
 }
 color_binary <- c('#f46d43', '#e6e6e6')
 palette = 'Oranges'
+detailed_IUCN = detailed_IUCN_redlist
+rm(detailed_IUCN_redlist)
+AAA <<- detailed_IUCN
+
 ```
 
 ```{css, echo = FALSE}
@@ -1885,6 +1889,7 @@ no_more_info_table |>  DT::datatable(extensions = 'Buttons',
   plant_ids = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$taxon_status %in% c('Accepted')& !is.na(wcvp$wcvp_names$species)]
 
   # reduce wcvp_geography to only accepted plant name ids. (Note that usually only accepted plants have geography so this won't actually remove many records)
+  All_locations = wgsrpd3$LEVEL3_COD
   wcvp_geography = wcvp_geography[wcvp_geography$id %in% plant_ids,]
   if(!exists('accepted_species_per_region')){
     no_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
@@ -1910,7 +1915,6 @@ no_more_info_table |>  DT::datatable(extensions = 'Buttons',
 ```{r threatened Species map -  data}
 # Get all BRU level 3 location codes.
 All_locations = wgsrpd3$LEVEL3_COD
-
 wanted_info = threatened_existing
 wanted_info_species = wanted_info[match(unique(wanted_info$best_name), wanted_info$best_name),]
 
@@ -1936,18 +1940,19 @@ location_data = data.frame(code =  wgsrpd3$LEVEL3_COD,
 
 location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
 location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
-
+print("you're a cunt")
   
 
 location_data$name = stringr::str_replace(location_data$name, 'Is\\.', 'Islands')
 location_data$name = stringr::str_replace(location_data$name, 'I\\.', 'Island')
 
-threat_match_IUCN = sum(!is.na(detailied_IUCN$POWO_plant_id))
-prop_threat_match_IUCN = round(threat_match_IUCN/nrow(detailied_IUCN)*100,digits = 2)
+threat_match_IUCN = sum(!is.na(detailed_IUCN$POWO_plant_id))
+prop_threat_match_IUCN = round(threat_match_IUCN/nrow(detailed_IUCN)*100,digits = 2)
 # number of threatened per geographic area. 
 threatened_per_region = unlist(lapply(location_data$code, function(code){
-  sum(grepl(code, detailied_IUCN$geography))
+  sum(grepl(code, detailed_IUCN$geography))
 }))
+print("you're a cunt")
 location_data$threatened_per_region = threatened_per_region
   prop = round(location_data$no_threatened_species / threatened_per_region*100,digits=2)
   prop[which(prop |> as.numeric() > 100)] = 100 # Set max to 100% even if we actually have more
@@ -1973,7 +1978,7 @@ if(!is.null(wcvp)){
   names(missing_regions) = c('Region', 'Level 2 region','Level 1 region', 'Number of Threatened Species')
   missing_regions = missing_regions[order(as.numeric(missing_regions$`Number of Threatened Species`), decreasing = T),]
    info <- wcvp_geography[grep(paste0(missing_codes, collapse = '|'),wcvp_geography$codes),]
-   info = info[info$id %in% detailied_IUCN$POWO_plant_id,]
+   info = info[info$id %in% detailed_IUCN$POWO_plant_id,]
    ids = info$id
   region_wanted = rep('',nrow(info))
   for(i in 1:length(missing_codes)){
@@ -1984,7 +1989,7 @@ if(!is.null(wcvp)){
   wcvp_wantedo = wcvp$wcvp_names[match(ids,wcvp$wcvp_names$plant_name_id) ,]
   wcvp_wantedo$web_link = paste0("https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:",wcvp_wantedo$powo_id)
   wcvp_wantedo$plant_native_to =region_wanted
-  IUCN_indo = detailied_IUCN[match(wcvp_wantedo$plant_name_id, detailied_IUCN$POWO_plant_id),]
+  IUCN_indo = detailed_IUCN[match(wcvp_wantedo$plant_name_id, detailed_IUCN$POWO_plant_id),]
   wcvp_wantedo = data.frame(wcvp_wantedo, IUCN_indo)
   
     wcvp_wantedo = wcvp_wantedo[c('taxon_name', 'plant_native_to', 'web_link', "category", "population_trend", "threat_hist", "first_threat", 'powo_id', 'ipni_id', "family", "genus", "species_hybrid", "species",              "infraspecific_rank", "infraspecies", "parenthetical_author", "primary_author", "publication_author", "nomenclatural_remarks", "geographic_area", "lifeform_description", "climate_description")]
@@ -2031,7 +2036,6 @@ The maps in this section show which botanical countries are represented by threa
 ```{r Get threatened without geography table, eval = FALSE}
 
 threat_without_geography = threatened_existing[which(is.na(threatened_existing$geography_codes)),]
-threat_without_geography$POWO_web_address[8]
 if(report_kind == 'static'){
   threatened_count_table |>
     flextable() |>

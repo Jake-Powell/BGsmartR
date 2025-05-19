@@ -22,7 +22,6 @@ date = paste0(years, '-12-31')
 
 # Setup report_trend for trend analysis.
 report_trend = report
-report_trend <<- report_trend
 # Set old unknown records to have a date ( = earliest_allowable_record) and remove all records prior to this time.
 if(!is.null(old_accession_year_codes)){
   has_old_accessions_code = which(report_trend$AccYear %in% old_accession_year_codes)

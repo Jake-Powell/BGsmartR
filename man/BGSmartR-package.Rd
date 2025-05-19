@@ -13,7 +13,7 @@ Provides tools for matching collection records to external datasets and creating
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://jakepowellcubg.github.io/BGR/}
+  \item \url{https://jakepowellcubg.github.io/BGsmartR/}
 }
 
 }

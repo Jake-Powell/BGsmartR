@@ -1,4 +1,94 @@
 url: https://jakepowellcubg.github.io/BGR/
 template:
   bootstrap: 5
+  light-switch: true
 
+navbar:
+  structure:
+    left: [intro, articles, reference, news]
+    right: [search, github, lightswitch]
+
+
+reference:
+- title: Matching functions
+  contents:
+  - match_authors
+  - match_collection_to_enrich_database
+  - match_collection_to_iucnRedlist
+  - match_original_to_BGCI
+  - match_single
+  - match_multiple
+  - match_all_issue
+  - match_typos
+  - no_match_cultivar_indet
+  - get_match_from_multiple
+  - check_taxon_typo
+  - shorten_message
+  - try_rm_autonym
+  - try_fix_infraspecific_level
+  - try_fix_hybrid
+  - no_additional_matching
+  - author_words
+  - author_check
+  - author_from_taxon_name_full
+  - sanitise_name
+  - taxon_type
+
+- title: WCVP/POWO specific functions
+  contents:
+  - convert_to_accepted_name
+  - additional_wcvp_matching
+  - enrich_collection_from_enrich_database
+  - match_collection_to_wcvp
+  - add_wcvp_distributions
+  - import_wcvp_names
+  - generate_labels
+  - get_accepted_plant
+
+- title: Enriching functions
+  contents:
+  - add_status_year
+  - enrich_collection
+  - enrich_collection_from_enrich_database
+
+- title: Create enrichment databases
+  contents:
+  - prepare_enrich_database
+
+
+
+- title: Modules
+  contents:
+  - create_data_health_report
+  - create_duplication_report
+  - create_native_report
+  - create_endemic_report
+  - create_threatened_report
+  - create_trees_report
+  - create_overview_report
+  - create_sustainability_report
+  - create_taxonomic_diversity_report
+  - create_geography_report
+  - create_trends_report
+  - create_turnover_report
+
+- title: Simplified datasets
+  contents:
+  - typo_list
+  - wgsrpd3_level1_simp
+  - wgsrpd3_level2_simp
+  - wgsrpd3_level3_simp
+  - tribe_genus_simp
+  - subtribe_genus_simp
+  - subfamily_genus_simp
+  - Diversity_classification
+  - collection_example
+  - enriched_collection_example
+
+- title: Misc
+  contents:
+  - value_of_items
+  - is_autonym
+  - exist_at_date
+  - extract_year
+  - add_alpha

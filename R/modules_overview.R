@@ -24,30 +24,49 @@ create_overview_report <- function(enriched_report,
                                    collection = NULL,
                                    wgsrpd3 = NULL,
                                    PlantClassification_filepath = NULL,
-                                   report_kind = 'static',
+                                   # report_kind = 'static',
                                    coordinates = NA,
-                                   output_file = NULL,
+                                   # output_file = NULL,
                                    output_dir = NULL,
-                                   export_data = FALSE,
-                                   separate_figure_folder = TRUE,
+                                   # export_data = FALSE,
+                                   # separate_figure_folder = TRUE,
                                    min_year = 1970,
                                    native = 'Naturally occurring only',
                                    extinct = TRUE,
                                    doubtful_locations = FALSE,
-                                   table_font_size = 10,
-                                   ggtheme = NULL,
-                                   value_on_fig = FALSE,
+                                   # table_font_size = 10,
+                                   # ggtheme = NULL,
+                                   # value_on_fig = FALSE,
                                    earliest_allowable_record = 1700,
-                                   old_accession_year_codes = NULL,
+                                   old_accession_year_codes = NULL
 
-                                   scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-                                   scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-                                   scale_colour_binned = ggplot2::scale_colour_viridis_b,
-                                   scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-                                   scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-                                   scale_fill_binned = ggplot2::scale_fill_viridis_b,
-                                   reference_docx = NULL
+                                   # scale_colour_continuous = ggplot2::scale_colour_viridis_c,
+                                   # scale_colour_discrete = ggplot2::scale_colour_viridis_d,
+                                   # scale_colour_binned = ggplot2::scale_colour_viridis_b,
+                                   # scale_fill_continuous = ggplot2::scale_fill_viridis_c,
+                                   # scale_fill_discrete = ggplot2::scale_fill_viridis_d,
+                                   # scale_fill_binned = ggplot2::scale_fill_viridis_b,
+                                   # reference_docx = NULL
 ){
+  interactive_colour = viridis::viridis
+  scale_colour_continuous = ggplot2::scale_colour_viridis_c
+  scale_colour_discrete = ggplot2::scale_colour_viridis_d
+  scale_colour_binned = ggplot2::scale_colour_viridis_b
+  scale_fill_continuous = ggplot2::scale_fill_viridis_c
+  scale_fill_discrete = ggplot2::scale_fill_viridis_d
+  scale_fill_binned = ggplot2::scale_fill_viridis_b
+  reference_docx = NULL
+  table_font_size = 10
+  ggtheme = NULL
+  separate_figure_folder = FALSE
+  value_on_fig = FALSE
+  export_data = FALSE
+  save_excel = FALSE
+  output_file = NULL
+  report_kind = 'interactive'
+  color_binary = c('darkgray','darkgreen')
+  palette = 'Greens'
+  do_download = T
   # 1) Setup.
   # A) Check inputs.
 

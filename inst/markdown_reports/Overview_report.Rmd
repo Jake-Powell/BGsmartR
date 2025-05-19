@@ -770,6 +770,7 @@ fig
 #### For type of plant 
 
 ```{r, Change over time number all categories together (entire collection; Trends module)}
+time_series_info_subsets <<- time_series_info_subsets
 taxon_type_categories = c('Species', 'Infraspecific', 'Horticultural', 'Indeterminate')
 no_taxon_type = data.frame(t(data.frame(lapply(time_series_info_subsets, function(x){
   details = x$breakdown_infrageneric

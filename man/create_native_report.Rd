@@ -13,30 +13,14 @@ create_native_report(
   wgsrpd3 = NULL,
   wcvp = NULL,
   collection = NULL,
-  report_kind = "static",
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
   min_year = 1970,
-  export_data = FALSE,
-  save_excel = FALSE,
-  output_file = NULL,
   output_dir = NULL,
-  table_font_size = 10,
-  ggtheme = NULL,
-  separate_figure_folder = TRUE,
-  value_on_fig = FALSE,
   earliest_allowable_record = 1700,
   old_accession_year_codes = NULL,
-  bru_codes = NA,
-  interactive_colour = viridis::viridis,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  reference_docx = NULL
+  bru_codes = NA
 )
 
 create_endemic_report(
@@ -45,30 +29,14 @@ create_endemic_report(
   wgsrpd3 = NULL,
   wcvp = NULL,
   endemic_species_per_region = NULL,
-  report_kind = "static",
   coordinates = NA,
-  output_file = NULL,
   output_dir = NULL,
-  export_data = FALSE,
-  separate_figure_folder = TRUE,
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
-  table_font_size = 10,
-  ggtheme = NULL,
-  value_on_fig = FALSE,
   min_year = 1970,
   earliest_allowable_record = 1700,
-  old_accession_year_codes = NULL,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  color_binary = c("darkgray", "darkgreen"),
-  palette = "Greens",
-  reference_docx = NULL
+  old_accession_year_codes = NULL
 )
 
 create_threatened_report(
@@ -77,30 +45,14 @@ create_threatened_report(
   wgsrpd3 = NULL,
   wcvp = NULL,
   detailed_IUCN_redlist = NULL,
-  report_kind = "static",
   coordinates = NA,
-  output_file = NULL,
   output_dir = NULL,
-  export_data = FALSE,
-  separate_figure_folder = TRUE,
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
-  table_font_size = 10,
-  ggtheme = NULL,
-  value_on_fig = FALSE,
   min_year = 1970,
   earliest_allowable_record = 1700,
-  old_accession_year_codes = NULL,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  color_binary = c("darkgray", "darkgreen"),
-  palette = "Oranges",
-  reference_docx = NULL
+  old_accession_year_codes = NULL
 )
 
 create_trees_report(
@@ -108,30 +60,14 @@ create_trees_report(
   collection = NULL,
   wgsrpd3 = NULL,
   wcvp = NULL,
-  report_kind = "static",
   coordinates = NA,
-  output_file = NULL,
   output_dir = NULL,
-  export_data = FALSE,
-  separate_figure_folder = TRUE,
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
-  table_font_size = 10,
-  ggtheme = NULL,
-  value_on_fig = FALSE,
   min_year = 1970,
   earliest_allowable_record = 1700,
-  old_accession_year_codes = NULL,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  color_binary = c("darkgray", "darkgreen"),
-  palette = "Greens",
-  reference_docx = NULL
+  old_accession_year_codes = NULL
 )
 }
 \arguments{
@@ -145,8 +81,6 @@ create_trees_report(
 
 \item{collection}{The name of the living collection}
 
-\item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
-
 \item{native}{string where 'Naturally occurring only' or 'Introduced only' reduces the locations used to determine native plants.}
 
 \item{extinct}{Flag (TRUE/FALSE) for whether to include extinct geographic locations.}
@@ -155,21 +89,7 @@ create_trees_report(
 
 \item{min_year}{The minimum year for analyses over time.}
 
-\item{export_data}{Flag (TRUE/FALSE) for whether to create a \code{.rda} and \code{.xlsx} files containing the data used to create the figures in the plot.}
-
-\item{save_excel}{Flag (TRUE/FALSE) if export_data == TRUE, save excel allows for a 'xlsx' version of the data to be created or not. Note that for particualarly large collections, saving an excel version may cause the function to fail.}
-
-\item{output_file}{The file path of the native report.}
-
 \item{output_dir}{The output directory}
-
-\item{table_font_size}{Font size for tables.}
-
-\item{ggtheme}{gg plot theme to be applied to all ggplots, see \code{ggthemes} package for pre-set themes.}
-
-\item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
-
-\item{value_on_fig}{Flag (TRUE/FALSE) for whether to include values of static plots.}
 
 \item{earliest_allowable_record}{Number, corresponding to the minimum allowable year in the "AccYear" column.}
 
@@ -177,17 +97,7 @@ create_trees_report(
 
 \item{bru_codes}{A vector of the BRU level 3 codes that want to be considered as the native regions in the report.}
 
-\item{interactive_colour}{colours for interactive report, default is viridis::viridis.}
-
-\item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
-
-\item{reference_docx}{path to a .docx file whose style (design) the report copies.}
-
 \item{endemic_species_per_region}{A data frame detailing the number of accepted endemic species found in WCVP for each region in wgsrpd3. (if running multiple reports saves having to do the calculation each time)}
-
-\item{color_binary}{colours for the representation of species in maps.}
-
-\item{palette}{String colour palette for use in the interactive report maps.}
 
 \item{detailed_IUCN_redlist}{A data frame containing the history and geography of IUCN redlist information.}
 }

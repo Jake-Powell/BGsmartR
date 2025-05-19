@@ -15,7 +15,22 @@ Suggests:
     testthat (>= 3.0.0),
     ggplot2,
     viridis,
-    rWCVPdata (>= 0.3.1)
+    rWCVPdata (>= 0.3.1),
+    ggpubr,
+    DT,
+    VennDiagram,
+    cardx,
+    downloadthis,
+    flextable,
+    geojsonsf,
+    ggrepel,
+    ggsurvfit,
+    gtsummary,
+    rWCVP,
+    reshape2,
+    rjson,
+    xlsx,
+    sf
 Config/testthat/edition: 3
 Depends: 
     R (>= 3.50)
@@ -30,20 +45,8 @@ Imports:
     stringi,
     grDevices,
     plotly,
-    DT,
-    gtsummary,
-    ggsurvfit,
-    downloadthis,
-    sf,
-    flextable,
-    ggrepel,
-    geojsonsf,
-    rjson,
-    VennDiagram,
-    cardx,
-    xlsx,
-    rWCVP,
-    reshape2
+    htmlwidgets,
+    taxize
 VignetteBuilder: knitr
 URL: https://jakepowellcubg.github.io/BGR/
 Remotes: 

@@ -17,6 +17,7 @@
 get_accepted_plant <- function(powo_id) {
   out <- tryCatch(
     {
+
       powo_info = taxize::pow_lookup(paste0('urn:lsid:ipni.org:names:',powo_id))
       new_accepted_name = powo_info$meta$accepted$name
       new_accepted_id = stringr::str_remove(powo_info$meta$accepted$fqId, 'urn:lsid:ipni.org:names:')

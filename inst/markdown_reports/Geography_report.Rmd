@@ -372,81 +372,81 @@ if(export_data){
 
 ```{r check if we are given the number of accepted species or endemic species}
 # if(!is.null(wcvp) & (is.null(accepted_species_per_region) | is.null(endemic_species_per_region))){
-   geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
-  want = c('000','010','001','011','100','110','101')
+geography_data = wcvp$geography[,grepl('_area_code_l3', names(wcvp$geography))]
+want = c('000','010','001','011','100','110','101')
 
-  #Depending on the values of the options reduce `want` to only the satisfactory values.
-  ##A) introduced / naturally occurring only.
-  if(native == 'Introduced only'){
-    want = want[grepl('^1',want)]
-  }else if(native == 'Naturally occurring only'){
-    want = want[grepl('^0',want)]
-  }
-  ## B) Extinct
-  if(!extinct){
-    want = want[!grepl('010|011|110',want)]
-  }
-  ## C) Doubtful
-  if(!doubtful_locations){
-    want = want[!grepl('001|011|101',want)]
-  }
-  geog_want_values = want
-  # Get the columns in wanted info that contain the geography information we want.
-  geography_data = geography_data[,grepl(paste0(geog_want_values,collapse='|'), names(geography_data))]
+#Depending on the values of the options reduce `want` to only the satisfactory values.
+##A) introduced / naturally occurring only.
+if(native == 'Introduced only'){
+  want = want[grepl('^1',want)]
+}else if(native == 'Naturally occurring only'){
+  want = want[grepl('^0',want)]
+}
+## B) Extinct
+if(!extinct){
+  want = want[!grepl('010|011|110',want)]
+}
+## C) Doubtful
+if(!doubtful_locations){
+  want = want[!grepl('001|011|101',want)]
+}
+geog_want_values = want
+# Get the columns in wanted info that contain the geography information we want.
+geography_data = geography_data[,grepl(paste0(geog_want_values,collapse='|'), names(geography_data))]
 
-  # If multiple columns join the strings such that each contains only a single list of regions.
-  if(length(geog_want_values) > 1){
-    level3codes =do.call("paste", c(geography_data, sep = ", "))
-    level3codes = stringr::str_remove(level3codes, ', NA$')
-    level3codes = stringr::str_remove(level3codes, 'NA, ')
-  }else{
-    level3codes = geography_data
-  }
-  level3codes[level3codes == "NA"] = NA
+# If multiple columns join the strings such that each contains only a single list of regions.
+if(length(geog_want_values) > 1){
+  level3codes =do.call("paste", c(geography_data, sep = ", "))
+  level3codes = stringr::str_remove(level3codes, ', NA$')
+  level3codes = stringr::str_remove(level3codes, 'NA, ')
+}else{
+  level3codes = geography_data
+}
+level3codes[level3codes == "NA"] = NA
 
-  wcvp_geography = data.frame(id = wcvp$geography$plant_name_id,
-                              codes = level3codes)
+wcvp_geography = data.frame(id = wcvp$geography$plant_name_id,
+                            codes = level3codes)
 
-  #Next we need to extract all the plant name ids from wcvp that are  accepted
-  plant_ids = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$taxon_status %in% c('Accepted')& !is.na(wcvp$wcvp_names$species)]
+#Next we need to extract all the plant name ids from wcvp that are  accepted
+plant_ids = wcvp$wcvp_names$plant_name_id[wcvp$wcvp_names$taxon_status %in% c('Accepted')& !is.na(wcvp$wcvp_names$species)]
 
-  # reduce wcvp_geography to only accepted plant name ids. (Note that usually only accepted plants have geography so this won't actually remove many records)
-  wcvp_geography = wcvp_geography[wcvp_geography$id %in% plant_ids,]
-  if(!exists('accepted_species_per_region')){
-    no_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+# reduce wcvp_geography to only accepted plant name ids. (Note that usually only accepted plants have geography so this won't actually remove many records)
+wcvp_geography = wcvp_geography[wcvp_geography$id %in% plant_ids,]
+if(is.null('accepted_species_per_region')){
+  no_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
     sum(grepl(x, wcvp_geography$codes))}))
-    
-    accepted_species_per_region = data.frame(code = All_locations, no_accepted_taxa_wcvp = no_accepted_species_wcvp)
-  }
   
+  accepted_species_per_region = data.frame(code = All_locations, no_accepted_taxa_wcvp = no_accepted_species_wcvp)
+}
 
-  # Reduce to only endemic plants.
-  wcvp_geography_endemic = wcvp_geography[stringr::str_length(wcvp_geography$codes) == 3,]
 
-    if(!exists('endemic_species_per_region')){
-      no_endemic_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+# Reduce to only endemic plants.
+wcvp_geography_endemic = wcvp_geography[stringr::str_length(wcvp_geography$codes) == 3,]
+
+if(is.null('endemic_species_per_region')){
+  no_endemic_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
     sum(grepl(x, wcvp_geography_endemic$codes))
   }))
   endemic_species_per_region = data.frame(code = All_locations, no_endemic_accepted_species_wcvp = no_endemic_accepted_species_wcvp)
-  }
+}
 
-  # Reduce to only trees.
-   if(!exists('tree_species_per_region')){
-     wcvp_geography_tree = wcvp_geography[which(wcvp_geography$id %in% (wcvp$trees |> unlist() |> as.numeric())), ]
-   # if(!exists('tree_species_per_region') || is.null(tree_species_per_region)){
-      no_tree_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
+# Reduce to only trees.
+if(is.null('tree_species_per_region')){
+  wcvp_geography_tree = wcvp_geography[which(wcvp_geography$id %in% (wcvp$trees |> unlist() |> as.numeric())), ]
+  # if(!exists('tree_species_per_region') || is.null(tree_species_per_region)){
+  no_tree_accepted_species_wcvp = unlist(lapply(All_locations, function(x){
     sum(grepl(x, wcvp_geography_tree$codes))
   }))
   tree_species_per_region = data.frame(code = All_locations, no_tree_accepted_species_wcvp = no_tree_accepted_species_wcvp)
-   # }
-   }
-  
-  
-  location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
-  location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
-  location_data$tree_species_per_region = tree_species_per_region[,2]
+  # }
+}
 
-  
+
+location_data$no_endemic_accepted_wcvp_species = endemic_species_per_region[,2]
+location_data$no_accepted_wcvp_species = accepted_species_per_region[,2]
+location_data$tree_species_per_region = tree_species_per_region[,2]
+
+
 # }
 ```
 
@@ -500,9 +500,11 @@ col_scale = lapply(counter, function(i){return(c(index[i], colours_cont[i]))})
 `r if(report_kind == 'interactive'){"Below we show the data used for the geographic plots shown in the later sections."}`
 
 ```{r table - interative}
-
-show_table = location_data[,-c(1,6,8,10,12,13,14,15)]
-show_table = show_table[,-c(ncol(show_table)-1, ncol(show_table))]
+# l_data <<- location_data
+# show_table = location_data[,-c(1,6,8,10,12,13,14,15)]
+show_table = location_data |> dplyr::select( "name", "level_2", "level_1", "no_species",
+                                             "no_endemic", "no_threatened", "no_tree")
+# show_table = show_table[,-c(ncol(show_table)-1, ncol(show_table))] # Do I ever need this?
 names(show_table) = c('BRU level 3 name',
                       'BRU level 2 region',
                       'BRU level 1 region',
@@ -658,7 +660,8 @@ plot_int_info$percent  = round(plot_int_info$no_species/plot_int_info$WCVP_total
                 'Taxa in the LC:', plot_int_info$no_species, '/', plot_int_info$WCVP_total, '<br>',
                 'Taxa from Region in LC:', round(plot_int_info$no_species/plot_int_info$WCVP_total*100,digits = 2), '%')
   plot_int_info$hover = text
-  
+  plot_int_info <<- plot_int_info
+
   plot_info_species = plot_int_info[!plot_int_info$WCVP_total ==0,]
   center_df_species = center_df[!plot_int_info$WCVP_total ==0,]
   
@@ -1477,7 +1480,7 @@ if(report_kind == 'interactive'){
 
 ```{r threatened Species map -  data}
 threatened = enriched_report[enriched_report$threatened == 'Threatened',]
-
+threatenedgg <<- threatened
 # Get all BRU level 3 location codes.
 All_locations = wgsrpd3$LEVEL3_COD
 
@@ -1525,6 +1528,7 @@ if(!is.null(wcvp)){
   ## Which regions do we have 0 threatened items (when species exist in wcvp)
   with_threatened = sum(location_data$no_threatened_items > 0)
   missing_regions = location_data[which(location_data$no_threatened_items == 0 & location_data$threatened_per_region !=0), match(c('name', 'code', 'threatened_per_region'), names(location_data))]
+  missing_regions <<- missing_regions
   missing_codes = missing_regions$code
   missing_names = missing_regions$name
   number_no_threatened_regions= length(missing_codes)
@@ -1540,9 +1544,12 @@ if(!is.null(wcvp)){
    info = info[info$id %in% detailed_IUCN_redlist$POWO_plant_id,]
    ids = info$id
   region_wanted = rep('',nrow(info))
-  for(i in 1:length(missing_codes)){
+  if(length(missing_codes) > 0){
+      for(i in 1:length(missing_codes)){
     region_wanted[grep(missing_codes[i],info$codes)] = paste0(region_wanted[grep(missing_codes[i],info$codes)], ', ',missing_names[i])
   }
+  }
+
   region_wanted = stringr::str_remove(region_wanted, pattern = '^, ')
   
   wcvp_wantedo = wcvp$wcvp_names[match(ids,wcvp$wcvp_names$plant_name_id) ,]

@@ -13,23 +13,7 @@ create_taxonomic_diversity_report(
   min_year = 1970,
   earliest_allowable_record = 1700,
   old_accession_year_codes = NULL,
-  report_kind = "static",
-  output_file = NULL,
-  output_dir = NULL,
-  export_data = FALSE,
-  save_excel = FALSE,
-  separate_figure_folder = TRUE,
-  table_font_size = 10,
-  ggtheme = NULL,
-  value_on_fig = FALSE,
-  interactive_colour = viridis::viridis,
-  scale_colour_continuous = ggplot2::scale_colour_viridis_c,
-  scale_colour_discrete = ggplot2::scale_colour_viridis_d,
-  scale_colour_binned = ggplot2::scale_colour_viridis_b,
-  scale_fill_continuous = ggplot2::scale_fill_viridis_c,
-  scale_fill_discrete = ggplot2::scale_fill_viridis_d,
-  scale_fill_binned = ggplot2::scale_fill_viridis_b,
-  reference_docx = NULL
+  output_dir = NULL
 )
 
 create_geography_report(
@@ -38,22 +22,14 @@ create_geography_report(
   wgsrpd3 = NULL,
   wcvp = NULL,
   detailed_IUCN_redlist = NULL,
-  report_kind = "static",
   native = "Naturally occurring only",
   extinct = TRUE,
   doubtful_locations = FALSE,
-  export_data = FALSE,
-  output_file = NULL,
   output_dir = NULL,
-  table_font_size = 10,
-  ggtheme = NULL,
-  separate_figure_folder = TRUE,
-  value_on_fig = FALSE,
   endemic_species_per_region = NULL,
   accepted_species_per_region = NULL,
   tree_species_per_region = NULL,
-  do_download = TRUE,
-  reference_docx = NULL
+  do_download = TRUE
 )
 }
 \arguments{
@@ -71,29 +47,7 @@ create_geography_report(
 
 \item{old_accession_year_codes}{Vector of numbers corresponding to values within "AccYear" that indicate that a record is old with unknown accession year. For our analyses over time we assume these records are accessioned on \code{earliest_allowable_record}.}
 
-\item{report_kind}{The find of report to create, either \code{static} or \code{interactive}.}
-
-\item{output_file}{The file path of the native report.}
-
 \item{output_dir}{The output directory}
-
-\item{export_data}{Flag (TRUE/FALSE) for whether to create a \code{.rda} and \code{.xlsx} files containing the data used to create the figures in the plot.}
-
-\item{save_excel}{Flag (TRUE/FALSE) if export_data == TRUE, save excel allows for a 'xlsx' version of the data to be created or not. Note that for particualarly large collections, saving an excel version may cause the function to fail.}
-
-\item{separate_figure_folder}{Flag (TRUE/FALSE) for whether the figures should also be outputted in seperate files.}
-
-\item{table_font_size}{Font size for tables.}
-
-\item{ggtheme}{gg plot theme to be applied to all ggplots, see \code{ggthemes} package for pre-set themes.}
-
-\item{value_on_fig}{Flag (TRUE/FALSE) for whether to include values of static plots.}
-
-\item{interactive_colour}{colours for interactive report, default is viridis::viridis.}
-
-\item{scale_colour_continuous, scale_colour_discrete, scale_colour_binned, scale_fill_continuous, scale_fill_discrete, scale_fill_binned}{scales for ggplot. Default is to use viridis.}
-
-\item{reference_docx}{path to a .docx file whose style (design) the report copies.}
 
 \item{wgsrpd3}{World Geographical Scheme for Recording Plant Distributions. Containing polygons of each level 3 area. Can be obtained from \code{rWCVP} package.}
 
