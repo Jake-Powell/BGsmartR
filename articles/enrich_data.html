@@ -6,13 +6,12 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Enrichement databases • BGSmartR</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="../apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="../apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="../apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="../apple-touch-icon-60x60.png">
-<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
+<script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -22,7 +21,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">BGSmartR</a>
 
@@ -35,21 +34,29 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/enrich_data.html">Enrichement databases</a></li>
+<li><a class="dropdown-item" href="../articles/BGsmartR.html">Using BGsmartR</a></li>
+    <li><a class="dropdown-item" href="../articles/enrich_data.html">Enrichement databases</a></li>
     <li><a class="dropdown-item" href="../articles/Matching.html">Method of Matching taxonomic records</a></li>
-    <li><a class="dropdown-item" href="../articles/reports_details.html">Technical details of the reports</a></li>
     <li><a class="dropdown-item" href="../articles/value_of_items.html">Adding value to items in a collection</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
       </ul>
 </div>
 
@@ -334,7 +341,7 @@ obtain a key/token to be able to use the API (<a href="https://apiv3.iucnredlist
 <span></span>
 <span><span class="co"># 2) Use `rl_sp` function to get all records from red list</span></span>
 <span><span class="co"># (code taken from the documentation)</span></span>
-<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">rredlist</span><span class="fu">::</span><span class="fu">rl_sp</span><span class="op">(</span>all <span class="op">=</span> <span class="cn">TRUE</span>, key<span class="op">=</span><span class="va">key</span><span class="op">)</span></span>
+<span><span class="va">out</span> <span class="op">&lt;-</span> <span class="fu">rredlist</span><span class="fu">::</span><span class="fu"><a href="https://docs.ropensci.org/rredlist/reference/rl_sp.html" class="external-link">rl_sp</a></span><span class="op">(</span>all <span class="op">=</span> <span class="cn">TRUE</span>, key<span class="op">=</span><span class="va">key</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">vapply</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"[["</span>, <span class="fl">1</span>, <span class="st">"count"</span><span class="op">)</span></span>
 <span><span class="va">all_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="va">out</span>, <span class="st">"[["</span>, <span class="st">"result"</span><span class="op">)</span><span class="op">)</span></span>
@@ -354,7 +361,7 @@ red list’s website, such as the <code>category</code>,
 does not include information such as the published_year,
 assessment_date, criteria, etc.</p>
 <p>If this additional information is wanted loop over all the taxonomic
-names found above with the function <code>rredlist::rl_search()</code>
+names found above with the function <code><a href="https://docs.ropensci.org/rredlist/reference/rl_search.html" class="external-link">rredlist::rl_search()</a></code>
 which will retrieve extra information. Note that this approach is very
 slow (If there is a better way to do this please let us know).</p>
 <p>To enrich to only IUCN red list information we can run</p>
@@ -372,396 +379,6 @@ rather then separately by having inputs for both <code>wcvp</code> and
 <code>iucnRedlist</code>.</p>
 <hr>
 </div>
-<div class="section level2">
-<h2 id="creating-bgci-plant-search-ready-for-matching">Creating BGCI plant search ready for matching<a class="anchor" aria-label="anchor" href="#creating-bgci-plant-search-ready-for-matching"></a>
-</h2>
-<p>BGCI’s plant search can be used to find the number of collections
-globally that hold particular taxa, which can be beneficial for
-identifying plants in a collection that are found rarely globally.</p>
-<p>It is currently not possible to download a full data set of taxa and
-the number of collections they are found in, However it is possible to
-search the data set (<a href="https://plantsearch.bgci.org/" class="external-link">see
-here</a>).</p>
-<p>As we are able to search the data set we are able to scrape the
-resultant table from searches, this gives us a way to get extracts of
-the data set into R.</p>
-<p>One way of performing the scraping is by utilising the
-<code>RSelenium</code> package. For an introduction into the package and
-setting it up you can use videos created by Samer Hijjazi (<a href="https://www.youtube.com/@SamerHijjazi" class="external-link">click here</a>).</p>
-<p>Below we provide an example of scraping information for three
-families from BGCI plant search:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">## choose some families we want to extract the records for.</span></span>
-<span><span class="va">families</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Canellaceae'</span>, <span class="st">'Phyllanthaceae'</span>, <span class="st">'Phytolaccaceae'</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Function to web scrape from BGCI plant search with a variety of search elements allowed.</span></span>
-<span><span class="va">extract_search_BGCI_plant_search</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">family</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">genus</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">specific_epithet</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">infraspecific_epithet</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">exclude_synonyms</span> <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>                                             <span class="va">hybrid_status</span> <span class="op">=</span> <span class="st">''</span>,</span>
-<span>                                             <span class="va">cultivar_status</span> <span class="op">=</span> <span class="st">''</span>,</span>
-<span>                                             <span class="va">cultivar</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">grex</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">germplasm_type</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">RSelenium_server</span> <span class="op">=</span> <span class="cn">NA</span>,</span>
-<span>                                             <span class="va">try_over_1000</span> <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">{</span></span>
-<span>  <span class="co"># Function to try and find the number of gardens from the webpage.</span></span>
-<span>  <span class="va">try_find_no_gardens</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">out</span> <span class="op">&lt;-</span> <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span></span>
-<span>      <span class="op">{</span></span>
-<span>        <span class="va">no_found</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>, <span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div/div/div[1]/div[1]/div[1]/div/p'</span><span class="op">)</span></span>
-<span>        <span class="va">number_found</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">str_remove</a></span><span class="op">(</span><span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split</a></span><span class="op">(</span><span class="va">no_found</span><span class="op">$</span><span class="fu">getElementText</span><span class="op">(</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="st">' '</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span>, <span class="st">','</span><span class="op">)</span><span class="op">)</span></span>
-<span>      <span class="op">}</span>,</span>
-<span>      error<span class="op">=</span><span class="kw">function</span><span class="op">(</span><span class="va">cond</span><span class="op">)</span> <span class="op">{</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="st">"doesn't need closing:"</span><span class="op">)</span><span class="op">)</span></span>
-<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NA</span><span class="op">)</span></span>
-<span>      <span class="op">}</span>,</span>
-<span>      warning<span class="op">=</span><span class="kw">function</span><span class="op">(</span><span class="va">cond</span><span class="op">)</span> <span class="op">{</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="st">"Here's the original warning message:"</span><span class="op">)</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="va">cond</span><span class="op">)</span></span>
-<span>        <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
-<span>      <span class="op">}</span>,</span>
-<span>      finally<span class="op">=</span><span class="op">{</span></span>
-<span>      <span class="op">}</span></span>
-<span>    <span class="op">)</span>    </span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">out</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  </span>
-<span>  <span class="co">### The function will only work is an RSelenium server is already active.</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span></span>
-<span>    <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">RSelenium_server</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">'Require active RSelenium server!'</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span>  <span class="op">)</span></span>
-<span>  <span class="co"># assume browser is already open</span></span>
-<span>  <span class="va">rmDr</span> <span class="op">=</span> <span class="va">RSelenium_server</span></span>
-<span>  </span>
-<span>  </span>
-<span>  <span class="co">#### 1) We first need to create the web address with the search.</span></span>
-<span>  <span class="va">address</span> <span class="op">=</span> <span class="st">'https://plantsearch.bgci.org/search?'</span></span>
-<span>  </span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">genus</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[genus]='</span>,<span class="va">genus</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">specific_epithet</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[specific_epithet]='</span>,<span class="va">specific_epithet</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">infraspecific_epithet</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[infraspecific_epithet]='</span>,<span class="va">infraspecific_epithet</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">family</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[family]='</span>,<span class="va">family</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">exclude_synonyms</span> <span class="op">==</span> <span class="cn">T</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[exclude_synonyms]=exclude&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">hybrid_status</span> <span class="op">==</span> <span class="st">'show only'</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[hybrid_status]=only&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">hybrid_status</span> <span class="op">==</span> <span class="st">'exclude'</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[hybrid_status]=exclude&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">cultivar_status</span> <span class="op">==</span> <span class="st">'show only'</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[cultivar_status]=only&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">cultivar_status</span> <span class="op">==</span> <span class="st">'exclude'</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[cultivar_status]=exclude&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">cultivar</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[cultivar]='</span>,<span class="va">cultivar</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">grex</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[grex]='</span>,<span class="va">grex</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">germplasm_type</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>,<span class="st">'filter[germplasm_type]='</span>,<span class="va">germplasm_type</span>,<span class="st">'&amp;'</span>, collapse <span class="op">=</span><span class="st">''</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="va">address</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">address</span>, <span class="st">'sort=name'</span><span class="op">)</span></span>
-<span>  </span>
-<span>  <span class="co"># navigate to the webpage.</span></span>
-<span>  <span class="va">rmDr</span><span class="op">$</span><span class="fu">navigate</span><span class="op">(</span><span class="va">address</span><span class="op">)</span></span>
-<span>  </span>
-<span>  </span>
-<span>  <span class="co"># Find out how mant records the search yields, by keep trying to use try_find_no_gardens().</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
-<span>  <span class="va">found_number_of_gardens</span> <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span>  <span class="kw">while</span><span class="op">(</span><span class="op">!</span><span class="va">found_number_of_gardens</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">number_found</span> <span class="op">=</span> <span class="fu">try_find_no_gardens</span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">number_found</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="va">found_number_of_gardens</span> <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span>    <span class="op">}</span><span class="kw">else</span><span class="op">{</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  <span class="co"># Extract the table dependent on the number of items found.</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">number_found</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">df</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>row.names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>number_found <span class="op">=</span> <span class="va">number_found</span>, table <span class="op">=</span> <span class="va">df</span><span class="op">)</span><span class="op">)</span></span>
-<span>    </span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">number_found</span> <span class="op">&gt;=</span> <span class="fl">1000</span> <span class="op">&amp;</span> <span class="op">!</span><span class="va">try_over_1000</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">df</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>row.names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>number_found <span class="op">=</span> <span class="va">number_found</span>, table <span class="op">=</span> <span class="va">df</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">number_found</span> <span class="op">&lt;=</span> <span class="fl">500</span> <span class="op">&amp;</span> <span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
-<span>    </span>
-<span>    <span class="co"># if we have 101-500 records we need to scroll down the table.</span></span>
-<span>    <span class="kw">if</span><span class="op">(</span><span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">100</span> <span class="op">&amp;</span> <span class="va">number_found</span> <span class="op">&lt;</span> <span class="fl">501</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="co"># First we need to scroll to the bottom of the table to load all the values.</span></span>
-<span>      <span class="va">to_load</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101</span>,<span class="fl">201</span>,<span class="fl">301</span>,<span class="fl">401</span><span class="op">)</span></span>
-<span>      <span class="kw">for</span><span class="op">(</span><span class="va">number</span> <span class="kw">in</span> <span class="va">to_load</span><span class="op">[</span><span class="va">to_load</span> <span class="op">&lt;=</span> <span class="va">number_found</span><span class="op">]</span><span class="op">)</span><span class="op">{</span></span>
-<span>        <span class="va">last_element_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr['</span>,<span class="va">number</span>,<span class="st">']'</span><span class="op">)</span><span class="op">)</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
-<span>        <span class="va">last_element_table</span><span class="op">$</span><span class="fu">clickElement</span><span class="op">(</span><span class="op">)</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">4</span><span class="op">)</span></span>
-<span>      <span class="op">}</span></span>
-<span>      </span>
-<span>    <span class="op">}</span></span>
-<span>    </span>
-<span>    <span class="co"># Get the table from the website (for all locations)</span></span>
-<span>    <span class="va">data_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>,<span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Extract table into R.</span></span>
-<span>    <span class="va">data_table_html</span> <span class="op">&lt;-</span> <span class="va">data_table</span><span class="op">$</span><span class="fu">getPageSource</span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">page</span> <span class="op">&lt;-</span> <span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="http://xml2.r-lib.org/reference/read_xml.html" class="external-link">read_html</a></span><span class="op">(</span><span class="va">data_table_html</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="https://rvest.tidyverse.org/reference/html_table.html" class="external-link">html_table</a></span><span class="op">(</span><span class="va">page</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span></span>
-<span>    </span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">500</span><span class="op">)</span><span class="op">{</span></span>
-<span>    </span>
-<span>    </span>
-<span>    <span class="co">#Sort via taxon name and rip out the data twice.</span></span>
-<span>    </span>
-<span>    <span class="va">address_sortAZ</span> <span class="op">=</span> <span class="va">address</span></span>
-<span>    <span class="va">address_sortZA</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_replace.html" class="external-link">str_replace</a></span><span class="op">(</span><span class="va">address</span>, <span class="st">'&amp;sort=name'</span>, <span class="st">'&amp;sort=-name'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="va">rmDr</span><span class="op">$</span><span class="fu">navigate</span><span class="op">(</span><span class="va">address_sortAZ</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Go to sleep to allow the table to load.</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># First we need to scroll to the bottom of the table to load all the values.</span></span>
-<span>    <span class="va">to_load</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101</span>,<span class="fl">201</span>,<span class="fl">301</span>,<span class="fl">401</span><span class="op">)</span></span>
-<span>    <span class="kw">for</span><span class="op">(</span><span class="va">number</span> <span class="kw">in</span> <span class="va">to_load</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="va">last_element_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr['</span>,<span class="va">number</span>,<span class="st">']'</span><span class="op">)</span><span class="op">)</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
-<span>      <span class="va">last_element_table</span><span class="op">$</span><span class="fu">clickElement</span><span class="op">(</span><span class="op">)</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span>    </span>
-<span>    <span class="co"># Get the table from the website (for all locations)</span></span>
-<span>    <span class="va">data_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>,<span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Extract table into R.</span></span>
-<span>    <span class="va">data_table_html</span> <span class="op">&lt;-</span> <span class="va">data_table</span><span class="op">$</span><span class="fu">getPageSource</span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">page</span> <span class="op">&lt;-</span> <span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="http://xml2.r-lib.org/reference/read_xml.html" class="external-link">read_html</a></span><span class="op">(</span><span class="va">data_table_html</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">df1</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="https://rvest.tidyverse.org/reference/html_table.html" class="external-link">html_table</a></span><span class="op">(</span><span class="va">page</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span>    <span class="va">df1</span> <span class="op">=</span> <span class="va">df1</span><span class="op">[</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df1</span><span class="op">)</span>,<span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df1</span><span class="op">)</span> <span class="op">=</span> <span class="va">letters</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
-<span>    </span>
-<span>    <span class="co"># 2) Extract table alphabetical decreasing</span></span>
-<span>    <span class="va">rmDr</span><span class="op">$</span><span class="fu">navigate</span><span class="op">(</span><span class="va">address_sortZA</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Go to sleep to allow the table to load.</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">8</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># First we need to scroll to the bottom of the table to load all the values.</span></span>
-<span>    <span class="va">to_load</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">101</span>,<span class="fl">201</span>,<span class="fl">301</span>,<span class="fl">401</span><span class="op">)</span></span>
-<span>    <span class="kw">for</span><span class="op">(</span><span class="va">number</span> <span class="kw">in</span> <span class="va">to_load</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="va">last_element_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table/tbody/tr['</span>,<span class="va">number</span>,<span class="st">']'</span><span class="op">)</span><span class="op">)</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span></span>
-<span>      <span class="va">last_element_table</span><span class="op">$</span><span class="fu">clickElement</span><span class="op">(</span><span class="op">)</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">6</span><span class="op">)</span></span>
-<span>    <span class="op">}</span></span>
-<span>    </span>
-<span>    <span class="co"># Get the table from the website (for all locations)</span></span>
-<span>    <span class="va">data_table</span> <span class="op">=</span> <span class="va">rmDr</span><span class="op">$</span><span class="fu">findElement</span><span class="op">(</span>using <span class="op">=</span> <span class="st">'xpath'</span>,<span class="st">'//*[@id="app"]/div/div/main/div/div/div[2]/div/div[2]/table'</span><span class="op">)</span></span>
-<span>    </span>
-<span>    <span class="co"># Extract table into R.</span></span>
-<span>    <span class="va">data_table_html</span> <span class="op">&lt;-</span> <span class="va">data_table</span><span class="op">$</span><span class="fu">getPageSource</span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">page</span> <span class="op">&lt;-</span> <span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="http://xml2.r-lib.org/reference/read_xml.html" class="external-link">read_html</a></span><span class="op">(</span><span class="va">data_table_html</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/unlist.html" class="external-link">unlist</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="va">df2</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.data.frame.html" class="external-link">as.data.frame</a></span><span class="op">(</span><span class="fu">rvest</span><span class="fu">::</span><span class="fu"><a href="https://rvest.tidyverse.org/reference/html_table.html" class="external-link">html_table</a></span><span class="op">(</span><span class="va">page</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span><span class="op">)</span></span>
-<span>    <span class="va">df2</span> <span class="op">=</span> <span class="va">df2</span><span class="op">[</span><span class="op">-</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">df2</span><span class="op">)</span>,<span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df2</span><span class="op">)</span> <span class="op">=</span> <span class="va">letters</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
-<span>    </span>
-<span>    </span>
-<span>    <span class="va">df</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">df1</span>, <span class="va">df2</span><span class="op">)</span></span>
-<span>    <span class="va">df</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'Taxonomic Name and Autority'</span>, <span class="st">'Family'</span>,<span class="st">'Name Status'</span>, <span class="st">'# of Ex Situ Sites'</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  </span>
-<span>  <span class="co"># return a list of the number of items found and the table (of max 1000 items).</span></span>
-<span>  </span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>number_found <span class="op">=</span> <span class="va">number_found</span>, table <span class="op">=</span> <span class="va">df</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Load some libraries.</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://docs.ropensci.org/RSelenium/" class="external-link">RSelenium</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://docs.ropensci.org/wdman/" class="external-link">wdman</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/stevecondylios/netstat" class="external-link">netstat</a></span><span class="op">)</span></span>
-<span></span>
-<span></span>
-<span><span class="co"># Open Selenium server (change to whatever chrome version you're using)</span></span>
-<span><span class="va">remote_driver</span> <span class="op">=</span> <span class="fu">rsDriver</span><span class="op">(</span>browser <span class="op">=</span> <span class="st">'chrome'</span>,</span>
-<span>                         chromever <span class="op">=</span> <span class="st">'119.0.6045.105'</span>,</span>
-<span>                         verbose <span class="op">=</span> <span class="cn">F</span>,</span>
-<span>                         port <span class="op">=</span> <span class="fu">netstat</span><span class="fu">::</span><span class="fu">free_port</span><span class="op">(</span><span class="op">)</span>,</span>
-<span><span class="op">)</span></span>
-<span><span class="va">rmDr</span> <span class="op">=</span> <span class="va">remote_driver</span><span class="op">$</span><span class="va">client</span></span>
-<span></span>
-<span><span class="co"># open a browser</span></span>
-<span><span class="va">rmDr</span><span class="op">$</span><span class="fu">open</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">rmDr</span><span class="op">$</span><span class="fu">maxWindowSize</span><span class="op">(</span><span class="op">)</span> <span class="co"># set to max window size so that the table shows.</span></span>
-<span></span>
-<span><span class="co"># Create stores for the web scraping.</span></span>
-<span><span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="cn">NULL</span> </span>
-<span><span class="va">family_size</span> <span class="op">=</span> <span class="cn">NULL</span></span>
-<span></span>
-<span><span class="co">### Need to loop over all families and extract the records we want. </span></span>
-<span><span class="kw">for</span><span class="op">(</span><span class="va">i</span> <span class="kw">in</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">families</span><span class="op">)</span><span class="op">)</span><span class="op">{</span></span>
-<span>  <span class="va">family</span> <span class="op">=</span> <span class="va">families</span><span class="op">[</span><span class="va">i</span><span class="op">]</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">i</span>, <span class="st">': '</span>, <span class="va">family</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/save.html" class="external-link">save</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span>, file <span class="op">=</span> <span class="st">'data_current.rda'</span><span class="op">)</span></span>
-<span></span>
-<span>  <span class="co"># First let's try and get the whole family in one go.</span></span>
-<span>  <span class="va">family_data</span> <span class="op">=</span> <span class="fu">extract_search_BGCI_plant_search</span><span class="op">(</span>family <span class="op">=</span> <span class="va">family</span>, RSelenium_server <span class="op">=</span> <span class="va">rmDr</span>, try_over_1000 <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>                                                 cultivar_status <span class="op">=</span> <span class="st">'exclude'</span>, germplasm_type <span class="op">=</span> <span class="st">'plant'</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">i</span>, <span class="st">': '</span>, <span class="va">family</span>, <span class="st">'   found = '</span>, <span class="va">family_data</span><span class="op">$</span><span class="va">number_found</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="va">family_size</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">family_size</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">family</span>,<span class="va">family_data</span><span class="op">$</span><span class="va">number_found</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">family_data</span><span class="op">$</span><span class="va">number_found</span> <span class="op">&lt;=</span> <span class="fl">1000</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span>, <span class="va">family_data</span><span class="op">$</span><span class="va">table</span><span class="op">)</span></span>
-<span>    <span class="kw">next</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="va">family_data</span><span class="op">$</span><span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">1000</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="co">#Loop over each letter of the alpha bet.</span></span>
-<span>    <span class="va">current_family_data</span> <span class="op">=</span> <span class="cn">NULL</span></span>
-<span>    <span class="va">issue_letters</span> <span class="op">=</span> <span class="cn">NULL</span></span>
-<span>    <span class="kw">for</span><span class="op">(</span><span class="va">letter</span> <span class="kw">in</span> <span class="va">LETTERS</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="va">data_cur</span> <span class="op">=</span> <span class="fu">extract_search_BGCI_plant_search</span><span class="op">(</span>family <span class="op">=</span> <span class="va">family</span>, genus <span class="op">=</span> <span class="va">letter</span>, RSelenium_server <span class="op">=</span> <span class="va">rmDr</span>, try_over_1000 <span class="op">=</span> <span class="cn">FALSE</span>, cultivar_status <span class="op">=</span> <span class="st">'exclude'</span><span class="op">)</span></span>
-<span>      <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">letter</span>,<span class="st">': '</span>, <span class="va">data_cur</span><span class="op">$</span><span class="va">number_found</span><span class="op">)</span><span class="op">)</span></span>
-<span>      <span class="kw">if</span><span class="op">(</span><span class="va">data_cur</span><span class="op">$</span><span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">1000</span><span class="op">)</span><span class="op">{</span></span>
-<span>        <span class="va">issue_letters</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">issue_letters</span>, <span class="va">letter</span><span class="op">)</span></span>
-<span>      <span class="op">}</span></span>
-<span>      <span class="kw">else</span><span class="op">{</span></span>
-<span>        <span class="va">current_family_data</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">current_family_data</span>, <span class="va">data_cur</span><span class="op">$</span><span class="va">table</span><span class="op">)</span></span>
-<span>      <span class="op">}</span></span>
-<span>    <span class="op">}</span></span>
-<span>    </span>
-<span>    <span class="va">issue_letters2</span> <span class="op">=</span> <span class="cn">NULL</span></span>
-<span>    <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">issue_letters</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
-<span>      <span class="kw">for</span><span class="op">(</span><span class="va">issue_letter</span> <span class="kw">in</span> <span class="va">issue_letters</span><span class="op">)</span><span class="op">{</span></span>
-<span>        <span class="kw">for</span><span class="op">(</span><span class="va">letter</span> <span class="kw">in</span> <span class="va">LETTERS</span><span class="op">)</span><span class="op">{</span></span>
-<span>          <span class="va">data_cur</span> <span class="op">=</span> <span class="fu">extract_search_BGCI_plant_search</span><span class="op">(</span>family <span class="op">=</span> <span class="va">family</span>, genus <span class="op">=</span> <span class="va">issue_letter</span>, specific_epithet <span class="op">=</span> <span class="va">letter</span>, RSelenium_server <span class="op">=</span> <span class="va">rmDr</span>, try_over_1000 <span class="op">=</span> <span class="cn">FALSE</span>, cultivar_status <span class="op">=</span> <span class="st">'exclude'</span><span class="op">)</span></span>
-<span>          <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">issue_letter</span>,<span class="st">' and '</span>,<span class="va">letter</span>, <span class="st">':  '</span>, <span class="va">data_cur</span><span class="op">$</span><span class="va">number_found</span><span class="op">)</span><span class="op">)</span></span>
-<span>          <span class="kw">if</span><span class="op">(</span><span class="va">data_cur</span><span class="op">$</span><span class="va">number_found</span> <span class="op">&gt;</span> <span class="fl">1000</span><span class="op">)</span><span class="op">{</span></span>
-<span>            <span class="va">issue_letters2</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">issue_letters2</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">issue_letter</span>, <span class="st">' '</span>, <span class="va">letter</span><span class="op">)</span><span class="op">)</span></span>
-<span>          <span class="op">}</span></span>
-<span>          <span class="kw">else</span><span class="op">{</span></span>
-<span>            <span class="va">current_family_data</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">current_family_data</span>, <span class="va">data_cur</span><span class="op">$</span><span class="va">table</span><span class="op">)</span></span>
-<span>          <span class="op">}</span></span>
-<span>        <span class="op">}</span></span>
-<span>      <span class="op">}</span></span>
-<span>      <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">issue_letters2</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">0</span><span class="op">)</span><span class="op">{</span></span>
-<span>        <span class="fu"><a href="https://rdrr.io/r/base/warnings.html" class="external-link">warnings</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="st">'For '</span>, <span class="va">family</span>, <span class="st">' we have more than 1000 for '</span>, <span class="va">issue_letters2</span><span class="op">)</span><span class="op">)</span></span>
-<span>        </span>
-<span>      <span class="op">}</span></span>
-<span>    <span class="op">}</span></span>
-<span>   </span>
-<span>    </span>
-<span>    <span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span>, <span class="va">current_family_data</span><span class="op">)</span></span>
-<span>    </span>
-<span>  <span class="op">}</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="va">remote_driver</span><span class="op">$</span><span class="va">server</span><span class="op">$</span><span class="kw">stop</span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># We have now web scraped the families we want into the variable `BGCI_plant_search`.</span></span></code></pre></div>
-<p><strong><em>NOTE:</em></strong> web scraping can be used for creating
-enrichment data from many online taxonomic resources.</p>
-<p>Once we have obtained the data we want to format it ready to be
-matched via BGSmartR.</p>
-<p>We can do this by running the following:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Want to split taxonomic name and authority up into parts.  We do this via the spacing between words and capital letter search.</span></span>
-<span><span class="va">taxon_parts</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="fu">pbapply</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pbapply/man/pbapply.html" class="external-link">pblapply</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span><span class="op">$</span><span class="va">`Taxonomic Name and Autority`</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">{</span></span>
-<span>  <span class="co"># 1) If we can split on 5 space or 4 space and get two parts take the first part.</span></span>
-<span>  <span class="va">split_5space</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split</a></span><span class="op">(</span><span class="va">x</span>, <span class="st">'     '</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">)</span> <span class="op">==</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="co"># find the words with capital letters</span></span>
-<span>    <span class="va">start_authority</span> <span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">'[A-Z]'</span>, <span class="va">split_5space</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
-<span>    <span class="va">taxon_name</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="va">start_authority</span><span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">taxon_author</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">[</span><span class="va">start_authority</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_5space</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">taxon_name</span>, <span class="va">taxon_author</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  <span class="va">split_4space</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split</a></span><span class="op">(</span><span class="va">x</span>, <span class="st">'    '</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">)</span> <span class="op">==</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="co"># find the words with capital letters</span></span>
-<span>    <span class="va">start_authority</span> <span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">'[A-Z]'</span>, <span class="va">split_4space</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
-<span>    <span class="va">taxon_name</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="va">start_authority</span><span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">taxon_author</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">[</span><span class="va">start_authority</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_4space</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">taxon_name</span>, <span class="va">taxon_author</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  <span class="va">split_3space</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split</a></span><span class="op">(</span><span class="va">x</span>, <span class="st">'   '</span><span class="op">)</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">)</span> <span class="op">==</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  <span class="kw">if</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">)</span> <span class="op">&gt;</span> <span class="fl">2</span><span class="op">)</span><span class="op">{</span></span>
-<span>    <span class="co"># find the words with capital letters</span></span>
-<span>    <span class="va">start_authority</span> <span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/which.html" class="external-link">which</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grepl</a></span><span class="op">(</span><span class="st">'[A-Z]'</span>, <span class="va">split_3space</span><span class="op">)</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="fl">1</span><span class="op">]</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span></span>
-<span>    <span class="va">taxon_name</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="op">(</span><span class="va">start_authority</span><span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="va">taxon_author</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">[</span><span class="va">start_authority</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">split_3space</span><span class="op">)</span><span class="op">]</span>, collapse <span class="op">=</span> <span class="st">' '</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">taxon_name</span>, <span class="va">taxon_author</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span></span>
-<span>  </span>
-<span>  </span>
-<span>  <span class="co"># If we get to this stage we assume there are no authors and therefore return (x,'')</span></span>
-<span>  </span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">x</span>,<span class="st">''</span><span class="op">)</span><span class="op">)</span></span>
-<span>    <span class="op">}</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/colnames.html" class="external-link">rownames</a></span><span class="op">(</span><span class="va">taxon_parts</span><span class="op">)</span> <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">taxon_parts</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># squish the taxon name and author to remove excess whitespace.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">taxon_parts</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'taxon_name'</span>, <span class="st">'taxon_author'</span><span class="op">)</span></span>
-<span><span class="va">taxon_parts</span><span class="op">$</span><span class="va">taxon_name</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="va">taxon_parts</span><span class="op">$</span><span class="va">taxon_name</span><span class="op">)</span></span>
-<span><span class="va">taxon_parts</span><span class="op">$</span><span class="va">taxon_author</span> <span class="op">=</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="va">taxon_parts</span><span class="op">$</span><span class="va">taxon_author</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Join the taxonomic name and author to the extracted BGCI plant search and rename/reorder columns.</span></span>
-<span><span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span>,<span class="va">taxon_parts</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span><span class="op">)</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">'taxon_name_full'</span>, <span class="st">'family'</span>, <span class="st">'name_status'</span>, <span class="st">'no_gardens'</span>, <span class="st">'taxon_names'</span>, <span class="st">'taxon_authors'</span><span class="op">)</span></span>
-<span><span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="va">BGCI_plant_search</span><span class="op">[</span>,<span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>,<span class="fl">5</span>,<span class="fl">6</span>,<span class="fl">2</span>,<span class="fl">3</span>,<span class="fl">4</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co"># Remove excess whitespace from the extracted combined taxonomic name and author.</span></span>
-<span><span class="va">BGCI_plant_search</span><span class="op">$</span><span class="va">taxon_name_full</span> <span class="op">=</span> <span class="va">BGCI_plant_search</span><span class="op">$</span><span class="va">taxon_name_full</span> <span class="op">|&gt;</span> <span class="fu">stringr</span><span class="fu">::</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_trim.html" class="external-link">str_squish</a></span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Run enrichement database preparation on BGCI plant search data set.</span></span>
-<span><span class="va">BGCI_plant_search</span> <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="fu"><a href="../reference/prepare_enrich_database.html">prepare_enrich_database</a></span><span class="op">(</span><span class="va">BGCI_plant_search</span>,</span>
-<span>                                  enrich_taxon_name_column <span class="op">=</span> <span class="st">'taxon_names'</span>,</span>
-<span>                                  enrich_taxon_authors_column <span class="op">=</span> <span class="st">'taxon_authors'</span>,</span>
-<span>                                  do_sort <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>                                  console_message <span class="op">=</span> <span class="cn">T</span></span>
-<span>                                  <span class="op">)</span></span>
-<span></span>
-<span><span class="co"># We now have `BGCI_plant_search` ready to be matched.</span></span></code></pre></div>
-<hr>
-</div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
 </div>
@@ -773,7 +390,7 @@ matched via BGSmartR.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.1.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.2.</p>
 </div>
 
     </footer>
