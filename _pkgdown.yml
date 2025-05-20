@@ -6,7 +6,7 @@ navbar:
  components:
     intro:
       text: Get started
-      href: articles/BGsmartR.html
+      href: BGsmartR.html
   structure:
     left:
     - intro
