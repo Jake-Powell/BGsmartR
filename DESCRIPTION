@@ -48,6 +48,6 @@ Imports:
     htmlwidgets,
     taxize
 VignetteBuilder: knitr
-URL: https://jakepowellcubg.github.io/BGsmartR/
+URL: https://jake-powell.github.io/BGsmartR/
 Remotes: 
     github::matildabrown/rWCVPdata
