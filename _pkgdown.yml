@@ -1,14 +1,22 @@
 url: https://jake-powell.github.io/BGsmartR/
 template:
   bootstrap: 5
-  light-switch: true
-
+  light-switch: yes
 navbar:
+ components:
+    intro:
+      text: Get started
+      href: articles/BGsmartR.html
   structure:
-    left: [intro, articles, reference, news]
-    right: [search, github, lightswitch]
-
-
+    left:
+    - intro
+    - articles
+    - reference
+    - news
+    right:
+    - search
+    - github
+    - lightswitch
 reference:
 - title: Matching functions
   contents:
@@ -33,7 +41,6 @@ reference:
   - author_from_taxon_name_full
   - sanitise_name
   - taxon_type
-
 - title: WCVP/POWO specific functions
   contents:
   - convert_to_accepted_name
@@ -44,19 +51,13 @@ reference:
   - import_wcvp_names
   - generate_labels
   - get_accepted_plant
-
 - title: Enriching functions
   contents:
   - add_status_year
   - enrich_collection
   - enrich_collection_from_enrich_database
-
 - title: Create enrichment databases
-  contents:
-  - prepare_enrich_database
-
-
-
+  contents: prepare_enrich_database
 - title: Modules
   contents:
   - create_data_health_report
@@ -71,7 +72,6 @@ reference:
   - create_geography_report
   - create_trends_report
   - create_turnover_report
-
 - title: Simplified datasets
   contents:
   - typo_list
@@ -84,7 +84,6 @@ reference:
   - Diversity_classification
   - collection_example
   - enriched_collection_example
-
 - title: Misc
   contents:
   - value_of_items
@@ -92,3 +91,4 @@ reference:
   - exist_at_date
   - extract_year
   - add_alpha
+

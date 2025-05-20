@@ -125,13 +125,27 @@ In summary we can use `enrich_collection()` to enrich a collection with a combin
 
 ## Creating reports
 
-Within BGsmartR we can create reports for:
+Within BGsmartR we can create 12 different reports for:
 
-- Trends 
-- Turnover
-- etc
+- Overview: The "best" information and graphics from the other reports.
+- Trends: Exploring how the collection has changed over time.
+- Turnover: A look at flow of incoming and outgoing plants into the collection.
+- Geography: Where in the world the plants of the collection come from.
+- Taxonomic Diversity: What type of plants are held in the collection.
+- Threatened: A deep dive into threatened plants in the collection. 
+- Native: A deep dive into native (to the collections location) plants in the collection.
+- Endemic: A deep dive into endemic plants in the collection.
+- Tree: A deep dive into trees in the collection.
+- Duplication: Exploring how often multiple copys of the same plants exist in the collection.
+- Data Health: A look into the health of the data records for the collection.
+- Sustainability: How long plants "survive" in the collection. 
 
-To run these reports we require the collection's information to be enriched with data from POWO, IUCN RedList, BGCI GlobalTreeSearch and BGCI's PlantSearch.
+To run these reports we require the collection's information to be enriched with data from POWO, IUCN RedList, BGCI GlobalTreeSearch and BGCI's PlantSearch. In addition we sometimes need further information such as:
+
+- detailed_IUCN_redlist: IUCN redlist information enriched with POWO ID and geography (where possible).
+- wcvp: World checklist of vascular plants (WCVP) information where each record is linked to IUCN red list and GlobalTreeSearch (where possible).
+- wgsrpd3: Geographic information of botanic countries used in geographic graphics.
+- coordinates: coordinates of the collections location (used to determine native plants).
 
 Within the BGsmartR package we provide an example enriched dataset in `BGSmartR::enriched_collection_example` which can be used to test the outputs of all the reports.
 
@@ -139,15 +153,27 @@ Note that some of the reports create geographic maps of plant distributions to d
 
 Moreover, to create some of the reports further information is required such as:
 
-- "wcvp" World checklist of vascular plants database formatted using BGsmartR.
-- "detailed_IUCN_redlist" IUCN redlist information with history. 
+- wcvp:  World checklist of vascular plants enriched with further information.
+- detailed_IUCN_redlist: IUCN redlist information with history and selected WCVP information. 
+- endemic_species_per_region: The number of endemic species found in each geographic region.
+- accepted_species_per_region: The number of endemic species found in each geographic region.
+- tree_species_per_region: The number of endemic species found in each geographic region.
+
+Versions of these objects can be found at (these are from early 2024 and do not contain any newer information, in .rda files):
+
+- [Numbers per region](https://1drv.ms/u/c/a883590ecc586c9b/ETIt0lqO5VFEqsBar4psvTcB7YF-udjCXxHh6Y1nrxjWUQ?e=WrpLev)
+- [Red list information with linked POWO ID and geography](https://1drv.ms/u/c/a883590ecc586c9b/EdM__nnikyFHvY7-hOFcv_MBtlvRUDOh606ZQrLawkYc8w?e=Q9hgR9v)
+- [Combined WCVP (names and distribution), Red list, and GlobalTreeSearch information](https://1drv.ms/u/c/a883590ecc586c9b/Ee1blTSGkNNNiVUNhZiRpbIBdHXZE67JEwm1xg42AbveKA?e=AdVPWx)
+
+Disclaimer:
+We do not claim ownership of the data linked above. This information is publicly available and shared for informational purposes only. If you are the rightful owner of any content and would like it removed, please contact us at jjp68@cam.ac.uk or message on the github repo and we will address your request promptly.
 
 ```{r, eval  = F}
 enriched_report = BGSmartR::enriched_collection_example
 collection = 'My collection'
 coordinates = c(52.19376551784332, 0.12777705055343996) # set to CUBG.
 output_dir = getwd()
-wgsrpd3 = rWCVPdata::wgsrpd3
+wgsrpd3 = rWCVPdata::wgsrpd3 # Use rWCVPData package to get wgsrpd3 information.
 
 
 BGSmartR::create_trends_report(enriched_report = enriched_report,
