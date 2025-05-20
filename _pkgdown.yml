@@ -3,20 +3,20 @@ template:
   bootstrap: 5
   light-switch: yes
 navbar:
- components:
+  components:
     intro:
       text: Get started
-      href: BGsmartR.html
+      href: articles/BGsmartR.html
   structure:
     left:
-    - intro
-    - articles
-    - reference
-    - news
+      - intro
+      - articles
+      - reference
+      - news
     right:
-    - search
-    - github
-    - lightswitch
+      - search
+      - github
+      - lightswitch
 reference:
 - title: Matching functions
   contents:
