@@ -8,9 +8,10 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
+eval = F
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>", eval = F
 )
 ```
 
@@ -24,7 +25,7 @@ In this example we go from an example collection, enriching with botanic resourc
 
 First let's load the collection.
 
-```{r}
+```{r, eval = T}
 collection = BGSmartR::collection_example
 
 collection |> DT::datatable(rownames = F)
@@ -111,7 +112,7 @@ enrich_collection = BGSmartR::enrich_collection_from_enrich_database(
   )
 ```
 
-We find that `r enrich_collection$Enrich_is_tree |> sum(na.rm = T)` records are trees.
+We find that `r if(eval){ enrich_collection$Enrich_is_tree |> sum(na.rm = T)}` records are trees.
 
 ```{r}
 enrich_collection$Enrich_is_tree |> table(useNA = 'always')
@@ -174,7 +175,7 @@ collection = 'My collection'
 coordinates = c(52.19376551784332, 0.12777705055343996) # set to CUBG.
 output_dir = getwd()
 wgsrpd3 = rWCVPdata::wgsrpd3 # Use rWCVPData package to get wgsrpd3 information.
-
+# Need to download linked data and load into R environment (otherwise some reports will fail)
 
 BGSmartR::create_trends_report(enriched_report = enriched_report,
                                collection = collection,
@@ -259,3 +260,8 @@ BGSmartR::create_sustainability_report(enriched_report = enriched_report,
 
 
 ```
+
+
+We can view the reports for the example dataset at:
+
+- [Trends report](articles/My collection_trends_interactive.html)
