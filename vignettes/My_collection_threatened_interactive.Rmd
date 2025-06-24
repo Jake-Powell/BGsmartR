@@ -1,6 +1,0 @@
----
-title: "My Collection Threatened (Interactive)"
-output: html_document
----
-
-<iframe src="My_collection_threatened_interactive.html" width="100%" height="800px"></iframe>

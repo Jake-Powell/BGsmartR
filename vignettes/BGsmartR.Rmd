@@ -8,10 +8,10 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
-eval = F
+eval = T
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>", eval = F
+  comment = "#>", eval = eval
 )
 ```
 
@@ -262,6 +262,6 @@ BGSmartR::create_sustainability_report(enriched_report = enriched_report,
 ```
 
 
-We can view the reports for the example dataset at:
+As the reports are relatively large (generally ~30MB) they are not included in the package however you can access the outputs of the above code from the following link, [BGsmartR example reports](https://1drv.ms/f/c/a883590ecc586c9b/EvF_8ampT9ZKmVsyamP_Vd8BO5VuaJa1TRAmsqMlcgA9CQ?e=xslVwT).
 
-- [Trends report](articles/My collection_trends_interactive.html)
+***

@@ -19,39 +19,11 @@ navbar:
           href: articles/Matching.html
         - text: "Value of Items"
           href: articles/value_of_items.html
-    examples:
-      text: Example Reports
-      menu:
-        - text: "Overview"
-          href: articles/My_collection_overview_interactive.html
-        - text: "Trends"
-          href: articles/My_collection_trends_interactive.html
-        - text: "Turnover"
-          href: articles/My_collection_turnover_interactive.html
-        - text: "Duplication"
-          href: articles/My_collection_duplication_interactive.html
-        - text: "Geography"
-          href: articles/My_collection_geography_interactive.html
-        - text: "Taxonomic Diversity"
-          href: articles/My_collection_taxonoic_diversity_interactive.html
-        - text: "Threatened"
-          href: articles/My_collection_threatened_interactive.html
-        - text: "Native"
-          href: articles/My_collection_native_interactive.html
-        - text: "Endemic"
-          href: articles/My_collection_endemic_interactive.html
-        - text: "Trees"
-          href: articles/My_collection_trees_interactive.html
-        - text: "Data Health"
-          href: articles/My_collection_data_health_interactive.html
-        - text: "Sustainability"
-          href: articles/My_collection_sustainability_interactive.html
 
   structure:
     left:
       - intro
       - articles
-      - examples
       - reference
       - news
     right:
@@ -66,21 +38,6 @@ articles:
       - enrich_data
       - Matching
       - value_of_items
-  - title: "Output Examples"
-    desc: "Rendered example outputs for demonstration."
-    contents:
-      - My_collection_overview_interactive
-      - My_collection_trends_interactive
-      - My_collection_turnover_interactive
-      - My_collection_duplication_interactive
-      - My_collection_geography_interactive
-      - My_collection_taxonomic_diversity_interactive
-      - My_collection_threatened_interactive
-      - My_collection_native_interactive
-      - My_collection_endemic_interactive
-      - My_collection_trees_interactive
-      - My_collection_data_health_interactive
-      - My_collection_sustainability_interactive
 
 
 reference:

@@ -1,6 +1,0 @@
----
-title: "My Collection Geography (Interactive)"
-output: html_document
----
-
-<iframe src="My_collection_geography_interactive.html" width="100%" height="800px"></iframe>

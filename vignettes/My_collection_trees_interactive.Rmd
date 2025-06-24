@@ -1,6 +1,0 @@
----
-title: "My Collection Trees (Interactive)"
-output: html_document
----
-
-<iframe src="My_collection_trees_interactive.html" width="100%" height="800px"></iframe>
