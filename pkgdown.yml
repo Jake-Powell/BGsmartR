@@ -1,24 +1,12 @@
 pandoc: 3.1.11
-pkgdown: 2.1.2
+pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
   BGsmartR: BGsmartR.html
   enrich_data: enrich_data.html
   Matching: Matching.html
-  My_collection_data_health_interactive: My_collection_data_health_interactive.html
-  My_collection_duplication_interactive: My_collection_duplication_interactive.html
-  My_collection_endemic_interactive: My_collection_endemic_interactive.html
-  My_collection_geography_interactive: My_collection_geography_interactive.html
-  My_collection_native_interactive: My_collection_native_interactive.html
-  My_collection_overview_interactive: My_collection_overview_interactive.html
-  My_collection_sustainability_interactive: My_collection_sustainability_interactive.html
-  My_collection_taxonomic_diversity_interactive: My_collection_taxonomic_diversity_interactive.html
-  My_collection_threatened_interactive: My_collection_threatened_interactive.html
-  My_collection_trees_interactive: My_collection_trees_interactive.html
-  My_collection_trends_interactive: My_collection_trends_interactive.html
-  My_collection_turnover_interactive: My_collection_turnover_interactive.html
   value_of_items: value_of_items.html
-last_built: 2025-05-22T08:01Z
+last_built: 2025-06-24T17:14Z
 urls:
   reference: https://jake-powell.github.io/BGsmartR/reference
   article: https://jake-powell.github.io/BGsmartR/articles

@@ -44,23 +44,6 @@
     <li><a class="dropdown-item" href="../articles/value_of_items.html">Value of Items</a></li>
   </ul>
 </li>
-<li class="nav-item dropdown">
-  <button class="nav-link dropdown-toggle" type="button" id="dropdown-example-reports" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Example Reports</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-example-reports">
-<li><a class="dropdown-item" href="../articles/My_collection_overview_interactive.html">Overview</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_trends_interactive.html">Trends</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_turnover_interactive.html">Turnover</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_duplication_interactive.html">Duplication</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_geography_interactive.html">Geography</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_taxonoic_diversity_interactive.html">Taxonomic Diversity</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_threatened_interactive.html">Threatened</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_native_interactive.html">Native</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_endemic_interactive.html">Endemic</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_trees_interactive.html">Trees</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_data_health_interactive.html">Data Health</a></li>
-    <li><a class="dropdown-item" href="../articles/My_collection_sustainability_interactive.html">Sustainability</a></li>
-  </ul>
-</li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
@@ -157,14 +140,60 @@ example collection to perform enriching.</p>
 <span></span>
 <span><span class="co"># Enrich the collection with POWO (WCVP) information</span></span>
 <span><span class="va">enrich_collection</span> <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="fu"><a href="../reference/enrich_collection.html">enrich_collection</a></span><span class="op">(</span><span class="va">collection</span>,</span>
-<span>                                                wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span></code></pre></div>
+<span>                                                wcvp <span class="op">=</span> <span class="va">wcvp</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Sanitise taxon name and extract author</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Adding POWO information</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `123` records found.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Extracting taxon names and authors from the original report</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Taxon authors not provided.</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Reducing to unique taxon names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `100` unique taxon names/ taxon name author combinations found.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Found 0 exceptions to known not in POWO.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Removing known not to be in POWO from 100 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 19 known not to be in POWO</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching 81 names to unique taxon names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 74 of 81 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching 7 names to non-unique taxon names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 4 of 7 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Testing and matching taxon name issues for 3 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying removing autonyms from taxon names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying fixing hybrid for taxon names with 2/3/4 words 2 names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying changing/removing hybrid for taxon names 1 name</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 0 of 3 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Testing and matching typos for 3 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 0 of 3 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Converting to accepted name..</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Updated to accepted name for 5 of 100 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching Complete</span> ──</span></span>
+<span><span class="co">#&gt; </span></span></code></pre></div>
 <p>We see console messaging informing of the matching process. In total
 an additional 30 columns have been added to the original dataset. Below
 we show the information for the first two plant records (transposed for
 easier viewing)</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">enrich_collection</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">2</span>,<span class="op">]</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span>   <span class="fu">DT</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/DT/man/datatable.html" class="external-link">datatable</a></span><span class="op">(</span>rownames <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span></code></pre></div>
-<p>We see that we have information detailing the matching process, and
+<div class="datatables html-widget html-fill-item" id="htmlwidget-e5c8c404fe174e4c81bd" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-e5c8c404fe174e4c81bd">{"x":{"filter":"none","vertical":false,"data":[["ItemAccNoFull","AccNoFull","AccYear","ProvenanceCode","TaxonName","TaxonNameFull","ItemStatusType","ItemStatusDate","sanitised_taxon","need_sanitise","extracted_author","POWO_original_authors","POWO_match_taxon_name","POWO_match_authors","POWO_author_check","POWO_match_detail","POWO_match_detail_short","POWO_plant_name_id","POWO_taxon_name","POWO_taxon_authors","POWO_taxon_rank","POWO_taxon_status","POWO_powo_id","POWO_family","POWO_genus","POWO_species","POWO_lifeform_description","POWO_climate_description","POWO_geographic_area","POWO_Dist_000_area_code_l3","POWO_Dist_000_labels","POWO_Dist_100_area_code_l3","POWO_Dist_010_area_code_l3","POWO_Dist_001_area_code_l3","POWO_Dist_101_area_code_l3","POWO_Dist_110_area_code_l3","POWO_Dist_011_area_code_l3","POWO_web_address"],["1962-1-A","1962-1","1962","G","Scilla autumnalis","Scilla autumnalis L.","Existing","2024-04-28","Scilla autumnalis","FALSE","",null,"Scilla autumnalis","L.","Different","Scilla autumnalis -&gt; (matches record with single entry) -&gt; (540667-1, Scilla autumnalis) -&gt; (Go to accepted name) -&gt; (961855-1, Prospero autumnale)","SINGLE, ACCEPTED"," 285270","Prospero autumnale","(L.) Speta","Species","Accepted","961855-1","Asparagaceae","Prospero","autumnale","bulbous geophyte","temperate","W. Europe to Medit.","GRB, HUN, BAL, COR, FRA, POR, SAR, SPA, ALB, BUL, GRC, ITA, KRI, ROM, SIC, TUE, YUG, KRY, UKR, ALG, LBY, MOR, TUN, NCS, TCS, CYP, EAI, LBS, PAL, TUR","OLD WORLD","GER",null,null,null,null,null,"https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:961855-1"],["1964-2-A","1964-2","1964","G","Hertia cheirifolia","Hertia cheirifolia Kuntze","NotExisting","1996-09-12","Hertia cheirifolia","FALSE","",null,"Hertia cheirifolia","(L.) Kuntze","Different","Hertia cheirifolia -&gt; (matches record with single entry) -&gt; (213864-1, Hertia cheirifolia)","SINGLE","3086065","Hertia cheirifolia","(L.) Kuntze","Species","Accepted","213864-1","Asteraceae","Hertia","cheirifolia","","","Algeria to Tunisia","ALG, TUN","Algeria, Tunisia",null,null,null,null,null,null,"https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:213864-1"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>X221011<\/th>\n      <th>X27051<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"orderable":false,"targets":0},{"name":" ","targets":0},{"name":"X221011","targets":1},{"name":"X27051","targets":2}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script><p>We see that we have information detailing the matching process, and
 information taken from the WCVP database.</p>
 <p>If we further want to match the collection to BGCI GlobalTreeSeach we
 could do the following</p>
@@ -179,6 +208,15 @@ could do the following</p>
 <span>                                  enrich_taxon_name_column <span class="op">=</span> <span class="st">'taxon_names'</span>,</span>
 <span>                                  enrich_taxon_authors_column <span class="op">=</span> <span class="st">'taxon_author'</span>,</span>
 <span>                                  console_message <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Sanitising taxonomic names and author</span> <span style="color: #00BBBB;">───────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Add taxon name length column</span> <span style="color: #00BBBB;">────────────────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Add single entry column</span> <span style="color: #00BBBB;">─────────────────────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Add author words column</span> <span style="color: #00BBBB;">─────────────────────────────────────────────────────</span></span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Sort the records into alphabetical order</span> <span style="color: #00BBBB;">────────────────────────────────────</span></span></span>
 <span></span>
 <span><span class="co">### Enrich the collection with trees</span></span>
 <span><span class="va">enrich_collection</span> <span class="op">=</span> <span class="fu">BGSmartR</span><span class="fu">::</span><span class="fu"><a href="../reference/enrich_collection_from_enrich_database.html">enrich_collection_from_enrich_database</a></span><span class="op">(</span></span>
@@ -189,10 +227,49 @@ could do the following</p>
 <span>  enrich_taxon_name_column <span class="op">=</span> <span class="st">'sanitise_name'</span>,</span>
 <span>  enrich_taxon_authors_column <span class="op">=</span> <span class="st">'sanitise_author'</span>,</span>
 <span>  columns_to_enrich <span class="op">=</span> <span class="st">'is_tree'</span></span>
-<span>  <span class="op">)</span></span></code></pre></div>
-<p>We find that records are trees.</p>
+<span>  <span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `123` records found.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Extracting taxon names and authors from the collection</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Reducing to unique taxon name and author combinations</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> `100` unique taxon names/ taxon name author combinations found.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Removing cultivars and indeterminates from 100 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 19 cultivars and indeterminates</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching 81 names to unique taxon names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 9 of 81 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching 72 names to non-unique taxon names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 0 of 72 names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying removing autonyms from taxon names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying fixing hybrid for taxon names with 2/3/4 words 17 names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying changing/removing hybrid for taxon names 3 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Testing and matching taxon name issues for 72 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying removing autonyms from taxon names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying fixing hybrid for taxon names with 2/3/4 words 71 names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Trying changing/removing hybrid for taxon names 3 names</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 0 of 72 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Testing and matching typos for 72 names</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 0 of 72 names</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Matching Complete</span> ──</span></span>
+<span><span class="co">#&gt; </span></span></code></pre></div>
+<p>We find that 10 records are trees.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">enrich_collection</span><span class="op">$</span><span class="va">Enrich_is_tree</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>useNA <span class="op">=</span> <span class="st">'always'</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">enrich_collection</span><span class="op">$</span><span class="va">Enrich_is_tree</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>useNA <span class="op">=</span> <span class="st">'always'</span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; TRUE &lt;NA&gt; </span></span>
+<span><span class="co">#&gt;   10  113</span></span></code></pre></div>
 <p>Note that this method could be improved see XX.</p>
 <p>In summary we can use <code><a href="../reference/enrich_collection.html">enrich_collection()</a></code> to enrich a
 collection with a combination of WCVP, IUCN RedList or BGCI PlantSearch
@@ -371,11 +448,11 @@ will address your request promptly.</p>
 <span>                                       wgsrpd3 <span class="op">=</span> <span class="va">wgsrpd3</span>,</span>
 <span>                                       coordinates <span class="op">=</span> <span class="va">coordinates</span>,</span>
 <span>                                       output_dir <span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="va">output_dir</span>, <span class="st">'/sustainability'</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p>We can view the reports for the example dataset at:</p>
-<ul>
-<li><a href="articles/My%20collection_trends_interactive.html">Trends
-report</a></li>
-</ul>
+<p>As the reports are relatively large (generally ~30MB) they are not
+included in the package however you can access the outputs of the above
+code from the following link, <a href="https://1drv.ms/f/c/a883590ecc586c9b/EvF_8ampT9ZKmVsyamP_Vd8BO5VuaJa1TRAmsqMlcgA9CQ?e=xslVwT" class="external-link">BGsmartR
+example reports</a>.</p>
+<hr>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -389,7 +466,7 @@ report</a></li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.2.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
 </div>
 
     </footer>
