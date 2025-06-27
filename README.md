@@ -9,6 +9,9 @@
 The goal of BGsmartR is to enrich living collections records and create
 reports and analysis’ of collections.
 
+See the “Get Started” page for further detail and examples of using the
+R package.
+
 ## Installation
 
 You can install the development version of BGsmartR from
@@ -16,5 +19,5 @@ You can install the development version of BGsmartR from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("Jake-Powell/BGsmartR")
+devtools::install_github("cubg-curation/BGsmartR")
 ```

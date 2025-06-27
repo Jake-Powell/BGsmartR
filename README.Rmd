@@ -21,12 +21,14 @@ knitr::opts_chunk$set(
 
 The goal of BGsmartR is to  enrich living collections records and create reports and analysis’ of collections.
 
+See the "Get Started" page for further detail and examples of using the R package.
+
 ## Installation
 
 You can install the development version of BGsmartR from [GitHub](https://github.com/) with:
 
 ```{r, eval = F}
 # install.packages("devtools")
-devtools::install_github("Jake-Powell/BGsmartR")
+devtools::install_github("cubg-curation/BGsmartR")
 ```
 
